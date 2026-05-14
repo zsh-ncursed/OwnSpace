@@ -1,0 +1,520 @@
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --primary: #0f3460;
+  --accent: #e94560;
+  --text: #eaeaea;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--primary);
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.tab.active {
+  background: var(--primary);
+}
+
+.tab-add {
+  background: var(--accent);
+  font-weight: bold;
+}
+
+.workspace {
+  padding: 20px;
+  min-height: calc(100vh - 60px);
+}
+
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.widget {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 200px;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--primary);
+}
+
+.widget-title {
+  font-weight: 600;
+}
+
+.widget-actions button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.6;
+}
+
+.widget-actions button:hover {
+  opacity: 1;
+}
+
+.add-widget-btn {
+  display: block;
+  margin: 40px auto;
+  padding: 16px 32px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--surface);
+  padding: 24px;
+  border-radius: 8px;
+  min-width: 300px;
+}
+
+.widget-title-input {
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.bookmarks-widget .add-bookmark {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bookmarks-widget .add-bookmark input {
+  flex: 1;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+}
+
+.bookmarks-widget .add-bookmark button {
+  padding: 8px 16px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.bookmark-item .favicon {
+  width: 16px;
+  height: 16px;
+}
+
+.bookmark-item .bookmark-title {
+  flex: 1;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.bookmark-item .title-input {
+  flex: 1;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 2px;
+}
+
+.bookmark-item .edit-btn,
+.bookmark-item .delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+}
+
+.bookmark-item .edit-btn:hover,
+.bookmark-item .delete-btn:hover {
+  opacity: 1;
+}
+
+.notes-widget textarea {
+  width: 100%;
+  height: 150px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.save-indicator {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.datetime-widget {
+  text-align: center;
+}
+
+.datetime-widget .date {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.datetime-widget .time {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.weather-widget {
+  text-align: center;
+}
+
+.weather-widget input {
+  width: 100%;
+  padding: 8px;
+  margin: 8px 0;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+}
+
+.weather-widget .temp {
+  font-size: 36px;
+  font-weight: bold;
+}
+
+.weather-widget .desc {
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.calendar-widget {
+  font-size: 14px;
+}
+
+.calendar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-nav button {
+  background: var(--primary);
+  border: none;
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-header {
+  text-align: center;
+  font-weight: 600;
+  padding: 4px;
+  font-size: 12px;
+}
+
+.calendar-day {
+  text-align: center;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-height: 40px;
+}
+
+.calendar-day:hover:not(.empty) {
+  background: var(--primary);
+}
+
+.calendar-day.selected {
+  background: var(--accent);
+}
+
+.calendar-day.empty {
+  cursor: default;
+}
+
+.event-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.event-bar {
+  height: 4px;
+  border-radius: 2px;
+}
+
+.add-event-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.events-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--primary);
+  padding-top: 12px;
+}
+
+.events-list h4 {
+  margin-bottom: 8px;
+}
+
+.events-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.events-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.events-list li span {
+  flex: 1;
+}
+
+.widget-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.widget-options button {
+  padding: 12px;
+  background: var(--primary);
+  border: none;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.widget-options button:hover {
+  background: var(--accent);
+}
+
+.modal-close {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.tabs-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--primary);
+}
+
+.tabs-container .tabs {
+  border-bottom: none;
+}
+
+.tab-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.tab-actions button {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.tab-actions button:hover {
+  background: var(--primary);
+}
+
+.bg-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.bg-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bg-options input[type="color"] {
+  width: 50px;
+  height: 30px;
+  border: none;
+  cursor: pointer;
+}
+
+.bg-options input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+}
+
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.export-options button {
+  padding: 12px;
+  background: var(--primary);
+  border: none;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.export-options button:hover {
+  background: var(--accent);
+}
+
+.caldav-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.caldav-form label {
+  font-weight: 600;
+}
+
+.caldav-form input {
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+}
+
+.caldav-form button {
+  padding: 10px;
+  background: var(--primary);
+  border: none;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#caldav-status {
+  font-size: 14px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+}
