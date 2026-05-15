@@ -1,4 +1,4 @@
-// CalDAV Sync Web Worker
+// CalDAV Sync Background Script
 // Handles background synchronization with CalDAV servers
 
 const CALDAV_OPERATIONS = {
@@ -171,47 +171,50 @@ END:VEVENT
 END:VCALENDAR`;
 }
 
-// Message handler
-self.onmessage = async (e) => {
-  const { type, payload, id } = e.data;
+// Message handler from content script
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const { type, payload, id } = message;
 
-  try {
-    let result;
+  (async () => {
+    try {
+      let result;
 
-    switch (type) {
-      case 'configure':
-        // Store encrypted credentials
-        result = { success: true };
-        break;
+      switch (type) {
+        case 'configure':
+          result = { success: true };
+          break;
 
-      case 'sync':
-        const { url, username, password, calendarUrl } = payload;
-        const client = new CalDAVClient(url, username, password);
+        case 'sync':
+          const { url, username, password, calendarUrl } = payload;
+          const client = new CalDAVClient(url, username, password);
 
-        const now = new Date();
-        const startDate = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          .toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+          const now = new Date();
+          const startDate = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+          const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+            .toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-        const events = await client.getEvents(calendarUrl, startDate, endDate);
-        result = { events };
-        break;
+          const events = await client.getEvents(calendarUrl, startDate, endDate);
+          result = { events };
+          break;
 
-      case 'test':
-        const { url: testUrl, username: testUser, password: testPass } = payload;
-        const testClient = new CalDAVClient(testUrl, testUser, testPass);
-        const calendars = await testClient.getCalendars();
-        result = { calendars };
-        break;
+        case 'test':
+          const { url: testUrl, username: testUser, password: testPass } = payload;
+          const testClient = new CalDAVClient(testUrl, testUser, testPass);
+          const calendars = await testClient.getCalendars();
+          result = { calendars };
+          break;
 
-      default:
-        throw new Error(`Unknown message type: ${type}`);
+        default:
+          throw new Error(`Unknown message type: ${type}`);
+      }
+
+      sendResponse({ id, success: true, result });
+    } catch (error) {
+      sendResponse({ id, success: false, error: error.message });
     }
+  })();
 
-    self.postMessage({ id, success: true, result });
-  } catch (error) {
-    self.postMessage({ id, success: false, error: error.message });
-  }
-};
+  return true; // Keep channel open for async response
+});
 
-self.postMessage({ type: 'ready' });
+console.log('OwnSpace background script loaded');

@@ -849,25 +849,21 @@ function showCalDAVSyncSettings() {
     menu.querySelector('#caldav-status').textContent = 'Проверка...';
 
     try {
-      const worker = new Worker('/background/sync-worker.js');
-
-      worker.onmessage = (e) => {
-        if (e.data.success) {
-          menu.querySelector('#caldav-status').textContent = 'Подключение успешно!';
-          menu.querySelector('#caldav-status').style.color = 'green';
-        } else {
-          menu.querySelector('#caldav-status').textContent = 'Ошибка: ' + e.data.error;
-          menu.querySelector('#caldav-status').style.color = 'red';
-        }
-      };
-
-      worker.postMessage({
+      const response = await browser.runtime.sendMessage({
         type: 'test',
-        payload: { url, username, password },
-        id: Date.now()
+        payload: { url, username, password }
       });
+
+      if (response && response.success) {
+        menu.querySelector('#caldav-status').textContent = 'Подключение успешно!';
+        menu.querySelector('#caldav-status').style.color = 'green';
+      } else {
+        menu.querySelector('#caldav-status').textContent = 'Ошибка: ' + (response?.error || 'Unknown');
+        menu.querySelector('#caldav-status').style.color = 'red';
+      }
     } catch (err) {
       menu.querySelector('#caldav-status').textContent = 'Ошибка: ' + err.message;
+      menu.querySelector('#caldav-status').style.color = 'red';
     }
   });
 

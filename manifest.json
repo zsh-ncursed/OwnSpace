@@ -15,7 +15,7 @@
     }
   },
   "background": {
-    "service_worker": "background/sync-worker.js"
+    "page": "background/background.html"
   },
   "action": {
     "default_title": "OwnSpace"
