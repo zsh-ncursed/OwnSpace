@@ -1,6 +1,112 @@
 // OwnSpace - Main Application (Vanilla JS)
-import { getWorkspaces, saveWorkspaces, getSettings, saveSettings } from './utils/storage.js';
-import { WIDGET_TYPES, THEME } from './utils/constants.js';
+// Inline utilities to avoid module issues
+
+const STORAGE_KEYS = {
+  WORKSPACES: 'workspaces',
+  SETTINGS: 'settings',
+  CALDAV: 'caldav'
+};
+
+const WIDGET_TYPES = {
+  BOOKMARKS: 'bookmarks',
+  NOTES: 'notes',
+  DATE: 'date',
+  WEATHER: 'weather',
+  CALENDAR: 'calendar'
+};
+
+const THEME = {
+  dark: {
+    background: '#1a1a2e',
+    surface: '#16213e',
+    primary: '#0f3460',
+    accent: '#e94560',
+    text: '#eaeaea'
+  },
+  light: {
+    background: '#f5f5f5',
+    surface: '#ffffff',
+    primary: '#0f3460',
+    accent: '#e94560',
+    text: '#1a1a2e'
+  }
+};
+
+// Storage helpers with fallback for testing
+const storage = {
+  local: {
+    getItem: async (key) => {
+      if (typeof browser !== 'undefined' && browser.storage) {
+        const result = await browser.storage.local.get(key);
+        return result[key];
+      } else {
+        // Fallback to localStorage for testing
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : null;
+      }
+    },
+    setItem: async (key, value) => {
+      if (typeof browser !== 'undefined' && browser.storage) {
+        await browser.storage.local.set({ [key]: value });
+      } else {
+        // Fallback to localStorage for testing
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    },
+    removeItem: async (key) => {
+      if (typeof browser !== 'undefined' && browser.storage) {
+        await browser.storage.local.remove(key);
+      } else {
+        // Fallback to localStorage for testing
+        localStorage.removeItem(key);
+      }
+    }
+  }
+};
+
+async function getWorkspaces() {
+  const result = await storage.local.getItem(STORAGE_KEYS.WORKSPACES);
+  const defaultWorkspace = {
+    id: crypto.randomUUID(),
+    name: 'Добро пожаловать',
+    background: { type: 'color', value: '#1a1a2e' },
+    widgets: []
+  };
+  return result || [defaultWorkspace];
+}
+
+async function saveWorkspaces(workspaces) {
+  await storage.local.setItem(STORAGE_KEYS.WORKSPACES, workspaces);
+}
+
+async function getSettings() {
+  const result = await storage.local.getItem(STORAGE_KEYS.SETTINGS);
+  return result || { theme: 'dark', masterPasswordHash: '' };
+}
+
+async function saveSettings(settings) {
+  await storage.local.setItem(STORAGE_KEYS.SETTINGS, settings);
+}
+
+async function saveCalDAVCredentials(creds) {
+  await storage.local.setItem(STORAGE_KEYS.CALDAV, creds);
+}
+
+// Browser messaging fallback
+const browserMessaging = {
+  sendMessage: async (message) => {
+    if (typeof browser !== 'undefined' && browser.runtime) {
+      return await browser.runtime.sendMessage(message);
+    } else {
+      // For testing, return mock response
+      console.log('[MOCK] Browser messaging:', message);
+      if (message.type === 'test') {
+        return { success: true, result: { events: [] } };
+      }
+      return { success: true };
+    }
+  }
+};
 
 // State
 let state = {
@@ -849,7 +955,7 @@ function showCalDAVSyncSettings() {
     menu.querySelector('#caldav-status').textContent = 'Проверка...';
 
     try {
-      const response = await browser.runtime.sendMessage({
+      const response = await browserMessaging.sendMessage({
         type: 'test',
         payload: { url, username, password }
       });
@@ -890,7 +996,7 @@ function showCalDAVSyncSettings() {
 }
 
 // Init
-export async function initApp() {
+async function initApp() {
   // Load settings
   const settings = await getSettings();
   state.theme = settings.theme || 'dark';
