@@ -35,15 +35,24 @@ const THEME = {
 // Storage helpers with fallback for testing
 const storage = {
   local: {
-    getItem: async (key) => {
-      if (typeof browser !== 'undefined' && browser.storage) {
-        const result = await browser.storage.local.get(key);
-        return result[key];
-      } else {
-        // Fallback to localStorage for testing
-        const value = localStorage.getItem(key);
-        return value ? JSON.parse(value) : null;
-      }
+getItem: async (key) => {
+  if (typeof browser !== 'undefined' && browser.storage) {
+    const result = await browser.storage.local.get(key);
+    return result[key];
+  } else {
+    // Fallback to localStorage for testing with error handling
+    const value = localStorage.getItem(key);
+    if (!value) {
+      return null;
+    }
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn(`Failed to parse localStorage item ${key}:`, e);
+      return null;
+    }
+  }
+}
     },
     setItem: async (key, value) => {
       if (typeof browser !== 'undefined' && browser.storage) {
