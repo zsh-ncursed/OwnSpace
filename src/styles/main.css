@@ -181,6 +181,9 @@ body {
   flex: 1;
   color: var(--text);
   text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bookmark-item .title-input {
