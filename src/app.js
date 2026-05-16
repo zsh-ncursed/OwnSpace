@@ -103,19 +103,27 @@ async function saveCalDAVCredentials(creds) {
 // Browser messaging fallback
 const browserMessaging = {
   sendMessage: async (message) => {
-    if (typeof browser !== 'undefined' && browser.runtime) {
-      return await browser.runtime.sendMessage(message);
-    } else {
-      // For testing, return mock response
-      console.log('[MOCK] Browser messaging:', message);
-      if (message.type === 'test') {
-        return { success: true, result: { events: [] } };
+    console.log('[MESSAGING] Attempting to send to background, browser.runtime:', typeof browser?.runtime);
+    
+    if (typeof browser !== 'undefined' && browser?.runtime?.sendMessage) {
+      try {
+        const result = await browser.runtime.sendMessage(message);
+        console.log('[MESSAGING] Success:', result);
+        return result;
+      } catch (e) {
+        console.log('[MESSAGING] Error:', e.message);
       }
-      if (message.type === 'fetchTitle') {
-        return { success: true, result: { title: message.url } };
-      }
-      return { success: true };
     }
+    
+    // Mock fallback
+    console.log('[MOCK] Browser messaging:', message);
+    if (message.type === 'test') {
+      return { success: true, result: { events: [] } };
+    }
+    if (message.type === 'fetchTitle') {
+      return { success: false, result: { title: null }, error: 'Not in extension context' };
+    }
+    return { success: true };
   }
 };
 
