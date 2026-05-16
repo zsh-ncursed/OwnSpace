@@ -813,49 +813,30 @@ function renderCalendarWidget(widget) {
 
 // Event Setup
 function setupWidgetListeners(container) {
-  const removeButtons = container.querySelectorAll('.remove-widget-btn');
-  console.log('[setupWidgetListeners] Found', removeButtons.length, 'remove buttons in container');
-  
-  removeButtons.forEach((btn, i) => {
-    console.log('[setupWidgetListeners] Attaching listener to button', i);
+  // Use event delegation for remove buttons (more reliable)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.remove-widget-btn');
+    if (!btn) return;
     
-    // Try both addEventListener and onclick
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const widgetEl = e.target.closest('.widget');
-      const widgetId = widgetEl.dataset.widgetId;
-      const workspace = getActiveWorkspace();
-      const widget = workspace?.widgets.find(w => w.id === widgetId);
-      const widgetTitle = widget?.config?.title || 'этот виджет';
-      
-      console.log('[Widget] Remove clicked, title:', widgetTitle);
-      
-      if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
-        removeWidget(widgetId);
-      }
-    });
+    console.log('[Widget] Remove button clicked');
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Also set onclick as backup
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const widgetEl = e.target.closest('.widget');
-      const widgetId = widgetEl.dataset.widgetId;
-      const workspace = getActiveWorkspace();
-      const widget = workspace?.widgets.find(w => w.id === widgetId);
-      const widgetTitle = widget?.config?.title || 'этот виджет';
-      
-      console.log('[Widget] Remove onclick fired, title:', widgetTitle);
-      
-      if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
-        removeWidget(widgetId);
-      }
-    };
+    const widgetEl = btn.closest('.widget');
+    if (!widgetEl) return;
+    
+    const widgetId = widgetEl.dataset.widgetId;
+    const workspace = getActiveWorkspace();
+    const widget = workspace?.widgets.find(w => w.id === widgetId);
+    const widgetTitle = widget?.config?.title || 'этот виджет';
+    
+    console.log('[Widget] Remove clicked, title:', widgetTitle);
+    
+    if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
+      removeWidget(widgetId);
+    }
   });
-
+  
   // Edit title
   container.querySelectorAll('.edit-title-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
