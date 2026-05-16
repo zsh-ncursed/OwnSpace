@@ -710,6 +710,23 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Edit title handler
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.edit-title-btn');
+  if (!btn) return;
+  
+  const widgetEl = btn.closest('.widget');
+  const widgetId = widgetEl.dataset.widgetId;
+  const workspace = getActiveWorkspace();
+  const widget = workspace?.widgets.find(w => w.id === widgetId);
+  if (widget) {
+    const newTitle = prompt('Переименовать виджет:', widget.config.title || getDefaultTitle(widget.type));
+    if (newTitle) {
+      updateWidgetConfig(widgetId, { title: newTitle });
+    }
+  }
+});
+
 function getDefaultTitle(type) {
   switch (type) {
     case WIDGET_TYPES.BOOKMARKS: return 'Закладки';
