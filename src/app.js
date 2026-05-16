@@ -172,12 +172,23 @@ function parseStartMeHtml(html) {
             title = titleAttr.split('\n')[0].trim();
           }
           
+          // Extract hostname for favicon
+          let hostname;
+          try {
+            hostname = new URL(url).hostname;
+          } catch {
+            hostname = '';
+          }
+          
+          // Try to get favicon from Google Favicons API
+          const favicon = hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=32` : null;
+          
           widgetBookmarksList.push({
             id: crypto.randomUUID(),
             url: url,
             title: title || url,
             description: null,
-            favicon: null
+            favicon: favicon
           });
           bookmarks.push(widgetBookmarksList[widgetBookmarksList.length - 1]);
         }
@@ -200,12 +211,19 @@ function parseStartMeHtml(html) {
       const titleAttr = match[2] || '';
       if (url && !url.startsWith('#') && !url.startsWith('javascript:')) {
         const title = titleAttr.split('\n')[0].trim();
+        let hostname;
+        try {
+          hostname = new URL(url).hostname;
+        } catch {
+          hostname = '';
+        }
+        const favicon = hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=32` : null;
         bookmarks.push({
           id: crypto.randomUUID(),
           url: url,
           title: title || url,
           description: null,
-          favicon: null
+          favicon: favicon
         });
       }
     }
