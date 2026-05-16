@@ -816,11 +816,16 @@ function setupWidgetListeners(container) {
   // Remove widget with confirmation
   container.querySelectorAll('.remove-widget-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
       const widgetEl = e.target.closest('.widget');
       const widgetId = widgetEl.dataset.widgetId;
       const workspace = getActiveWorkspace();
       const widget = workspace?.widgets.find(w => w.id === widgetId);
       const widgetTitle = widget?.config?.title || 'этот виджет';
+      
+      console.log('[Widget] Remove clicked, title:', widgetTitle);
       
       if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
         removeWidget(widgetId);
