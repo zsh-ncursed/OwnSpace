@@ -954,17 +954,20 @@ function showExportImportMenu() {
         script2.src = './src/utils/import/importer.js';
         script2.onload = () => {
           console.log('[Import] Importer script onload fired');
-          console.log('[Import] window.BookmarkImporter:', typeof window.BookmarkImporter);
-          // Directly call the function if defined
-          if (typeof window.showImportModal === 'function') {
-            console.log('[Import] Calling window.showImportModal');
-            window.showImportModal();
-          } else if (window.BookmarkImporter && typeof window.BookmarkImporter.showImportModal === 'function') {
-            console.log('[Import] Calling window.BookmarkImporter.showImportModal');
-            window.BookmarkImporter.showImportModal();
-          } else {
-            console.error('[Import] No showImportModal found');
-          }
+          console.log('[Import] All window keys with Bookmark:', Object.keys(window).filter(k => k.includes('Bookmark')));
+          console.log('[Import] window.BookmarkImporter:', typeof window.BookmarkImporter, window.BookmarkImporter);
+          console.log('[Import] window.showImportModal:', typeof window.showImportModal);
+          // Try calling with setTimeout to ensure script fully executed
+          setTimeout(() => {
+            console.log('[Import] After delay, window.BookmarkImporter:', typeof window.BookmarkImporter);
+            console.log('[Import] After delay, window.showImportModal:', typeof window.showImportModal);
+            if (typeof window.showImportModal === 'function') {
+              console.log('[Import] Calling window.showImportModal after delay');
+              window.showImportModal();
+            } else {
+              console.error('[Import] Still no showImportModal after delay');
+            }
+          }, 500);
         };
         script2.onerror = (e) => console.error('[Import] Importer error:', e);
         document.head.appendChild(script2);
