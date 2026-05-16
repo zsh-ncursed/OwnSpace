@@ -1061,3 +1061,10 @@ async function initApp() {
   // Render
   renderApp();
 }
+
+// Auto-init when loaded as content script
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

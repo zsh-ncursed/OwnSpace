@@ -5,6 +5,13 @@
   "description": "Local start page replacement with customizable widgets",
   "permissions": ["storage"],
   "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["src/app.js"],
+      "run_at": "document_end"
+    }
+  ],
   "chrome_settings_overrides": {
     "newtab_page": "newtab.html"
   },
