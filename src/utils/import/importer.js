@@ -187,12 +187,35 @@ function showImportError(message) {
 function executeImport(data, targetWidgetId) {
   const { bookmarks, widgetGroups } = data;
   
+  console.log('[Importer] executeImport called, window.state:', typeof window.state);
+  console.log('[Importer] window.state.activeWorkspaceId:', window.state?.activeWorkspaceId);
+  console.log('[Importer] window.state.workspaces length:', window.state?.workspaces?.length);
+  
   // Get workspace
   const workspace = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
   if (!workspace) {
-    showImportError('Не удалось найти активное пространство.');
-    return;
+    console.log('[Importer] Workspace not found, using first available');
+    // Fallback: try to find any workspace
+    if (window.state?.workspaces?.length > 0) {
+      window.state.activeWorkspaceId = window.state.workspaces[0].id;
+      console.log('[Importer] Set activeWorkspaceId to first workspace');
+    }
+    const ws = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
+    if (!ws) {
+      showImportError('Не удалось найти активное пространство.');
+      return;
+    }
+    // Use ws instead of workspace
+    return executeImportToWorkspace(data, ws, targetWidgetId);
   }
+  
+  executeImportToWorkspace(data, workspace, targetWidgetId);
+}
+
+function executeImportToWorkspace(data, workspace, targetWidgetId) {
+  const { bookmarks, widgetGroups } = data;
+  
+  console.log('[Importer] Importing to workspace:', workspace.name);
   
   if (targetWidgetId) {
     // Add to existing widget
@@ -202,27 +225,47 @@ function executeImport(data, targetWidgetId) {
       const newBookmarks = bookmarks.filter(b => !existingUrls.has(b.url));
       widget.config.bookmarks = [...widget.config.bookmarks, ...newBookmarks];
       
-      saveState();
-      closeImportModal();
-      render();
-      showNotification(`Импортировано ${newBookmarks.length} закладок`);
+      window.saveAndRender().then(() => {
+        closeImportModal();
+        showNotification(`Импортировано ${newBookmarks.length} закладок`);
+      });
     }
   } else {
-    // Create new widget with all bookmarks
-    const newWidget = {
-      id: crypto.randomUUID(),
-      type: 'bookmarks',
-      config: {
-        title: widgetGroups.length > 1 ? 'Импорт из start.me' : (widgetGroups[0]?.name || 'Импорт'),
-        bookmarks: bookmarks
-      }
-    };
+    // Create widgets for each group
+    if (widgetGroups.length > 1) {
+      // Create multiple widgets
+      widgetGroups.forEach(wg => {
+        const newWidget = {
+          id: crypto.randomUUID(),
+          type: 'bookmarks',
+          config: {
+            title: wg.name || 'Импорт',
+            bookmarks: wg.bookmarks
+          }
+        };
+        workspace.widgets.push(newWidget);
+        console.log('[Importer] Created widget:', wg.name, 'with', wg.bookmarks.length, 'bookmarks');
+      });
+    } else {
+      // Create single widget with all bookmarks
+      const newWidget = {
+        id: crypto.randomUUID(),
+        type: 'bookmarks',
+        config: {
+          title: widgetGroups[0]?.name || 'Импорт закладок',
+          bookmarks: bookmarks
+        }
+      };
+      workspace.widgets.push(newWidget);
+      console.log('[Importer] Created single widget with', bookmarks.length, 'bookmarks');
+    }
     
-    workspace.widgets.push(newWidget);
-    saveState();
-    closeImportModal();
-    render();
-    showNotification(`Создан виджет с ${bookmarks.length} закладками`);
+    window.saveAndRender().then(() => {
+      closeImportModal();
+      const total = bookmarks.length;
+      const count = widgetGroups.length > 1 ? widgetGroups.length : 1;
+      showNotification(`Создано ${count} виджет(ов) с ${total} закладками`);
+    });
   }
 }
 

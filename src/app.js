@@ -137,6 +137,15 @@ let state = {
   loading: true
 };
 
+// Make state available globally for import scripts
+window.state = state;
+
+// Expose save and render functions for import scripts
+window.saveAndRender = async () => {
+  await saveWorkspaces(state.workspaces);
+  render();
+};
+
 // Theme
 function applyTheme(themeName) {
   const colors = THEME[themeName];
