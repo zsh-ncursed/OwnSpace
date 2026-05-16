@@ -813,8 +813,11 @@ function renderCalendarWidget(widget) {
 
 // Event Setup
 function setupWidgetListeners(container) {
-  // Remove widget with confirmation
-  container.querySelectorAll('.remove-widget-btn').forEach(btn => {
+  const removeButtons = container.querySelectorAll('.remove-widget-btn');
+  console.log('[setupWidgetListeners] Found', removeButtons.length, 'remove buttons in container');
+  
+  removeButtons.forEach((btn, i) => {
+    console.log('[setupWidgetListeners] Attaching listener to button', i);
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
