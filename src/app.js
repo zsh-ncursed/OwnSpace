@@ -795,12 +795,18 @@ function renderCalendarWidget(widget) {
 
 // Event Setup
 function setupWidgetListeners(container) {
-  // Remove widget
+  // Remove widget with confirmation
   container.querySelectorAll('.remove-widget-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const widgetEl = e.target.closest('.widget');
       const widgetId = widgetEl.dataset.widgetId;
-      removeWidget(widgetId);
+      const workspace = getActiveWorkspace();
+      const widget = workspace?.widgets.find(w => w.id === widgetId);
+      const widgetTitle = widget?.config?.title || 'этот виджет';
+      
+      if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
+        removeWidget(widgetId);
+      }
     });
   });
 
