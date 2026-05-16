@@ -559,7 +559,7 @@ function setupWidgetListeners(container) {
     const widgetId = el.dataset.widgetId;
 
     // Add bookmark
-    el.querySelector('.add-bookmark-btn').addEventListener('click', () => {
+    el.querySelector('.add-bookmark-btn').addEventListener('click', async () => {
       const input = el.querySelector('.new-url-input');
       const url = input.value.trim();
       if (!url) return;
@@ -583,10 +583,25 @@ function setupWidgetListeners(container) {
       const widget = workspace.widgets.find(w => w.id === widgetId);
       const bookmarks = widget.config.bookmarks || [];
 
+      // Try to fetch page title
+      let title = 'Новая закладка';
+      try {
+        const response = await fetch(fullUrl, { mode: 'cors' });
+        if (response.ok) {
+          const html = await response.text();
+          const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (match) {
+            title = match[1].trim();
+          }
+        }
+      } catch (e) {
+        // Use default title on fetch error
+      }
+
       const newBookmark = {
         id: crypto.randomUUID(),
         url: fullUrl,
-        title: 'Новая закладка',
+        title,
         favicon
       };
 
