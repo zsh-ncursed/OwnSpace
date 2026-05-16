@@ -140,6 +140,231 @@ let state = {
 // Make state available globally for import scripts
 window.state = state;
 
+// ============================================
+// BOOKMARK IMPORTER - INLINED (no dynamic scripts)
+// ============================================
+
+// Parse start.me HTML export
+function parseStartMeHtml(html) {
+  let bookmarks = [];
+  let widgetGroups = [];
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    const widgetContainers = doc.querySelectorAll('.bookmark-widget');
+    
+    widgetContainers.forEach(widget => {
+      const widgetTitleEl = widget.querySelector('.widget-header__text');
+      const widgetTitle = widgetTitleEl ? widgetTitleEl.textContent.trim() : 'Импорт';
+      
+      const widgetBookmarksList = [];
+      const bookmarkLinks = widget.querySelectorAll('a.bookmark-item__link');
+      
+      bookmarkLinks.forEach(link => {
+        const url = link.getAttribute('href');
+        if (url && !url.startsWith('#') && !url.startsWith('javascript:')) {
+          const titleSpan = link.querySelector('.bookmark-item__title');
+          let title = titleSpan ? titleSpan.textContent.trim() : '';
+          if (!title) {
+            const titleAttr = link.getAttribute('title') || '';
+            title = titleAttr.split('\n')[0].trim();
+          }
+          
+          widgetBookmarksList.push({
+            id: crypto.randomUUID(),
+            url: url,
+            title: title || url,
+            description: null,
+            favicon: null
+          });
+          bookmarks.push(widgetBookmarksList[widgetBookmarksList.length - 1]);
+        }
+      });
+      
+      if (widgetBookmarksList.length > 0) {
+        widgetGroups.push({ name: widgetTitle, bookmarks: widgetBookmarksList });
+      }
+    });
+  } catch (e) {
+    console.log('[Importer] DOMParser failed, using regex fallback');
+  }
+  
+  // Fallback: if no widgets found, parse all links
+  if (bookmarks.length === 0) {
+    const linkRegex = /<a class="bookmark-item__link"[^>]*href="([^"]+)"[^>]*title="([^"]+)"[^>]*>/g;
+    let match;
+    while ((match = linkRegex.exec(html)) !== null) {
+      const url = match[1];
+      const titleAttr = match[2] || '';
+      if (url && !url.startsWith('#') && !url.startsWith('javascript:')) {
+        const title = titleAttr.split('\n')[0].trim();
+        bookmarks.push({
+          id: crypto.randomUUID(),
+          url: url,
+          title: title || url,
+          description: null,
+          favicon: null
+        });
+      }
+    }
+    if (bookmarks.length > 0) {
+      widgetGroups.push({ name: 'Импорт закладок', bookmarks: bookmarks });
+    }
+  }
+  
+  return { bookmarks, widgetGroups };
+}
+
+// Show bookmark import modal
+function showBookmarkImportModal() {
+  console.log('[Importer] Showing bookmark import modal');
+  
+  const existing = document.getElementById('import-modal');
+  if (existing) existing.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'import-modal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal import-modal-content">
+      <h3>Импорт закладок</h3>
+      <p style="margin: 8px 0 16px; color: var(--text); opacity: 0.7;">
+        Загрузите HTML файл, экспортированный из start.me
+      </p>
+      <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
+      <button id="select-file-btn" class="add-widget-btn" style="width: 100%; margin: 0;">
+        📂 Выбрать HTML файл
+      </button>
+      <div id="import-preview" style="display: none; margin-top: 16px;">
+        <h4>Найдено:</h4>
+        <div id="import-stats"></div>
+        <div id="import-widget-list" style="margin: 12px 0;"></div>
+        <div id="import-error" style="color: var(--accent); margin: 8px 0; display: none;"></div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button id="import-confirm-btn" class="add-widget-btn" style="flex: 1; margin: 0;">Импортировать</button>
+          <button id="import-cancel-btn" class="modal-close" style="margin: 0;">Отмена</button>
+        </div>
+      </div>
+      <button class="modal-close" style="width: 100%; margin-top: 12px;">Закрыть</button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const fileInput = document.getElementById('import-file-input');
+  const selectBtn = document.getElementById('select-file-btn');
+  const confirmBtn = document.getElementById('import-confirm-btn');
+  const cancelBtn = document.getElementById('import-cancel-btn');
+  
+  let currentImportData = null;
+  
+  selectBtn.addEventListener('click', () => fileInput.click());
+  
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = parseStartMeHtml(evt.target.result);
+      
+      if (result.bookmarks.length === 0) {
+        document.getElementById('import-error').textContent = 'Не удалось найти закладки в файле.';
+        document.getElementById('import-error').style.display = 'block';
+        return;
+      }
+      
+      currentImportData = result;
+      
+      const preview = document.getElementById('import-preview');
+      const stats = document.getElementById('import-stats');
+      const widgetList = document.getElementById('import-widget-list');
+      
+      stats.innerHTML = `<strong>${result.bookmarks.length}</strong> закладок, <strong>${result.widgetGroups.length}</strong> виджет(ов)`;
+      
+      if (result.widgetGroups.length > 1) {
+        widgetList.innerHTML = `<ul style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;">
+          ${result.widgetGroups.map(wg => `<li style="padding: 4px 0; border-bottom: 1px solid var(--primary);">📁 ${wg.name} — ${wg.bookmarks.length} закладок</li>`).join('')}
+        </ul>`;
+      } else {
+        widgetList.innerHTML = '';
+      }
+      
+      preview.style.display = 'block';
+    };
+    reader.readAsText(file);
+  });
+  
+  confirmBtn.addEventListener('click', () => {
+    if (!currentImportData) return;
+    
+    const workspace = state.workspaces.find(ws => ws.id === state.activeWorkspaceId);
+    if (!workspace) {
+      document.getElementById('import-error').textContent = 'Не удалось найти активное пространство.';
+      document.getElementById('import-error').style.display = 'block';
+      return;
+    }
+    
+    console.log('[Importer] Importing', currentImportData.bookmarks.length, 'bookmarks to', workspace.name);
+    
+    // Create widgets for each group
+    currentImportData.widgetGroups.forEach(wg => {
+      const newWidget = {
+        id: crypto.randomUUID(),
+        type: 'bookmarks',
+        config: { title: wg.name || 'Импорт', bookmarks: wg.bookmarks }
+      };
+      workspace.widgets.push(newWidget);
+      console.log('[Importer] Created widget:', wg.name);
+    });
+    
+    // Save and re-render
+    (async () => {
+      await saveWorkspaces(state.workspaces);
+      render();
+      modal.remove();
+      showNotification(`Импортировано ${currentImportData.bookmarks.length} закладок`);
+    })();
+  });
+  
+  cancelBtn.addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+// ============================================
+// END BOOKMARK IMPORTER
+// ============================================
+
+// Show notification
+function showNotification(message) {
+  const existing = document.querySelector('.import-notification');
+  if (existing) existing.remove();
+  
+  const notification = document.createElement('div');
+  notification.className = 'import-notification';
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--accent);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'fadeOut 0.3s ease';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
 // Sync state to window for import scripts
 function syncStateToWindow() {
   window.state.workspaces = state.workspaces;
@@ -968,59 +1193,9 @@ function showExportImportMenu() {
   });
 
   menu.querySelector('#import-bookmarks').addEventListener('click', () => {
-    console.log('[Import] Button clicked');
+    console.log('[Import] Button clicked, showing bookmark import modal');
     menu.remove();
-    
-    // Sync current state to window for import scripts
-    if (window.syncImportState) {
-      window.syncImportState();
-      console.log('[Import] State synced to window, workspaces:', window.state.workspaces.length);
-    }
-    
-    // Load import scripts and show modal
-    const loadScripts = () => {
-      console.log('[Import] Loading parser from ./src/utils/import/startme-parser.js');
-      const script1 = document.createElement('script');
-      script1.src = './src/utils/import/startme-parser.js';
-      script1.onload = () => {
-        console.log('[Import] Parser loaded');
-        console.log('[Import] Loading importer from ./src/utils/import/importer.js');
-        const script2 = document.createElement('script');
-        script2.src = './src/utils/import/importer.js';
-        script2.onload = () => {
-          console.log('[Import] Importer script loaded');
-          // Wait a bit for the script to fully execute
-          setTimeout(() => {
-            console.log('[Import] After delay, BookmarkImporter:', typeof window.BookmarkImporter);
-            if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
-              window.BookmarkImporter.showImportModal();
-            } else {
-              console.error('[Import] BookmarkImporter still not available');
-              // Last resort: inline script
-              const inline = document.createElement('script');
-              inline.textContent = 'if(window.BookmarkImporter) { console.log("Found in inline"); window.BookmarkImporter.showImportModal(); } else { console.log("Not in inline either"); }';
-              document.head.appendChild(inline);
-              inline.remove();
-            }
-          }, 200);
-        };
-        script2.onerror = (e) => console.error('[Import] Importer error:', e);
-        document.head.appendChild(script2);
-      };
-      script1.onerror = (e) => {
-        console.error('[Import] Parser error:', e);
-        alert('[DEBUG] Parser load error: ' + e.target.src);
-      };
-      document.head.appendChild(script1);
-    };
-    
-    if (typeof window.BookmarkImporter !== 'undefined' && window.BookmarkImporter) {
-      console.log('[Import] Already loaded, calling showImportModal');
-      window.BookmarkImporter.showImportModal();
-    } else {
-      console.log('[Import] Scripts not loaded, loading now');
-      loadScripts();
-    }
+    showBookmarkImportModal();
   });
 
   menu.querySelector('#import-file').addEventListener('change', async (e) => {
