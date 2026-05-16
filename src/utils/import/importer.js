@@ -187,26 +187,28 @@ function showImportError(message) {
 function executeImport(data, targetWidgetId) {
   const { bookmarks, widgetGroups } = data;
   
-  console.log('[Importer] executeImport called, window.state:', typeof window.state);
+  console.log('[Importer] executeImport called');
+  console.log('[Importer] window.state:', typeof window.state);
+  console.log('[Importer] window.state.workspaces:', window.state?.workspaces);
   console.log('[Importer] window.state.activeWorkspaceId:', window.state?.activeWorkspaceId);
-  console.log('[Importer] window.state.workspaces length:', window.state?.workspaces?.length);
   
   // Get workspace
-  const workspace = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
+  let workspace = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
+  console.log('[Importer] Found workspace:', workspace);
+  
   if (!workspace) {
-    console.log('[Importer] Workspace not found, using first available');
-    // Fallback: try to find any workspace
+    console.log('[Importer] No active workspace, checking all workspaces');
     if (window.state?.workspaces?.length > 0) {
-      window.state.activeWorkspaceId = window.state.workspaces[0].id;
-      console.log('[Importer] Set activeWorkspaceId to first workspace');
+      workspace = window.state.workspaces[0];
+      window.state.activeWorkspaceId = workspace.id;
+      console.log('[Importer] Set active workspace to:', workspace.name);
     }
-    const ws = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
-    if (!ws) {
-      showImportError('Не удалось найти активное пространство.');
-      return;
-    }
-    // Use ws instead of workspace
-    return executeImportToWorkspace(data, ws, targetWidgetId);
+  }
+  
+  if (!workspace) {
+    showImportError('Не удалось найти активное пространство.');
+    console.log('[Importer] Error: no workspace available');
+    return;
   }
   
   executeImportToWorkspace(data, workspace, targetWidgetId);
