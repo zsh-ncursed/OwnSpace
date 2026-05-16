@@ -940,6 +940,7 @@ function showExportImportMenu() {
   });
 
   menu.querySelector('#import-bookmarks').addEventListener('click', () => {
+    alert('[DEBUG] Import button clicked');
     console.log('[Import] Button clicked');
     menu.remove();
     // Load import scripts and show modal
