@@ -260,8 +260,14 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+console.log('[Importer] Script loaded, defining BookmarkImporter');
+console.log('[Importer] typeof showImportModal:', typeof showImportModal);
+
 // Export for use
 window.BookmarkImporter = {
   showImportModal,
   closeImportModal
 };
+
+console.log('[Importer] BookmarkImporter defined:', typeof window.BookmarkImporter);
+console.log('[Importer] window.BookmarkImporter.showImportModal:', typeof window.BookmarkImporter?.showImportModal);
