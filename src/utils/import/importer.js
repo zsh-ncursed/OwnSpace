@@ -4,8 +4,9 @@
 async function initWindowState() {
   console.log('[Importer] initWindowState called');
   
+  // If window.state already has workspaces, use it directly
   if (window.state && window.state.workspaces && window.state.workspaces.length > 0) {
-    console.log('[Importer] window.state already initialized with', window.state.workspaces.length, 'workspaces');
+    console.log('[Importer] window.state already has workspaces:', window.state.workspaces.length);
     return window.state;
   }
   
@@ -22,7 +23,7 @@ async function initWindowState() {
         if (!window.state.activeWorkspaceId && result.workspaces.length > 0) {
           window.state.activeWorkspaceId = result.workspaces[0].id;
         }
-        console.log('[Importer] State from storage, workspaces:', window.state.workspaces.length, 'active:', window.state.activeWorkspaceId);
+        console.log('[Importer] State from storage, workspaces:', window.state.workspaces.length);
         return window.state;
       }
     } catch (e) {
@@ -42,26 +43,15 @@ async function initWindowState() {
     console.log('[Importer] eval failed:', e.message);
   }
   
-  // If we still don't have state, initialize a new state object
+  // If we still don't have workspaces, ensure state object has empty array
   if (!window.state) {
     window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
+  } else if (!window.state.workspaces) {
+    window.state.workspaces = [];
+    window.state.activeWorkspaceId = window.state.activeWorkspaceId || null;
   }
   
-  // Reload workspaces from storage to ensure we have latest data
-  try {
-    const result = await browser.storage.local.get('workspaces');
-    if (result && result.workspaces && result.workspaces.length > 0) {
-      window.state.workspaces = result.workspaces;
-      if (!window.state.activeWorkspaceId) {
-        window.state.activeWorkspaceId = result.workspaces[0].id;
-      }
-      console.log('[Importer] Reloaded workspaces from storage:', window.state.workspaces.length);
-    }
-  } catch (e) {
-    console.log('[Importer] Failed to reload workspaces:', e.message);
-  }
-  
-  console.log('[Importer] Final state:', window.state);
+  console.log('[Importer] Final state - workspaces:', window.state.workspaces?.length);
   return window.state;
 }
 
