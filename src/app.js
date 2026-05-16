@@ -962,45 +962,12 @@ function showExportImportMenu() {
         const script2 = document.createElement('script');
         script2.src = './src/utils/import/importer.js';
         script2.onload = () => {
-          console.log('[Import] Importer script onload fired');
-          // Directly try to access the functions via eval
-          try {
-            const fn = eval('showImportModal');
-            console.log('[Import] eval(showImportModal):', typeof fn);
-            if (typeof fn === 'function') {
-              fn();
-              return;
-            }
-          } catch (e) {
-            console.log('[Import] eval failed:', e.message);
-          }
-          // Try BookmarkImporter
-          try {
-            const bi = eval('window.BookmarkImporter');
-            console.log('[Import] eval(window.BookmarkImporter):', typeof bi, bi);
-            if (bi && bi.showImportModal) {
-              bi.showImportModal();
-              return;
-            }
-          } catch (e) {
-            console.log('[Import] eval BookmarkImporter failed:', e.message);
-          }
-          // Use Function constructor
-          try {
-            const script = document.createElement('script');
-            script.textContent = `
-              console.log('[Import] Inline check - window.BookmarkImporter:', typeof window.BookmarkImporter);
-              if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
-                console.log('[Import] Calling via inline script');
-                window.BookmarkImporter.showImportModal();
-              } else {
-                console.log('[Import] No BookmarkImporter in inline');
-              }
-            `;
-            document.head.appendChild(script);
-            script.remove();
-          } catch (e) {
-            console.error('[Import] Inline script failed:', e);
+          console.log('[Import] Importer script loaded');
+          // Use window.BookmarkImporter now that it's properly exposed
+          if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
+            window.BookmarkImporter.showImportModal();
+          } else {
+            console.error('[Import] BookmarkImporter not available');
           }
         };
         script2.onerror = (e) => console.error('[Import] Importer error:', e);
