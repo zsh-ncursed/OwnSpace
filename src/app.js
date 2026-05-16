@@ -589,29 +589,34 @@ function setupWidgetListeners(container) {
       const bookmarks = widget.config.bookmarks || [];
 
       // Try to fetch page title via background page (to avoid CORS)
-      let title = 'Новая закладка';
+      let title = fullUrl; // Default to URL if title unavailable
+      let titleSource = 'hostname';
+      
       try {
-        console.log('[FG] Sending fetchTitle message for:', fullUrl);
         const response = await browserMessaging.sendMessage({ type: 'fetchTitle', payload: { url: fullUrl } });
-        console.log('[FG] Response:', JSON.stringify(response));
         if (response.success && response.result?.title) {
           title = response.result.title;
-        } else {
-          // Fallback: try direct fetch with CORS
-          console.log('[FG] Background failed, trying direct fetch...');
-          try {
-            const resp = await fetch(fullUrl, { mode: 'cors' });
-            if (resp.ok) {
-              const html = await resp.text();
-              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-              if (match) title = match[1].trim();
-            }
-          } catch (e2) {
-            console.log('[FG] Direct fetch also failed:', e2.message);
-          }
+          titleSource = 'fetched';
         }
       } catch (e) {
-        console.log('[FG] Failed to fetch title:', e);
+        // Will use hostname
+      }
+      
+      if (titleSource !== 'fetched') {
+        // Fallback: try direct fetch
+        try {
+          const resp = await fetch(fullUrl, { mode: 'cors' });
+          if (resp.ok) {
+            const html = await resp.text();
+            const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (match) {
+              title = match[1].trim();
+              titleSource = 'fetched';
+            }
+          }
+        } catch (e) {
+          // Will use hostname
+        }
       }
 
       const newBookmark = {
