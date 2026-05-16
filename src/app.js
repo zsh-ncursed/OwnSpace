@@ -181,7 +181,12 @@ function parseStartMeHtml(html) {
           }
           
           // Try to get favicon from Google Favicons API
-          const favicon = hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=32` : null;
+          let favicon = null;
+          if (hostname) {
+            // Ensure HTTPS for Google Favicons API
+            const safeUrl = url.replace(/^http:\/\//i, 'https://');
+            favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+          }
           
           widgetBookmarksList.push({
             id: crypto.randomUUID(),
@@ -811,18 +816,15 @@ function renderCalendarWidget(widget) {
   `;
 }
 
-// Event Setup
-function setupWidgetListeners(container) {
-  // Use event delegation for remove buttons (more reliable)
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.remove-widget-btn');
-    if (!btn) return;
-    
+// Document-level event delegation for widget buttons (added once at init)
+document.addEventListener('click', (e) => {
+  const removeBtn = e.target.closest('.remove-widget-btn');
+  if (removeBtn) {
     console.log('[Widget] Remove button clicked');
     e.preventDefault();
     e.stopPropagation();
     
-    const widgetEl = btn.closest('.widget');
+    const widgetEl = removeBtn.closest('.widget');
     if (!widgetEl) return;
     
     const widgetId = widgetEl.dataset.widgetId;
@@ -835,7 +837,26 @@ function setupWidgetListeners(container) {
     if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
       removeWidget(widgetId);
     }
-  });
+    return;
+  }
+  
+  const editBtn = e.target.closest('.edit-title-btn');
+  if (editBtn) {
+    const widgetEl = editBtn.closest('.widget');
+    const widgetId = widgetEl.dataset.widgetId;
+    const workspace = getActiveWorkspace();
+    const widget = workspace.widgets.find(w => w.id === widgetId);
+    if (widget) {
+      const newTitle = prompt('Переименовать виджет:', widget.config.title || getDefaultTitle(widget.type));
+      if (newTitle) {
+        updateWidgetConfig(widgetId, { title: newTitle });
+      }
+    }
+  }
+});
+
+// Event Setup
+function setupWidgetListeners(container) {
   
   // Edit title
   container.querySelectorAll('.edit-title-btn').forEach(btn => {
