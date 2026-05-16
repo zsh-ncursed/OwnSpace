@@ -270,11 +270,11 @@ function escapeHtml(str) {
 console.log('[Importer] Script loaded, defining BookmarkImporter');
 console.log('[Importer] typeof showImportModal:', typeof showImportModal);
 
-// Export for use
+console.log('[Importer] About to assign window.BookmarkImporter');
 window.BookmarkImporter = {
   showImportModal,
   closeImportModal
 };
-
-console.log('[Importer] BookmarkImporter defined:', typeof window.BookmarkImporter);
+console.log('[Importer] window.BookmarkImporter assigned:', typeof window.BookmarkImporter);
 console.log('[Importer] window.BookmarkImporter.showImportModal:', typeof window.BookmarkImporter?.showImportModal);
+console.log('[Importer] Assignment complete');
