@@ -167,9 +167,6 @@ function showImportPreview(result) {
   }
   
   preview.style.display = 'block';
-  
-  // Hide dropzone
-  document.getElementById('import-dropzone').style.display = 'none';
 }
 
 // Show import error

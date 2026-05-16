@@ -940,20 +940,31 @@ function showExportImportMenu() {
   });
 
   menu.querySelector('#import-bookmarks').addEventListener('click', () => {
+    console.log('[Import] Button clicked');
     menu.remove();
     // Load import scripts and show modal
-    if (!window.BookmarkParser || !window.BookmarkImporter) {
+    const loadScripts = () => {
       const script1 = document.createElement('script');
       script1.src = './utils/import/startme-parser.js';
       script1.onload = () => {
+        console.log('[Import] Parser loaded');
         const script2 = document.createElement('script');
         script2.src = './utils/import/importer.js';
-        script2.onload = () => window.BookmarkImporter.showImportModal();
+        script2.onerror = (e) => console.error('[Import] Importer error:', e);
+        script2.onload = () => {
+          console.log('[Import] Importer loaded, showing modal');
+          window.BookmarkImporter.showImportModal();
+        };
         document.head.appendChild(script2);
       };
+      script1.onerror = (e) => console.error('[Import] Parser error:', e);
       document.head.appendChild(script1);
-    } else {
+    };
+    
+    if (typeof window.BookmarkImporter !== 'undefined') {
       window.BookmarkImporter.showImportModal();
+    } else {
+      loadScripts();
     }
   });
 
