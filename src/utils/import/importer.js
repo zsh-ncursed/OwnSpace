@@ -1,22 +1,61 @@
 // Import UI and logic for bookmarks from HTML
 
-// Show import modal
-function showImportModal() {
-  console.log('[Importer] showImportModal called');
-  // Ensure window.state is available - copy from storage if needed
-  if (!window.state || !window.state.workspaces) {
-    console.log('[Importer] window.state not ready, waiting...');
-    // Try to access from main app's state via eval
+// Initialize window.state from storage or main app
+async function initWindowState() {
+  console.log('[Importer] initWindowState called');
+  
+  if (window.state && window.state.workspaces && window.state.workspaces.length > 0) {
+    console.log('[Importer] window.state already initialized with', window.state.workspaces.length, 'workspaces');
+    return window.state;
+  }
+  
+  // Try browser.storage API first
+  if (typeof browser !== 'undefined' && browser.storage) {
     try {
-      const mainState = eval('state');
-      if (mainState && mainState.workspaces) {
-        window.state = mainState;
-        console.log('[Importer] Copied state from main app');
+      const result = await browser.storage.local.get('workspaces');
+      console.log('[Importer] Got from storage:', result);
+      if (result && result.workspaces && result.workspaces.length > 0) {
+        if (!window.state) {
+          window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
+        }
+        window.state.workspaces = result.workspaces;
+        if (!window.state.activeWorkspaceId && result.workspaces.length > 0) {
+          window.state.activeWorkspaceId = result.workspaces[0].id;
+        }
+        console.log('[Importer] State from storage, workspaces:', window.state.workspaces.length, 'active:', window.state.activeWorkspaceId);
+        return window.state;
       }
     } catch (e) {
-      console.log('[Importer] Could not copy state:', e.message);
+      console.log('[Importer] Storage error:', e.message);
     }
   }
+  
+  // Try eval for state variable
+  try {
+    const mainState = eval('state');
+    if (mainState && mainState.workspaces && mainState.workspaces.length > 0) {
+      window.state = mainState;
+      console.log('[Importer] Copied state via eval');
+      return window.state;
+    }
+  } catch (e) {
+    console.log('[Importer] eval failed:', e.message);
+  }
+  
+  // If we still don't have state, create empty one
+  if (!window.state) {
+    window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
+  }
+  
+  console.log('[Importer] Final state:', window.state);
+  return window.state;
+}
+
+// Show import modal
+async function showImportModal() {
+  console.log('[Importer] showImportModal called');
+  // Ensure window.state is available
+  await initWindowState();
   
   // Remove existing modal
   const existing = document.getElementById('import-modal');
@@ -199,13 +238,16 @@ function showImportError(message) {
 }
 
 // Execute import
-function executeImport(data, targetWidgetId) {
+async function executeImport(data, targetWidgetId) {
   const { bookmarks, widgetGroups } = data;
   
   console.log('[Importer] executeImport called');
-  console.log('[Importer] window.state:', typeof window.state);
-  console.log('[Importer] window.state.workspaces:', window.state?.workspaces);
-  console.log('[Importer] window.state.activeWorkspaceId:', window.state?.activeWorkspaceId);
+  
+  // Ensure state is initialized
+  await initWindowState();
+  
+  console.log('[Importer] window.state after init:', typeof window.state);
+  console.log('[Importer] window.state.workspaces:', window.state?.workspaces?.length);
   
   // Get workspace
   let workspace = window.state?.workspaces?.find(ws => ws.id === window.state.activeWorkspaceId);
