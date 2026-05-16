@@ -3,6 +3,21 @@
 // Show import modal
 function showImportModal() {
   console.log('[Importer] showImportModal called');
+  // Ensure window.state is available - copy from storage if needed
+  if (!window.state || !window.state.workspaces) {
+    console.log('[Importer] window.state not ready, waiting...');
+    // Try to access from main app's state via eval
+    try {
+      const mainState = eval('state');
+      if (mainState && mainState.workspaces) {
+        window.state = mainState;
+        console.log('[Importer] Copied state from main app');
+      }
+    } catch (e) {
+      console.log('[Importer] Could not copy state:', e.message);
+    }
+  }
+  
   // Remove existing modal
   const existing = document.getElementById('import-modal');
   if (existing) existing.remove();
