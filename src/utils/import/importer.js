@@ -4,18 +4,21 @@
 async function initWindowState() {
   console.log('[Importer] initWindowState called');
   
-  // If window.state already has workspaces, use it directly
+  // If window.state exists but workspaces is empty, try browser.storage first
   if (window.state && window.state.workspaces && window.state.workspaces.length > 0) {
     console.log('[Importer] window.state already has workspaces:', window.state.workspaces.length);
     return window.state;
   }
   
-  // Try browser.storage API first
+  // Try browser.storage API first (this works even in isolated contexts)
+  console.log('[Importer] browser:', typeof browser);
+  console.log('[Importer] browser.storage:', typeof browser?.storage);
   if (typeof browser !== 'undefined' && browser.storage) {
     try {
       const result = await browser.storage.local.get('workspaces');
-      console.log('[Importer] Got from storage:', result);
+      console.log('[Importer] Got from storage:', JSON.stringify(result));
       if (result && result.workspaces && result.workspaces.length > 0) {
+        // Update existing window.state if it exists
         if (!window.state) {
           window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
         }
@@ -25,33 +28,43 @@ async function initWindowState() {
         }
         console.log('[Importer] State from storage, workspaces:', window.state.workspaces.length);
         return window.state;
+      } else {
+        console.log('[Importer] Storage returned empty or no workspaces');
       }
     } catch (e) {
-      console.log('[Importer] Storage error:', e.message);
+      console.log('[Importer] Storage error:', e.message, e.stack);
     }
+  } else {
+    console.log('[Importer] browser.storage not available');
   }
   
-  // Try eval for state variable
-  try {
-    const mainState = eval('state');
-    if (mainState && mainState.workspaces && mainState.workspaces.length > 0) {
-      window.state = mainState;
-      console.log('[Importer] Copied state via eval');
-      return window.state;
-    }
-  } catch (e) {
-    console.log('[Importer] eval failed:', e.message);
-  }
-  
-  // If we still don't have workspaces, ensure state object has empty array
+  // Try eval for state variable (only if window.state doesn't exist)
   if (!window.state) {
-    window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
-  } else if (!window.state.workspaces) {
-    window.state.workspaces = [];
-    window.state.activeWorkspaceId = window.state.activeWorkspaceId || null;
+    try {
+      const mainState = eval('state');
+      if (mainState && mainState.workspaces && mainState.workspaces.length > 0) {
+        window.state = mainState;
+        console.log('[Importer] Copied state via eval');
+        return window.state;
+      }
+    } catch (e) {
+      console.log('[Importer] eval failed:', e.message);
+    }
   }
   
-  console.log('[Importer] Final state - workspaces:', window.state.workspaces?.length);
+  // If window.state exists but has no workspaces, return it (it has the structure)
+  if (window.state) {
+    console.log('[Importer] Using existing window.state with', window.state.workspaces?.length, 'workspaces');
+    // If workspaces is empty, set activeWorkspaceId to null
+    if (!window.state.activeWorkspaceId && window.state.workspaces?.length > 0) {
+      window.state.activeWorkspaceId = window.state.workspaces[0].id;
+    }
+    return window.state;
+  }
+  
+  // Create minimal state only if nothing exists
+  window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
+  console.log('[Importer] Created new minimal state');
   return window.state;
 }
 
