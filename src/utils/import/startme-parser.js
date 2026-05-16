@@ -14,50 +14,47 @@ function parseHtml(html) {
 
 // Parse start.me HTML export and extract bookmarks
 function parseStartMeHtml(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  
-  const bookmarks = [];
-  const widgetGroups = [];
-  
-  // Find all bookmark links in start.me format
-  const links = doc.querySelectorAll('a.bookmark-item__link');
-  
-  // Group bookmarks by their widget (widget header title)
-  const widgetContainers = doc.querySelectorAll('.bookmark-widget');
-  
-  widgetContainers.forEach(widget => {
-    const widgetTitleEl = widget.querySelector('.widget-header__text');
-    const widgetTitle = widgetTitleEl ? widgetTitleEl.textContent.trim() : 'Imported';
+  // Try DOMParser first (browser environment)
+  let bookmarks = [];
+  let widgetGroups = [];
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
     
-    const widgetBookmarksList = [];
-    const bookmarkLinks = widget.querySelectorAll('a.bookmark-item__link');
+    // Find bookmark widgets and group by them
+    const widgetContainers = doc.querySelectorAll('.bookmark-widget');
     
-    bookmarkLinks.forEach(link => {
-      const bookmark = extractBookmark(link);
-      if (bookmark) {
-        widgetBookmarksList.push(bookmark);
-        bookmarks.push(bookmark);
+    widgetContainers.forEach(widget => {
+      const widgetTitleEl = widget.querySelector('.widget-header__text');
+      const widgetTitle = widgetTitleEl ? widgetTitleEl.textContent.trim() : 'Imported';
+      
+      const widgetBookmarksList = [];
+      const bookmarkLinks = widget.querySelectorAll('a.bookmark-item__link');
+      
+      bookmarkLinks.forEach(link => {
+        const bookmark = extractBookmarkFromElement(link);
+        if (bookmark) {
+          widgetBookmarksList.push(bookmark);
+          bookmarks.push(bookmark);
+        }
+      });
+      
+      if (widgetBookmarksList.length > 0) {
+        widgetGroups.push({
+          name: widgetTitle,
+          bookmarks: widgetBookmarksList
+        });
       }
     });
-    
-    if (widgetBookmarksList.length > 0) {
-      widgetGroups.push({
-        name: widgetTitle,
-        bookmarks: widgetBookmarksList
-      });
-    }
-  });
+  } catch (e) {
+    // Fallback: regex parsing
+    bookmarks = parseStartMeHtmlRegex(html, widgetGroups);
+  }
   
   // Fallback: if widget grouping didn't work, parse all links
   if (bookmarks.length === 0) {
-    links.forEach(link => {
-      const bookmark = extractBookmark(link);
-      if (bookmark) {
-        bookmarks.push(bookmark);
-      }
-    });
-    
+    bookmarks = parseAllBookmarkLinks(html);
     if (bookmarks.length > 0) {
       widgetGroups.push({
         name: 'Imported Bookmarks',
@@ -69,8 +66,85 @@ function parseStartMeHtml(html) {
   return { bookmarks, widgetGroups };
 }
 
+// Regex fallback for parsing start.me HTML
+function parseStartMeHtmlRegex(html, widgetGroups) {
+  const bookmarks = [];
+  
+  // Extract widget sections
+  const widgetRegex = /<article[^>]*class="[^"]*bookmark-widget[^"]*"[^>]*>([\s\S]*?)<\/article>/g;
+  let widgetMatch;
+  
+  while ((widgetMatch = widgetRegex.exec(html)) !== null) {
+    const widgetHtml = widgetMatch[1];
+    
+    // Get widget title
+    const titleMatch = widgetHtml.match(/<span[^>]*class="[^"]*widget-header__text[^"]*"[^>]*>([^<]+)<\/span>/);
+    const widgetTitle = titleMatch ? titleMatch[1].trim() : 'Imported';
+    
+    // Get all bookmark links in this widget
+    const linkRegex = /<a class="bookmark-item__link"[^>]*href="([^"]+)"[^>]*title="([^"]+)"[^>]*>/g;
+    let linkMatch;
+    const widgetBookmarksList = [];
+    
+    while ((linkMatch = linkRegex.exec(widgetHtml)) !== null) {
+      const url = linkMatch[1];
+      const titleAttr = linkMatch[2];
+      
+      if (url && !url.startsWith('#') && !url.startsWith('javascript:')) {
+        const parts = titleAttr.split('\n');
+        const title = parts[0].trim();
+        
+        widgetBookmarksList.push({
+          id: crypto.randomUUID(),
+          url: url,
+          title: title || url,
+          description: parts.length > 1 ? parts.slice(1).join('\n').trim() : null,
+          favicon: null
+        });
+      }
+    }
+    
+    if (widgetBookmarksList.length > 0) {
+      widgetGroups.push({
+        name: widgetTitle,
+        bookmarks: widgetBookmarksList
+      });
+      bookmarks.push(...widgetBookmarksList);
+    }
+  }
+  
+  return bookmarks;
+}
+
+// Parse all bookmark links without grouping
+function parseAllBookmarkLinks(html) {
+  const bookmarks = [];
+  const linkRegex = /<a class="bookmark-item__link"[^>]*href="([^"]+)"[^>]*title="([^"]+)"[^>]*>/g;
+  let linkMatch;
+  
+  while ((linkMatch = linkRegex.exec(html)) !== null) {
+    const url = linkMatch[1];
+    const titleAttr = linkMatch[2];
+    
+    if (url && !url.startsWith('#') && !url.startsWith('javascript:')) {
+      const parts = titleAttr.split('\n');
+      const title = parts[0].trim();
+      
+      bookmarks.push({
+        id: crypto.randomUUID(),
+        url: url,
+        title: title || url,
+        description: parts.length > 1 ? parts.slice(1).join('\n').trim() : null,
+        favicon: null
+      });
+    }
+  }
+  
+  return bookmarks;
+}
+
 // Extract bookmark data from a single link element
-function extractBookmark(link) {
+function extractBookmarkFromElement(link) {
   const url = link.getAttribute('href');
   
   // Skip invalid URLs
