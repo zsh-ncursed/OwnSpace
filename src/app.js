@@ -940,17 +940,16 @@ function showExportImportMenu() {
   });
 
   menu.querySelector('#import-bookmarks').addEventListener('click', () => {
-    alert('[DEBUG] Import button clicked');
     console.log('[Import] Button clicked');
     menu.remove();
     // Load import scripts and show modal
     const loadScripts = () => {
       const script1 = document.createElement('script');
-      script1.src = './utils/import/startme-parser.js';
+      script1.src = './src/utils/import/startme-parser.js';
       script1.onload = () => {
         console.log('[Import] Parser loaded');
         const script2 = document.createElement('script');
-        script2.src = './utils/import/importer.js';
+        script2.src = './src/utils/import/importer.js';
         script2.onerror = (e) => console.error('[Import] Importer error:', e);
         script2.onload = () => {
           console.log('[Import] Importer loaded, showing modal');
