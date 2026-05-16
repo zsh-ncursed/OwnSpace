@@ -323,7 +323,7 @@ function showBookmarkImportModal() {
     // Save and re-render
     (async () => {
       await saveWorkspaces(state.workspaces);
-      render();
+      renderApp();
       modal.remove();
       showNotification(`Импортировано ${currentImportData.bookmarks.length} закладок`);
     })();
