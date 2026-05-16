@@ -16,13 +16,10 @@ function showImportModal() {
         Загрузите HTML файл, экспортированный из start.me или браузера
       </p>
       
-      <div class="import-dropzone" id="import-dropzone">
-        <div class="import-dropzone-content">
-          <span style="font-size: 32px;">📂</span>
-          <p>Перетащите файл сюда или нажмите для выбора</p>
-        </div>
-        <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
-      </div>
+      <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
+      <button id="select-file-btn" class="add-widget-btn" style="width: 100%; margin: 0;">
+        📂 Выбрать HTML файл
+      </button>
       
       <div id="import-preview" style="display: none; margin-top: 16px;">
         <h4 style="margin-bottom: 8px;">Найдено:</h4>
@@ -51,36 +48,20 @@ function showImportModal() {
   document.body.appendChild(modal);
   
   // Event listeners
-  const dropzone = document.getElementById('import-dropzone');
   const fileInput = document.getElementById('import-file-input');
-  const preview = document.getElementById('import-preview');
+  const selectBtn = document.getElementById('select-file-btn');
   const confirmBtn = document.getElementById('import-confirm');
   const cancelBtn = document.getElementById('import-cancel');
   const closeBtn = modal.querySelector('.modal-close');
   
-  // Click to open file dialog
-  dropzone.addEventListener('click', () => fileInput.click());
+  // Click button to open file picker
+  selectBtn.addEventListener('click', () => {
+    fileInput.click();
+  });
   
   // File selected
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (file) processImportFile(file);
-  });
-  
-  // Drag and drop
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.classList.add('dragover');
-  });
-  
-  dropzone.addEventListener('dragleave', () => {
-    dropzone.classList.remove('dragover');
-  });
-  
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
     if (file) processImportFile(file);
   });
   
