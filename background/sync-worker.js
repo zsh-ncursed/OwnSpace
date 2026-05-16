@@ -207,7 +207,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case 'fetchTitle':
           console.log('[BG] fetchTitle received, url:', payload?.url);
           try {
-            const response = await fetch(payload.url, { mode: 'cors' });
+            // Background page can fetch without CORS restrictions
+            const response = await fetch(payload.url);
             console.log('[BG] fetch status:', response.status);
             if (response.ok) {
               const html = await response.text();

@@ -100,23 +100,17 @@ async function saveCalDAVCredentials(creds) {
   await storage.local.setItem(STORAGE_KEYS.CALDAV, creds);
 }
 
-// Browser messaging fallback
+// Browser messaging for extension background page
 const browserMessaging = {
   sendMessage: async (message) => {
-    console.log('[MESSAGING] Attempting to send to background, browser.runtime:', typeof browser?.runtime);
-    
     if (typeof browser !== 'undefined' && browser?.runtime?.sendMessage) {
       try {
-        const result = await browser.runtime.sendMessage(message);
-        console.log('[MESSAGING] Success:', result);
-        return result;
+        return await browser.runtime.sendMessage(message);
       } catch (e) {
-        console.log('[MESSAGING] Error:', e.message);
+        // Extension API failed
       }
     }
-    
-    // Mock fallback
-    console.log('[MOCK] Browser messaging:', message);
+    // Mock fallback for testing
     if (message.type === 'test') {
       return { success: true, result: { events: [] } };
     }
@@ -602,6 +596,19 @@ function setupWidgetListeners(container) {
         console.log('[FG] Response:', JSON.stringify(response));
         if (response.success && response.result?.title) {
           title = response.result.title;
+        } else {
+          // Fallback: try direct fetch with CORS
+          console.log('[FG] Background failed, trying direct fetch...');
+          try {
+            const resp = await fetch(fullUrl, { mode: 'cors' });
+            if (resp.ok) {
+              const html = await resp.text();
+              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              if (match) title = match[1].trim();
+            }
+          } catch (e2) {
+            console.log('[FG] Direct fetch also failed:', e2.message);
+          }
         }
       } catch (e) {
         console.log('[FG] Failed to fetch title:', e);
