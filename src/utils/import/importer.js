@@ -42,9 +42,23 @@ async function initWindowState() {
     console.log('[Importer] eval failed:', e.message);
   }
   
-  // If we still don't have state, create empty one
+  // If we still don't have state, initialize a new state object
   if (!window.state) {
     window.state = { workspaces: [], activeWorkspaceId: null, theme: 'dark', loading: false };
+  }
+  
+  // Reload workspaces from storage to ensure we have latest data
+  try {
+    const result = await browser.storage.local.get('workspaces');
+    if (result && result.workspaces && result.workspaces.length > 0) {
+      window.state.workspaces = result.workspaces;
+      if (!window.state.activeWorkspaceId) {
+        window.state.activeWorkspaceId = result.workspaces[0].id;
+      }
+      console.log('[Importer] Reloaded workspaces from storage:', window.state.workspaces.length);
+    }
+  } catch (e) {
+    console.log('[Importer] Failed to reload workspaces:', e.message);
   }
   
   console.log('[Importer] Final state:', window.state);
