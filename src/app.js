@@ -589,7 +589,7 @@ function setupWidgetListeners(container) {
       // Try to fetch page title via background page (to avoid CORS)
       let title = 'Новая закладка';
       try {
-        const response = await browserMessaging.sendMessage({ type: 'fetchTitle', url: fullUrl });
+        const response = await browserMessaging.sendMessage({ type: 'fetchTitle', payload: { url: fullUrl } });
         if (response.success && response.result?.title) {
           title = response.result.title;
         }
