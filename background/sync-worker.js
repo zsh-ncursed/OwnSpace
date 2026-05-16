@@ -204,6 +204,21 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           result = { calendars };
           break;
 
+        case 'fetchTitle':
+          try {
+            const response = await fetch(payload.url, { mode: 'cors' });
+            if (response.ok) {
+              const html = await response.text();
+              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              result = { title: match ? match[1].trim() : null };
+            } else {
+              result = { title: null, error: 'HTTP ' + response.status };
+            }
+          } catch (e) {
+            result = { title: null, error: e.message };
+          }
+          break;
+
         default:
           throw new Error(`Unknown message type: ${type}`);
       }

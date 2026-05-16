@@ -111,6 +111,9 @@ const browserMessaging = {
       if (message.type === 'test') {
         return { success: true, result: { events: [] } };
       }
+      if (message.type === 'fetchTitle') {
+        return { success: true, result: { title: message.url } };
+      }
       return { success: true };
     }
   }
@@ -583,19 +586,15 @@ function setupWidgetListeners(container) {
       const widget = workspace.widgets.find(w => w.id === widgetId);
       const bookmarks = widget.config.bookmarks || [];
 
-      // Try to fetch page title
+      // Try to fetch page title via background page (to avoid CORS)
       let title = 'Новая закладка';
       try {
-        const response = await fetch(fullUrl, { mode: 'cors' });
-        if (response.ok) {
-          const html = await response.text();
-          const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-          if (match) {
-            title = match[1].trim();
-          }
+        const response = await browserMessaging.sendMessage({ type: 'fetchTitle', url: fullUrl });
+        if (response.success && response.result?.title) {
+          title = response.result.title;
         }
       } catch (e) {
-        // Use default title on fetch error
+        console.log('Failed to fetch title:', e);
       }
 
       const newBookmark = {
