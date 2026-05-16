@@ -944,26 +944,38 @@ function showExportImportMenu() {
     menu.remove();
     // Load import scripts and show modal
     const loadScripts = () => {
+      console.log('[Import] Loading parser from ./src/utils/import/startme-parser.js');
       const script1 = document.createElement('script');
       script1.src = './src/utils/import/startme-parser.js';
       script1.onload = () => {
         console.log('[Import] Parser loaded');
+        console.log('[Import] Loading importer from ./src/utils/import/importer.js');
         const script2 = document.createElement('script');
         script2.src = './src/utils/import/importer.js';
         script2.onerror = (e) => console.error('[Import] Importer error:', e);
         script2.onload = () => {
-          console.log('[Import] Importer loaded, showing modal');
-          window.BookmarkImporter.showImportModal();
+          console.log('[Import] Importer loaded, BookmarkImporter:', typeof window.BookmarkImporter);
+          console.log('[Import] Calling showImportModal');
+          if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
+            window.BookmarkImporter.showImportModal();
+          } else {
+            console.error('[Import] BookmarkImporter.showImportModal not found');
+          }
         };
         document.head.appendChild(script2);
       };
-      script1.onerror = (e) => console.error('[Import] Parser error:', e);
+      script1.onerror = (e) => {
+        console.error('[Import] Parser error:', e);
+        alert('[DEBUG] Parser load error: ' + e.target.src);
+      };
       document.head.appendChild(script1);
     };
     
-    if (typeof window.BookmarkImporter !== 'undefined') {
+    if (typeof window.BookmarkImporter !== 'undefined' && window.BookmarkImporter) {
+      console.log('[Import] Already loaded, calling showImportModal');
       window.BookmarkImporter.showImportModal();
     } else {
+      console.log('[Import] Scripts not loaded, loading now');
       loadScripts();
     }
   });
