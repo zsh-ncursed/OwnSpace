@@ -2,6 +2,7 @@
 
 // Show import modal
 function showImportModal() {
+  console.log('[Importer] showImportModal called');
   // Remove existing modal
   const existing = document.getElementById('import-modal');
   if (existing) existing.remove();
@@ -56,8 +57,14 @@ function showImportModal() {
   
   // Click button to open file picker
   selectBtn.addEventListener('click', () => {
+    console.log('[Importer] Select button clicked, opening file picker');
     fileInput.click();
   });
+  
+  // Wait a bit for scripts to fully load, then enable button
+  setTimeout(() => {
+    console.log('[Importer] Modal ready, select file button enabled');
+  }, 100);
   
   // File selected
   fileInput.addEventListener('change', (e) => {
