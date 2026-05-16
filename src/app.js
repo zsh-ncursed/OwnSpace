@@ -952,16 +952,21 @@ function showExportImportMenu() {
         console.log('[Import] Loading importer from ./src/utils/import/importer.js');
         const script2 = document.createElement('script');
         script2.src = './src/utils/import/importer.js';
-        script2.onerror = (e) => console.error('[Import] Importer error:', e);
         script2.onload = () => {
-          console.log('[Import] Importer loaded, BookmarkImporter:', typeof window.BookmarkImporter);
-          console.log('[Import] Calling showImportModal');
-          if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
+          console.log('[Import] Importer script onload fired');
+          console.log('[Import] window.BookmarkImporter:', typeof window.BookmarkImporter);
+          // Directly call the function if defined
+          if (typeof window.showImportModal === 'function') {
+            console.log('[Import] Calling window.showImportModal');
+            window.showImportModal();
+          } else if (window.BookmarkImporter && typeof window.BookmarkImporter.showImportModal === 'function') {
+            console.log('[Import] Calling window.BookmarkImporter.showImportModal');
             window.BookmarkImporter.showImportModal();
           } else {
-            console.error('[Import] BookmarkImporter.showImportModal not found');
+            console.error('[Import] No showImportModal found');
           }
         };
+        script2.onerror = (e) => console.error('[Import] Importer error:', e);
         document.head.appendChild(script2);
       };
       script1.onerror = (e) => {
