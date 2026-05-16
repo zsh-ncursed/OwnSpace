@@ -103,13 +103,21 @@ async function saveCalDAVCredentials(creds) {
 // Browser messaging for extension background page
 const browserMessaging = {
   sendMessage: async (message) => {
+    console.log('[MSG] Attempting to send message:', message.type);
+    
     if (typeof browser !== 'undefined' && browser?.runtime?.sendMessage) {
       try {
-        return await browser.runtime.sendMessage(message);
+        console.log('[MSG] Using browser.runtime.sendMessage');
+        const result = await browser.runtime.sendMessage(message);
+        console.log('[MSG] Received response:', JSON.stringify(result));
+        return result;
       } catch (e) {
-        // Extension API failed
+        console.log('[MSG] browser.runtime.sendMessage failed:', e.message);
       }
+    } else {
+      console.log('[MSG] browser.runtime not available');
     }
+    
     // Mock fallback for testing
     if (message.type === 'test') {
       return { success: true, result: { events: [] } };
