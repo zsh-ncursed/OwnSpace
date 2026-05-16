@@ -676,20 +676,29 @@ function renderWidgetGrid() {
 
 function renderWidget(widget) {
   const title = widget.config.title || getDefaultTitle(widget.type);
+  const widgetTitle = escapeHtml(title);
 
   return `
     <div class="widget" data-widget-id="${widget.id}">
       <div class="widget-header">
-        <span class="widget-title">${escapeHtml(title)}</span>
+        <span class="widget-title">${widgetTitle}</span>
         <div class="widget-actions">
           <button class="edit-title-btn" title="Переименовать">✏️</button>
-          <button class="remove-widget-btn" title="Удалить">X</button>
+          <button class="remove-widget-btn" title="Удалить" onclick="window.__removeWidget('${widget.id}', '${widgetTitle.replace(/'/g, "\\'")}')">X</button>
         </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
     </div>
   `;
 }
+
+// Global remove handler for onclick attributes
+window.__removeWidget = function(widgetId, widgetTitle) {
+  console.log('[Widget] Remove via onclick, title:', widgetTitle);
+  if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
+    removeWidget(widgetId);
+  }
+};
 
 function getDefaultTitle(type) {
   switch (type) {
