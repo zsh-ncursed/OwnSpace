@@ -3,11 +3,13 @@
 // Initialize window.state - sync from main app first
 async function initWindowState() {
   console.log('[Importer] initWindowState called');
+  console.log('[Importer] window.syncImportState:', typeof window.syncImportState);
   
   // Call syncImportState if available to get latest data from main app
   if (typeof window.syncImportState === 'function') {
     console.log('[Importer] Calling window.syncImportState()');
     window.syncImportState();
+    console.log('[Importer] After syncImportState, workspaces:', window.state?.workspaces?.length);
   }
   
   // If window.state has workspaces, use it
