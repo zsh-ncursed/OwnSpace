@@ -65,6 +65,13 @@ body {
   border-radius: 8px;
   padding: 16px;
   min-height: 200px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.widget-content {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .widget-header {
@@ -171,6 +178,7 @@ body {
   background: var(--bg);
   border-radius: 4px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .bookmark-item .favicon {
