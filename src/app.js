@@ -140,8 +140,27 @@ let state = {
 // Make state available globally for import scripts
 window.state = state;
 
+// Sync state to window for import scripts
+function syncStateToWindow() {
+  window.state.workspaces = state.workspaces;
+  window.state.activeWorkspaceId = state.activeWorkspaceId;
+  window.state.theme = state.theme;
+}
+
+// Call this after loading workspaces to make them available to import scripts
+window.syncImportState = syncStateToWindow;
+
+// Sync imported state back to local app state
+function syncStateFromWindow() {
+  state.workspaces = window.state.workspaces || state.workspaces;
+  state.activeWorkspaceId = window.state.activeWorkspaceId || state.activeWorkspaceId;
+  state.theme = window.state.theme || state.theme;
+}
+
 // Expose save and render functions for import scripts
 window.saveAndRender = async () => {
+  // Sync window.state back to local state before saving
+  syncStateFromWindow();
   await saveWorkspaces(state.workspaces);
   render();
 };
@@ -951,6 +970,13 @@ function showExportImportMenu() {
   menu.querySelector('#import-bookmarks').addEventListener('click', () => {
     console.log('[Import] Button clicked');
     menu.remove();
+    
+    // Sync current state to window for import scripts
+    if (window.syncImportState) {
+      window.syncImportState();
+      console.log('[Import] State synced to window, workspaces:', window.state.workspaces.length);
+    }
+    
     // Load import scripts and show modal
     const loadScripts = () => {
       console.log('[Import] Loading parser from ./src/utils/import/startme-parser.js');
@@ -1119,6 +1145,7 @@ async function initApp() {
 
   // Load workspaces
   await loadWorkspaces();
+  syncStateToWindow();
   state.loading = false;
 
   // Render
