@@ -676,15 +676,15 @@ function renderWidgetGrid() {
 
 function renderWidget(widget) {
   const title = widget.config.title || getDefaultTitle(widget.type);
-  const widgetTitle = escapeHtml(title);
+  const widgetId = widget.id;
 
   return `
-    <div class="widget" data-widget-id="${widget.id}">
+    <div class="widget" data-widget-id="${widgetId}">
       <div class="widget-header">
-        <span class="widget-title">${widgetTitle}</span>
+        <span class="widget-title">${escapeHtml(title)}</span>
         <div class="widget-actions">
           <button class="edit-title-btn" title="Переименовать">✏️</button>
-          <button class="remove-widget-btn" title="Удалить" onclick="window.__removeWidget('${widget.id}', '${widgetTitle.replace(/'/g, "\\'")}')">X</button>
+          <button class="remove-widget-btn" title="Удалить" data-ws-id="${widgetId}">X</button>
         </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
@@ -692,13 +692,23 @@ function renderWidget(widget) {
   `;
 }
 
-// Global remove handler for onclick attributes
-window.__removeWidget = function(widgetId, widgetTitle) {
-  console.log('[Widget] Remove via onclick, title:', widgetTitle);
+// Global remove handler - set up once at script load
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.remove-widget-btn');
+  if (!btn) return;
+  
+  const widgetEl = btn.closest('.widget');
+  if (!widgetEl) return;
+  
+  const widgetId = widgetEl.dataset.widgetId;
+  const workspace = getActiveWorkspace();
+  const widget = workspace?.widgets.find(w => w.id === widgetId);
+  const widgetTitle = widget?.config?.title || 'этот виджет';
+  
   if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
     removeWidget(widgetId);
   }
-};
+});
 
 function getDefaultTitle(type) {
   switch (type) {
