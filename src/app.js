@@ -589,12 +589,14 @@ function setupWidgetListeners(container) {
       // Try to fetch page title via background page (to avoid CORS)
       let title = 'Новая закладка';
       try {
+        console.log('[FG] Sending fetchTitle message for:', fullUrl);
         const response = await browserMessaging.sendMessage({ type: 'fetchTitle', payload: { url: fullUrl } });
+        console.log('[FG] Response:', JSON.stringify(response));
         if (response.success && response.result?.title) {
           title = response.result.title;
         }
       } catch (e) {
-        console.log('Failed to fetch title:', e);
+        console.log('[FG] Failed to fetch title:', e);
       }
 
       const newBookmark = {

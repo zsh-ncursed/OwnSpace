@@ -205,16 +205,20 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
 
         case 'fetchTitle':
+          console.log('[BG] fetchTitle received, url:', payload?.url);
           try {
             const response = await fetch(payload.url, { mode: 'cors' });
+            console.log('[BG] fetch status:', response.status);
             if (response.ok) {
               const html = await response.text();
               const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              console.log('[BG] title match:', match ? match[1] : null);
               result = { title: match ? match[1].trim() : null };
             } else {
               result = { title: null, error: 'HTTP ' + response.status };
             }
           } catch (e) {
+            console.log('[BG] fetch error:', e.message);
             result = { title: null, error: e.message };
           }
           break;
