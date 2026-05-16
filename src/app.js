@@ -904,6 +904,11 @@ function showExportImportMenu() {
         <input type="file" id="import-file" accept=".json" style="display: none;" />
       </div>
       <hr style="margin: 16px 0; border-color: var(--primary);" />
+      <h4>Импорт из start.me</h4>
+      <div class="export-options">
+        <button id="import-bookmarks">📂 Импорт закладок (HTML)</button>
+      </div>
+      <hr style="margin: 16px 0; border-color: var(--primary);" />
       <h4>CalDAV Синхронизация</h4>
       <div class="caldav-options">
         <button id="caldav-settings">Настроить CalDAV</button>
@@ -932,6 +937,24 @@ function showExportImportMenu() {
 
   menu.querySelector('#import-btn').addEventListener('click', () => {
     menu.querySelector('#import-file').click();
+  });
+
+  menu.querySelector('#import-bookmarks').addEventListener('click', () => {
+    menu.remove();
+    // Load import scripts and show modal
+    if (!window.BookmarkParser || !window.BookmarkImporter) {
+      const script1 = document.createElement('script');
+      script1.src = './utils/import/startme-parser.js';
+      script1.onload = () => {
+        const script2 = document.createElement('script');
+        script2.src = './utils/import/importer.js';
+        script2.onload = () => window.BookmarkImporter.showImportModal();
+        document.head.appendChild(script2);
+      };
+      document.head.appendChild(script1);
+    } else {
+      window.BookmarkImporter.showImportModal();
+    }
   });
 
   menu.querySelector('#import-file').addEventListener('change', async (e) => {
