@@ -963,12 +963,20 @@ function showExportImportMenu() {
         script2.src = './src/utils/import/importer.js';
         script2.onload = () => {
           console.log('[Import] Importer script loaded');
-          // Use window.BookmarkImporter now that it's properly exposed
-          if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
-            window.BookmarkImporter.showImportModal();
-          } else {
-            console.error('[Import] BookmarkImporter not available');
-          }
+          // Wait a bit for the script to fully execute
+          setTimeout(() => {
+            console.log('[Import] After delay, BookmarkImporter:', typeof window.BookmarkImporter);
+            if (window.BookmarkImporter && window.BookmarkImporter.showImportModal) {
+              window.BookmarkImporter.showImportModal();
+            } else {
+              console.error('[Import] BookmarkImporter still not available');
+              // Last resort: inline script
+              const inline = document.createElement('script');
+              inline.textContent = 'if(window.BookmarkImporter) { console.log("Found in inline"); window.BookmarkImporter.showImportModal(); } else { console.log("Not in inline either"); }';
+              document.head.appendChild(inline);
+              inline.remove();
+            }
+          }, 200);
         };
         script2.onerror = (e) => console.error('[Import] Importer error:', e);
         document.head.appendChild(script2);
