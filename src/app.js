@@ -818,6 +818,8 @@ function setupWidgetListeners(container) {
   
   removeButtons.forEach((btn, i) => {
     console.log('[setupWidgetListeners] Attaching listener to button', i);
+    
+    // Try both addEventListener and onclick
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -834,6 +836,24 @@ function setupWidgetListeners(container) {
         removeWidget(widgetId);
       }
     });
+    
+    // Also set onclick as backup
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const widgetEl = e.target.closest('.widget');
+      const widgetId = widgetEl.dataset.widgetId;
+      const workspace = getActiveWorkspace();
+      const widget = workspace?.widgets.find(w => w.id === widgetId);
+      const widgetTitle = widget?.config?.title || 'этот виджет';
+      
+      console.log('[Widget] Remove onclick fired, title:', widgetTitle);
+      
+      if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
+        removeWidget(widgetId);
+      }
+    };
   });
 
   // Edit title
