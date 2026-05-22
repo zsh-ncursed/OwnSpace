@@ -137,6 +137,25 @@ let state = {
   loading: true
 };
 
+// Track expanded bookmark widgets (widgetId -> boolean)
+const bookmarkExpanded = {};
+
+// Track Sortable instances to avoid duplicates
+const sortableInstances = {};
+
+// Track widget column Sortable instances
+const widgetSortableInstances = {};
+
+// Helper function to get the column with fewest widgets
+function getTargetColumn(workspace) {
+  const colCounts = [0, 0, 0, 0];
+  workspace.widgets.forEach(w => {
+    const col = w.column ?? 0;
+    colCounts[col] = (colCounts[col] || 0) + 1;
+  });
+  return colCounts.indexOf(Math.min(...colCounts));
+}
+
 // Make state available globally for import scripts
 window.state = state;
 
@@ -332,21 +351,27 @@ function showBookmarkImportModal() {
     
     console.log('[Importer] Importing', currentImportData.bookmarks.length, 'bookmarks to', workspace.name);
     
-    // Create widgets for each group
+    // Create widgets for each group with proper distribution
+    const widgetsToAdd = [];
     currentImportData.widgetGroups.forEach(wg => {
+      const targetCol = getTargetColumn(workspace);
+      const colWidgets = workspace.widgets.filter(w => (w.column ?? 0) === targetCol);
       const newWidget = {
         id: crypto.randomUUID(),
         type: 'bookmarks',
+        column: targetCol,
+        order: colWidgets.length,
         config: { title: wg.name || 'Импорт', bookmarks: wg.bookmarks }
       };
-      workspace.widgets.push(newWidget);
-      console.log('[Importer] Created widget:', wg.name);
+      widgetsToAdd.push(newWidget);
+      console.log('[Importer] Created widget:', wg.name, 'for column', targetCol);
     });
     
     // Save and re-render
     (async () => {
-      await saveWorkspaces(state.workspaces);
-      renderApp();
+      updateWorkspace(workspace.id, {
+        widgets: [...workspace.widgets, ...widgetsToAdd]
+      });
       modal.remove();
       showNotification(`Импортировано ${currentImportData.bookmarks.length} закладок`);
     })();
@@ -434,6 +459,18 @@ async function toggleTheme() {
 // Workspace Management
 async function loadWorkspaces() {
   const ws = await getWorkspaces();
+  // Normalize: ensure all widgets have column and order
+  let changed = false;
+  ws.forEach(workspace => {
+    workspace.widgets.forEach((w, idx) => {
+      if (w.column === undefined || w.column === null) { w.column = 0; changed = true; }
+      if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
+    });
+  });
+  // Save normalized data back
+  if (changed) {
+    await saveWorkspaces(ws);
+  }
   state.workspaces = ws;
   if (ws.length > 0 && !state.activeWorkspaceId) {
     state.activeWorkspaceId = ws[0].id;
@@ -484,10 +521,21 @@ function addWidget(type) {
   const workspace = getActiveWorkspace();
   if (!workspace) return;
 
+  // Assign to column with fewest widgets
+  const colCounts = [0, 0, 0, 0];
+  workspace.widgets.forEach(w => {
+    const col = w.column ?? 0;
+    colCounts[col] = (colCounts[col] || 0) + 1;
+  });
+  const targetCol = colCounts.indexOf(Math.min(...colCounts));
+
+  const colWidgets = workspace.widgets.filter(w => (w.column ?? 0) === targetCol);
+
   const newWidget = {
     id: crypto.randomUUID(),
     type,
-    order: workspace.widgets.length,
+    column: targetCol,
+    order: colWidgets.length,
     config: getDefaultWidgetConfig(type)
   };
 
@@ -511,8 +559,14 @@ function removeWidget(widgetId) {
   const workspace = getActiveWorkspace();
   if (!workspace) return;
 
+  delete bookmarkExpanded[widgetId];
+  if (sortableInstances[widgetId]) {
+    sortableInstances[widgetId].destroy();
+    delete sortableInstances[widgetId];
+  }
+  const updated = workspace.widgets.filter(w => w.id !== widgetId);
   updateWorkspace(workspace.id, {
-    widgets: workspace.widgets.filter(w => w.id !== widgetId)
+    widgets: updated
   });
 }
 
@@ -541,7 +595,21 @@ function renderApp() {
 
 function renderWorkspaceTabs() {
   const container = document.getElementById('workspace-tabs');
-  if (!container) return;
+  if (!container) {
+    console.error('workspace-tabs container not found');
+    return;
+  }
+  
+  // Ensure at least one workspace
+  if (state.workspaces.length === 0) {
+    state.workspaces = [{
+      id: crypto.randomUUID(),
+      name: 'Добро пожаловать',
+      background: { type: 'color', value: '#1a1a2e' },
+      widgets: []
+    }];
+    state.activeWorkspaceId = state.workspaces[0].id;
+  }
 
   container.innerHTML = `
     <div class="tabs-container">
@@ -627,11 +695,16 @@ function renderWidgetGrid() {
     backgroundPosition: 'center'
   };
 
-  container.style.cssText = `padding: 20px; min-height: calc(100vh - 60px); background: ${gridStyle.background}; background-size: ${gridStyle.backgroundSize}; background-position: ${gridStyle.backgroundPosition};`;
+  container.className = 'widget-grid widget-grid-layout';
+  container.style.cssText = `display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; padding: 20px; min-height: calc(100vh - 60px); background: ${gridStyle.background}; background-size: ${gridStyle.backgroundSize}; background-position: ${gridStyle.backgroundPosition};`;
 
   if (widgets.length === 0) {
+    // Create 4 empty columns for visual debugging
+    const debugCols = [0, 1, 2, 3].map(i => `<div class="widget-column" data-column="${i}" style="border: 2px dashed red; min-height: 200px;"><span style="color: red;">COL ${i}</span></div>`).join('');
+    
     container.innerHTML = `
-      <button class="add-widget-btn" id="add-widget-empty">+ Добавить виджет</button>
+      ${debugCols}
+      <button class="add-widget-btn" id="add-widget-empty" style="grid-column: 1 / -1; z-index: 10;">+ Добавить виджет</button>
       <div id="add-widget-menu" class="modal-overlay" style="display: none;">
         <div class="modal">
           <h3>Добавить виджет</h3>
@@ -650,11 +723,27 @@ function renderWidgetGrid() {
     return;
   }
 
-  container.innerHTML = `
-    <div class="widget-grid">
-      ${widgets.map(w => renderWidget(w)).join('')}
+  // Group widgets by column
+  const columns = [[], [], [], []];
+  widgets.forEach(w => {
+    const col = w.column ?? 0;
+    if (col >= 0 && col < 4) {
+      columns[col].push(w);
+    } else {
+      columns[0].push(w);
+    }
+  });
+  columns.forEach(col => col.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+
+  const columnsHTML = columns.map((colWidgets, idx) => `
+    <div class="widget-column" data-column="${idx}">
+      ${colWidgets.map(w => renderWidget(w)).join('')}
     </div>
-    <button class="add-widget-btn" id="add-widget">+ Добавить виджет</button>
+  `).join('');
+
+  container.innerHTML = `
+    ${columnsHTML}
+    <button class="add-widget-btn" id="add-widget" style="grid-column: 1 / -1;">+ Добавить виджет</button>
     <div id="add-widget-menu" class="modal-overlay" style="display: none;">
       <div class="modal">
         <h3>Добавить виджет</h3>
@@ -671,6 +760,7 @@ function renderWidgetGrid() {
   `;
 
   setupWidgetListeners(container);
+  setupWidgetColumnSortable();
   setupAddWidgetListeners(container);
 }
 
@@ -680,7 +770,7 @@ function renderWidget(widget) {
 
   return `
     <div class="widget" data-widget-id="${widgetId}">
-      <div class="widget-header">
+      <div class="widget-header widget-drag-handle">
         <span class="widget-title">${escapeHtml(title)}</span>
         <div class="widget-actions">
           <button class="edit-title-btn" title="Переименовать">✏️</button>
@@ -727,6 +817,16 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Show all / collapse bookmarks handler
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.show-all-btn');
+  if (!btn) return;
+  
+  const widgetId = btn.dataset.bookmarkWidgetId;
+  bookmarkExpanded[widgetId] = !bookmarkExpanded[widgetId];
+  renderWidgetGrid();
+});
+
 function getDefaultTitle(type) {
   switch (type) {
     case WIDGET_TYPES.BOOKMARKS: return 'Закладки';
@@ -758,16 +858,21 @@ function renderWidgetContent(widget) {
 // Widget Renderers
 function renderBookmarksWidget(widget) {
   const bookmarks = widget.config.bookmarks || [];
+  const isExpanded = bookmarkExpanded[widget.id] || false;
+  const hasMore = bookmarks.length > 10;
+
   return `
     <div class="bookmarks-widget" data-widget-id="${widget.id}">
       <div class="add-bookmark">
         <input type="text" placeholder="Введите URL..." class="new-url-input" />
         <button class="add-bookmark-btn">+</button>
       </div>
-      <div class="bookmarks-list">
+      <div class="bookmarks-list ${isExpanded || !hasMore ? '' : 'collapsed'}">
         ${bookmarks.map(bm => `
           <div class="bookmark-item" data-bookmark-id="${bm.id}">
-            ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" />` : ''}
+            <span class="bookmark-drag-handle">
+              ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" />` : '<span class="favicon-placeholder">⠿</span>'}
+            </span>
             <input type="text" class="title-input" value="${escapeHtml(bm.title)}" style="display: none;" />
             <a href="${escapeHtml(bm.url)}" target="_blank" class="bookmark-title">${escapeHtml(bm.title)}</a>
             <button class="edit-btn">✏️</button>
@@ -775,6 +880,7 @@ function renderBookmarksWidget(widget) {
           </div>
         `).join('')}
       </div>
+      ${hasMore ? `<button class="show-all-btn" data-bookmark-widget-id="${widget.id}">${isExpanded ? 'Свернуть' : `Показать все (${bookmarks.length})`}</button>` : ''}
     </div>
   `;
 }
@@ -913,6 +1019,43 @@ function setupWidgetListeners(container) {
   // Bookmarks
   container.querySelectorAll('.bookmarks-widget').forEach(el => {
     const widgetId = el.dataset.widgetId;
+
+    // Sortable drag-and-drop for bookmark reordering
+    if (typeof Sortable !== 'undefined') {
+      const list = el.querySelector('.bookmarks-list');
+      // Destroy old instance to prevent duplicates
+      if (sortableInstances[widgetId]) {
+        sortableInstances[widgetId].destroy();
+      }
+      sortableInstances[widgetId] = Sortable.create(list, {
+        handle: '.bookmark-drag-handle',
+        animation: 150,
+        ghostClass: 'bookmark-ghost',
+        chosenClass: 'bookmark-chosen',
+        forceFallback: true,
+        fallbackOnBody: true,
+        swapThreshold: 0.65,
+        onStart: () => {
+          list.classList.add('dragging');
+        },
+        onEnd: (evt) => {
+          list.classList.remove('dragging');
+          const workspace = getActiveWorkspace();
+          const widget = workspace.widgets.find(w => w.id === widgetId);
+          if (!widget) return;
+          const items = list.querySelectorAll('.bookmark-item');
+          const newOrder = [];
+          items.forEach(item => {
+            const bmId = item.dataset.bookmarkId;
+            const bm = widget.config.bookmarks.find(b => b.id === bmId);
+            if (bm) newOrder.push(bm);
+          });
+          if (newOrder.length === widget.config.bookmarks.length) {
+            updateWidgetConfig(widgetId, { bookmarks: newOrder });
+          }
+        }
+      });
+    }
 
     // Add bookmark
     el.querySelector('.add-bookmark-btn').addEventListener('click', async () => {
@@ -1113,6 +1256,67 @@ function setupAddWidgetListeners(container) {
     btn.addEventListener('click', () => {
       addWidget(btn.dataset.type);
       hideMenu();
+    });
+  });
+}
+
+// Widget column drag-and-drop
+function setupWidgetColumnSortable() {
+  if (typeof Sortable === 'undefined') return;
+
+  // Destroy old instances
+  Object.keys(widgetSortableInstances).forEach(key => {
+    widgetSortableInstances[key].destroy();
+    delete widgetSortableInstances[key];
+  });
+
+  document.querySelectorAll('.widget-column').forEach(col => {
+    const colIdx = parseInt(col.dataset.column, 10);
+    widgetSortableInstances[colIdx] = Sortable.create(col, {
+      handle: '.widget-drag-handle',
+      filter: '.edit-title-btn, .remove-widget-btn',
+      preventOnFilter: false,
+      animation: 150,
+      group: 'widget-columns',
+      ghostClass: 'widget-ghost',
+      chosenClass: 'widget-chosen',
+      dragClass: 'widget-drag',
+      forceFallback: true,
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      onEnd: (evt) => {
+        const workspace = getActiveWorkspace();
+        if (!workspace) return;
+
+        const widgetId = evt.item.dataset.widgetId;
+        const widget = workspace.widgets.find(w => w.id === widgetId);
+        if (!widget) return;
+
+        const newColIdx = parseInt(evt.to.dataset.column, 10);
+        const items = evt.to.querySelectorAll('.widget');
+        const newOrder = Array.from(items).map(el => el.dataset.widgetId);
+        const positionInCol = newOrder.indexOf(widgetId);
+
+        // Update all widgets in the target column with new order
+        const updatedWidgets = workspace.widgets.map(w => {
+          if (w.id === widgetId) {
+            return { ...w, column: newColIdx, order: positionInCol };
+          }
+          // Shift other widgets in the same column
+          const wCol = w.column ?? 0;
+          if (wCol === newColIdx) {
+            const wPos = newOrder.indexOf(w.id);
+            if (wPos !== -1) {
+              return { ...w, order: wPos };
+            }
+          }
+          return w;
+        });
+
+        saveWorkspaces(updatedWidgets);
+        state.workspaces = updatedWidgets;
+        renderWidgetGrid();
+      }
     });
   });
 }
@@ -1402,7 +1606,21 @@ function showCalDAVSyncSettings() {
 }
 
 // Init
+// Prevent double initialization
+let appInitialized = false;
+
 async function initApp() {
+  if (appInitialized) return;
+  appInitialized = true;
+  
+  console.log('OwnSpace initApp starting...');
+  
+  const app = document.getElementById('app');
+  if (!app) {
+    console.error('#app not found');
+    return;
+  }
+  
   // Load settings
   const settings = await getSettings();
   state.theme = settings.theme || 'dark';
@@ -1410,6 +1628,8 @@ async function initApp() {
 
   // Load workspaces
   await loadWorkspaces();
+  console.log('Workspaces:', state.workspaces.length);
+  
   syncStateToWindow();
   state.loading = false;
 
@@ -1417,7 +1637,7 @@ async function initApp() {
   renderApp();
 }
 
-// Auto-init when loaded as content script
+// Init when DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
