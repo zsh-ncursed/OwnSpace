@@ -351,20 +351,29 @@ function showBookmarkImportModal() {
     
     console.log('[Importer] Importing', currentImportData.bookmarks.length, 'bookmarks to', workspace.name);
     
-    // Create widgets for each group with proper distribution
+    // Create widgets for each group with sequential column distribution
     const widgetsToAdd = [];
+    // Count existing widgets per column
+    const colCounts = [0, 0, 0, 0];
+    workspace.widgets.forEach(w => {
+      const col = w.column ?? 0;
+      colCounts[col] = (colCounts[col] || 0) + 1;
+    });
+    
     currentImportData.widgetGroups.forEach(wg => {
-      const targetCol = getTargetColumn(workspace);
-      const colWidgets = workspace.widgets.filter(w => (w.column ?? 0) === targetCol);
+      // Find column with minimum current count
+      const targetCol = colCounts.indexOf(Math.min(...colCounts));
       const newWidget = {
         id: crypto.randomUUID(),
         type: 'bookmarks',
         column: targetCol,
-        order: colWidgets.length,
+        order: colCounts[targetCol], // current count becomes order
         config: { title: wg.name || 'Импорт', bookmarks: wg.bookmarks }
       };
       widgetsToAdd.push(newWidget);
-      console.log('[Importer] Created widget:', wg.name, 'for column', targetCol);
+      console.log('[Importer] Created widget:', wg.name, 'for column', targetCol, 'order', colCounts[targetCol]);
+      // Increment count for this column as if we added the widget
+      colCounts[targetCol]++;
     });
     
     // Save and re-render
