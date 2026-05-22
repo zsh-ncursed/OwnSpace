@@ -772,10 +772,10 @@ function renderWidget(widget) {
     <div class="widget" data-widget-id="${widgetId}">
       <div class="widget-header widget-drag-handle">
         <span class="widget-title">${escapeHtml(title)}</span>
-        <div class="widget-actions">
-          <button class="edit-title-btn" title="Переименовать">✏️</button>
-          <button class="remove-widget-btn" title="Удалить" data-ws-id="${widgetId}">X</button>
-        </div>
+                <div class="widget-actions">
+                  <button class="edit-title-btn" title="Переименовать">✏️</button>
+                  <button class="remove-widget-btn" title="Удалить" data-widget-id="${widgetId}">X</button>
+                </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
     </div>
