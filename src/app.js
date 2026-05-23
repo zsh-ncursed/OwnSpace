@@ -1296,39 +1296,37 @@ function setupWidgetColumnSortable() {
       forceFallback: true,
       fallbackOnBody: true,
       swapThreshold: 0.65,
-      onEnd: (evt) => {
-        const workspace = getActiveWorkspace();
-        if (!workspace) return;
+        onEnd: (evt) => {
+          const workspace = getActiveWorkspace();
+          if (!workspace) return;
 
-        const widgetId = evt.item.dataset.widgetId;
-        const widget = workspace.widgets.find(w => w.id === widgetId);
-        if (!widget) return;
-
-        const newColIdx = parseInt(evt.to.dataset.column, 10);
-        const items = evt.to.querySelectorAll('.widget');
-        const newOrder = Array.from(items).map(el => el.dataset.widgetId);
-        const positionInCol = newOrder.indexOf(widgetId);
-
-        // Update all widgets in the target column with new order
-        const updatedWidgets = workspace.widgets.map(w => {
-          if (w.id === widgetId) {
-            return { ...w, column: newColIdx, order: positionInCol };
-          }
-          // Shift other widgets in the same column
-          const wCol = w.column ?? 0;
-          if (wCol === newColIdx) {
-            const wPos = newOrder.indexOf(w.id);
-            if (wPos !== -1) {
-              return { ...w, order: wPos };
+          // Read current state from DOM for all columns
+          const columns = document.querySelectorAll('.widget-column');
+          const domState = [];
+          
+          columns.forEach(col => {
+            const colIdx = parseInt(col.dataset.column, 10);
+            const widgets = col.querySelectorAll('.widget');
+            widgets.forEach((widgetEl, index) => {
+              const widgetId = widgetEl.dataset.widgetId;
+              domState.push({ id: widgetId, column: colIdx, order: index });
+            });
+          });
+  
+          // Update workspace to match DOM state
+          const updatedWidgets = workspace.widgets.map(w => {
+            const domWidget = domState.find(dw => dw.id === w.id);
+            if (domWidget) {
+              return { ...w, column: domWidget.column, order: domWidget.order };
             }
-          }
-          return w;
-        });
-
-        saveWorkspaces(updatedWidgets);
-        state.workspaces = updatedWidgets;
-        renderWidgetGrid();
-      }
+            // If widget not found in DOM, keep original (shouldn't happen in normal operation)
+            return w;
+          });
+  
+          saveWorkspaces(updatedWidgets);
+          state.workspaces = updatedWidgets;
+          renderWidgetGrid();
+        }
     });
   });
 }
