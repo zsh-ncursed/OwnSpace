@@ -1040,33 +1040,35 @@ function setupWidgetListeners(container) {
       if (sortableInstances[widgetId]) {
         sortableInstances[widgetId].destroy();
       }
-      sortableInstances[widgetId] = Sortable.create(list, {
-        handle: '.bookmark-drag-handle',
-        animation: 150,
-        ghostClass: 'bookmark-ghost',
-        chosenClass: 'bookmark-chosen',
-        dragClass: 'bookmark-drag',
-        forceFallback: true,
-        fallbackOnBody: true,
-        swapThreshold: 0.65,
-        onStart: () => {
-          list.classList.add('dragging');
-        },
-        onEnd: (evt) => {
-          list.classList.remove('dragging');
-          const workspace = getActiveWorkspace();
-          const widget = workspace.widgets.find(w => w.id === widgetId);
-          if (!widget) return;
-          const items = list.querySelectorAll('.bookmark-item');
-          const newOrder = [];
-          items.forEach(item => {
-            const bmId = item.dataset.bookmarkId;
-            const bm = widget.config.bookmarks.find(b => b.id === bmId);
-            if (bm) newOrder.push(bm);
-          });
-          updateWidgetConfig(widgetId, { bookmarks: newOrder });
-        }
-      });
+       sortableInstances[widgetId] = Sortable.create(list, {
+         handle: '.bookmark-drag-handle',
+         filter: '.edit-btn, .delete-btn',
+         preventOnFilter: false,
+         animation: 150,
+         ghostClass: 'bookmark-ghost',
+         chosenClass: 'bookmark-chosen',
+         dragClass: 'bookmark-drag',
+         forceFallback: true,
+         fallbackOnBody: true,
+         swapThreshold: 0.65,
+         onStart: () => {
+           list.classList.add('dragging');
+         },
+         onEnd: (evt) => {
+           list.classList.remove('dragging');
+           const workspace = getActiveWorkspace();
+           const widget = workspace.widgets.find(w => w.id === widgetId);
+           if (!widget) return;
+           const items = list.querySelectorAll('.bookmark-item');
+           const newOrder = [];
+           items.forEach(item => {
+             const bmId = item.dataset.bookmarkId;
+             const bm = widget.config.bookmarks.find(b => b.id === bmId);
+             if (bm) newOrder.push(bm);
+           });
+           updateWidgetConfig(widgetId, { bookmarks: newOrder });
+         }
+       });
     }
 
     // Add bookmark
