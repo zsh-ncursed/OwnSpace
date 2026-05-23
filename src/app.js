@@ -472,9 +472,14 @@ async function toggleTheme() {
 // Workspace Management
 async function loadWorkspaces() {
   const ws = await getWorkspaces();
-  // Normalize: ensure all widgets have column and order
+  // Normalize: ensure all widgets have column and order, and that widgets exists
   let changed = false;
   ws.forEach(workspace => {
+    // Ensure widgets exists
+    if (!workspace.widgets) {
+      workspace.widgets = [];
+      changed = true;
+    }
     workspace.widgets.forEach((w, idx) => {
       if (w.column === undefined || w.column === null) { w.column = 0; changed = true; }
       if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
