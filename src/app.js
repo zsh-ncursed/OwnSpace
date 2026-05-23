@@ -353,10 +353,14 @@ function showBookmarkImportModal() {
     
     // Create widgets for each group with sequential column distribution
     const widgetsToAdd = [];
-    // Count existing widgets per column
+    // Count existing widgets per column (ensure we only count valid columns 0-3)
     const colCounts = [0, 0, 0, 0];
     workspace.widgets.forEach(w => {
-      const col = w.column ?? 0;
+      let col = parseInt(w.column ?? 0, 10);
+      // Ensure col is a valid column index
+      if (isNaN(col) || col < 0 || col >= 4) {
+        col = 0;
+      }
       colCounts[col] = (colCounts[col] || 0) + 1;
     });
     
@@ -1041,6 +1045,7 @@ function setupWidgetListeners(container) {
         animation: 150,
         ghostClass: 'bookmark-ghost',
         chosenClass: 'bookmark-chosen',
+        dragClass: 'bookmark-drag',
         forceFallback: true,
         fallbackOnBody: true,
         swapThreshold: 0.65,
@@ -1059,9 +1064,10 @@ function setupWidgetListeners(container) {
             const bm = widget.config.bookmarks.find(b => b.id === bmId);
             if (bm) newOrder.push(bm);
           });
-          if (newOrder.length === widget.config.bookmarks.length) {
-            updateWidgetConfig(widgetId, { bookmarks: newOrder });
-          }
+          updateWidgetConfig(widgetId, { bookmarks: newOrder });
+        }
+      });
+          updateWidgetConfig(widgetId, { bookmarks: newOrder });
         }
       });
     }
