@@ -1067,9 +1067,6 @@ function setupWidgetListeners(container) {
           updateWidgetConfig(widgetId, { bookmarks: newOrder });
         }
       });
-          updateWidgetConfig(widgetId, { bookmarks: newOrder });
-        }
-      });
     }
 
     // Add bookmark
