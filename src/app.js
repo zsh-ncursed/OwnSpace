@@ -480,6 +480,11 @@ async function loadWorkspaces() {
       workspace.widgets = [];
       changed = true;
     }
+    // Ensure background exists
+    if (!workspace.background) {
+      workspace.background = { type: 'color', value: '#1a1a2e' };
+      changed = true;
+    }
     workspace.widgets.forEach((w, idx) => {
       if (w.column === undefined || w.column === null) { w.column = 0; changed = true; }
       if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
@@ -703,7 +708,8 @@ function renderWidgetGrid() {
     return;
   }
 
-  const { widgets, background } = workspace;
+  const widgets = workspace.widgets || [];
+  const background = workspace.background || { type: 'color', value: '#1a1a2e' };
 
   const gridStyle = {
     background: background.type === 'color' ? background.value :
