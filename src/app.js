@@ -1058,6 +1058,8 @@ function setupWidgetListeners(container) {
          chosenClass: 'bookmark-chosen',
          dragClass: 'bookmark-drag',
          swapThreshold: 0.65,
+         forceFallback: false,
+         fallbackOnBody: true,
          onEnd: (evt) => {
            const workspace = getActiveWorkspace();
            const widget = workspace.widgets.find(w => w.id === widgetId);

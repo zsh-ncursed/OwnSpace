@@ -1,0 +1,44 @@
+```
+# Dependencies
+node_modules/
+
+# Test coverage and build artifacts
+coverage/
+.nyc_output/
+dist/
+build/
+*.log
+
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage and test reports
+htmlcov/
+.coverage
+*.gcov
+*.lcov
+*.log
+test-results/
+coverage-final.json
+
+# Package manager caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vitest specific
+.vitest/
+```
