@@ -19,6 +19,12 @@ body {
   min-height: 100vh;
 }
 
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .tabs {
   display: flex;
   gap: 4px;
@@ -54,22 +60,45 @@ body {
 
 .widget-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  max-width: 1200px;
-  margin: 0 auto;
+  margin: 0 20px;
+}
+
+.widget-grid-layout {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 16px !important;
+  padding: 20px;
+  min-height: calc(100vh - 60px);
+}
+
+.widget-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  min-width: 0; /* Prevent flex overflow */
+  border: 2px dashed rgba(233, 69, 96, 0.3); /* Debug border */
+}
+
+.widget-column.widget-ghost-area {
+  background: rgba(15, 52, 96, 0.2);
 }
 
 .widget {
   background: var(--surface);
   border-radius: 8px;
-  padding: 16px;
-  min-height: 200px;
-  min-width: 0;
+  padding: 0;
+  min-height: 100px;
   overflow: hidden;
 }
 
 .widget-content {
+  padding: 16px;
   min-width: 0;
   overflow: hidden;
 }
@@ -78,9 +107,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  padding: 12px 16px 8px;
   border-bottom: 1px solid var(--primary);
+}
+
+.widget-drag-handle {
+  cursor: grab;
+}
+
+.widget-drag-handle:active {
+  cursor: grabbing;
 }
 
 .widget-title {
@@ -168,6 +204,37 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: max-height 0.2s ease;
+}
+
+.bookmarks-list.collapsed {
+  max-height: calc(10 * 36px + 9 * 8px);
+  overflow: hidden;
+}
+
+.bookmarks-list.dragging {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.show-all-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  background: transparent;
+  border: 1px dashed var(--primary);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.show-all-btn:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .bookmark-item {
@@ -185,6 +252,33 @@ body {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+.bookmark-drag-handle {
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.bookmark-drag-handle:hover {
+  background: var(--primary);
+}
+
+.bookmark-drag-handle:active {
+  cursor: grabbing;
+}
+
+.favicon-placeholder {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.4;
 }
 
 .bookmark-item .bookmark-title {
@@ -221,6 +315,32 @@ body {
 .bookmark-item .edit-btn:hover,
 .bookmark-item .delete-btn:hover {
   opacity: 1;
+}
+
+.bookmark-ghost {
+  opacity: 0.3;
+  background: var(--primary);
+}
+
+.bookmark-chosen {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+.sortable-chosen {
+  background: var(--primary);
+}
+
+.sortable-drag {
+  z-index: 9999 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  opacity: 0.8;
+  background: var(--surface);
 }
 
 .notes-widget textarea {
@@ -409,6 +529,24 @@ body {
   background: var(--accent);
 }
 
+/* Widget drag styles */
+.widget-ghost {
+  opacity: 0.3;
+  background: var(--primary);
+}
+
+.widget-chosen {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.widget-drag {
+  z-index: 9999 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  opacity: 0.9;
+  background: var(--surface);
+}
+
 .modal-close {
   width: 100%;
   padding: 8px;
@@ -420,12 +558,22 @@ body {
   margin-top: 8px;
 }
 
+#workspace-tabs {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+}
+
 .tabs-container {
-  display: flex;
+  display: flex !important;
   justify-content: space-between;
   align-items: center;
   background: var(--surface);
   border-bottom: 1px solid var(--primary);
+  min-height: 50px;
+  width: 100%;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .tabs-container .tabs {
