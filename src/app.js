@@ -146,6 +146,69 @@ const sortableInstances = {};
 // Track widget column Sortable instances
 const widgetSortableInstances = {};
 
+function setColumnSortablesDisabled(disabled) {
+  Object.values(widgetSortableInstances).forEach(instance => {
+    instance.option('disabled', disabled);
+  });
+}
+
+function setBookmarkSortablesDisabled(disabled) {
+  Object.values(sortableInstances).forEach(instance => {
+    instance.option('disabled', disabled);
+  });
+}
+
+function persistBookmarkOrder(widgetId, list) {
+  const workspace = getActiveWorkspace();
+  const widget = workspace?.widgets.find(w => w.id === widgetId);
+  if (!workspace || !widget || !list) return;
+
+  const newOrder = [];
+  list.querySelectorAll('.bookmark-item').forEach(item => {
+    const bm = widget.config.bookmarks.find(b => b.id === item.dataset.bookmarkId);
+    if (bm) newOrder.push(bm);
+  });
+
+  const workspaceIdx = state.workspaces.findIndex(ws => ws.id === workspace.id);
+  if (workspaceIdx === -1) return;
+  const updatedWidgets = [...state.workspaces[workspaceIdx].widgets];
+  const wi = updatedWidgets.findIndex(w => w.id === widgetId);
+  if (wi === -1) return;
+  updatedWidgets[wi] = {
+    ...updatedWidgets[wi],
+    config: { ...updatedWidgets[wi].config, bookmarks: newOrder }
+  };
+  state.workspaces[workspaceIdx] = { ...state.workspaces[workspaceIdx], widgets: updatedWidgets };
+  saveWorkspaces(state.workspaces);
+}
+
+function persistWidgetLayoutFromGrid(grid) {
+  const workspace = getActiveWorkspace();
+  if (!workspace || !grid) return;
+
+  const domState = [];
+  grid.querySelectorAll('.widget-column').forEach(columnEl => {
+    const columnIndex = parseInt(columnEl.dataset.column, 10);
+    columnEl.querySelectorAll('.widget').forEach((widgetEl, order) => {
+      domState.push({
+        id: widgetEl.dataset.widgetId,
+        column: columnIndex,
+        order
+      });
+    });
+  });
+
+  const updatedWidgets = workspace.widgets.map(w => {
+    const domWidget = domState.find(dw => dw.id === w.id);
+    return domWidget ? { ...w, column: domWidget.column, order: domWidget.order } : w;
+  });
+
+  const workspaceIdx = state.workspaces.findIndex(ws => ws.id === workspace.id);
+  if (workspaceIdx === -1) return;
+  state.workspaces[workspaceIdx] = { ...state.workspaces[workspaceIdx], widgets: updatedWidgets };
+  saveWorkspaces(state.workspaces);
+}
+
 // Helper function to get the column with fewest widgets
 function getTargetColumn(workspace) {
   const colCounts = [0, 0, 0, 0];
@@ -448,7 +511,7 @@ window.saveAndRender = async () => {
   // Sync window.state back to local state before saving
   syncStateFromWindow();
   await saveWorkspaces(state.workspaces);
-  render();
+  renderApp();
 };
 
 // Theme
@@ -459,6 +522,7 @@ function applyTheme(themeName) {
   document.documentElement.style.setProperty('--primary', colors.primary);
   document.documentElement.style.setProperty('--accent', colors.accent);
   document.documentElement.style.setProperty('--text', colors.text);
+  document.documentElement.style.colorScheme = themeName === 'light' ? 'light' : 'dark';
 }
 
 async function toggleTheme() {
@@ -635,26 +699,27 @@ function renderWorkspaceTabs() {
   }
 
   container.innerHTML = `
-    <div class="tabs-container">
-      <div class="tabs">
+    <div class="workspace-tabs-bar">
+      <div class="workspace-tabs-list">
         ${state.workspaces.map(ws => `
           <button
-            class="tab ${ws.id === state.activeWorkspaceId ? 'active' : ''}"
+            type="button"
+            class="workspace-tab ${ws.id === state.activeWorkspaceId ? 'is-active' : ''}"
             data-workspace-id="${ws.id}"
           >${escapeHtml(ws.name)}</button>
         `).join('')}
-        ${state.workspaces.length < 10 ? '<button class="tab tab-add" id="add-workspace">+</button>' : ''}
+        ${state.workspaces.length < 10 ? '<button type="button" class="workspace-tab workspace-tab-add" id="add-workspace">+</button>' : ''}
       </div>
-      <div class="tab-actions">
-        <button id="bg-settings" title="Настройка фона">🎨</button>
-        <button id="theme-toggle" title="Переключить тему">${state.theme === 'dark' ? '☀️' : '🌙'}</button>
-        <button id="export-import" title="Экспорт/Импорт">📤</button>
+      <div class="workspace-tab-actions">
+        <button type="button" id="bg-settings" title="Настройка фона">🎨</button>
+        <button type="button" id="theme-toggle" title="Переключить тему">${state.theme === 'dark' ? '☀️' : '🌙'}</button>
+        <button type="button" id="export-import" title="Экспорт/Импорт">📤</button>
       </div>
     </div>
   `;
 
   // Event listeners
-  container.querySelectorAll('.tab[data-workspace-id]').forEach(tab => {
+  container.querySelectorAll('.workspace-tab[data-workspace-id]').forEach(tab => {
     tab.addEventListener('click', () => {
       state.activeWorkspaceId = tab.dataset.workspaceId;
       renderWorkspaceTabs();
@@ -720,14 +785,13 @@ function renderWidgetGrid() {
   };
 
   container.className = 'widget-grid widget-grid-layout';
-  container.style.cssText = `display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; padding: 20px; min-height: calc(100vh - 60px); background: ${gridStyle.background}; background-size: ${gridStyle.backgroundSize}; background-position: ${gridStyle.backgroundPosition};`;
+  container.style.cssText = `display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; padding: 20px; flex: 1; min-height: 0; overflow: auto; background: ${gridStyle.background}; background-size: ${gridStyle.backgroundSize}; background-position: ${gridStyle.backgroundPosition};`;
 
   if (widgets.length === 0) {
-    // Create 4 empty columns for visual debugging
-    const debugCols = [0, 1, 2, 3].map(i => `<div class="widget-column" data-column="${i}" style="border: 2px dashed red; min-height: 200px;"><span style="color: red;">COL ${i}</span></div>`).join('');
-    
+    const emptyCols = [0, 1, 2, 3].map(i => `<div class="widget-column" data-column="${i}"></div>`).join('');
+
     container.innerHTML = `
-      ${debugCols}
+      ${emptyCols}
       <button class="add-widget-btn" id="add-widget-empty" style="grid-column: 1 / -1; z-index: 10;">+ Добавить виджет</button>
       <div id="add-widget-menu" class="modal-overlay" style="display: none;">
         <div class="modal">
@@ -743,6 +807,7 @@ function renderWidgetGrid() {
         </div>
       </div>
     `;
+    setupWidgetColumnSortable();
     setupAddWidgetListeners(container);
     return;
   }
@@ -783,8 +848,8 @@ function renderWidgetGrid() {
     </div>
   `;
 
-  setupWidgetListeners(container);
   setupWidgetColumnSortable();
+  setupWidgetListeners(container);
   setupAddWidgetListeners(container);
 }
 
@@ -794,12 +859,13 @@ function renderWidget(widget) {
 
   return `
     <div class="widget" data-widget-id="${widgetId}">
-      <div class="widget-header widget-drag-handle">
+      <div class="widget-header widget-drag-handle" title="Перетащить виджет">
+        <span class="widget-drag-grip" aria-hidden="true">⠿</span>
         <span class="widget-title">${escapeHtml(title)}</span>
-                <div class="widget-actions">
-                  <button class="edit-title-btn" title="Переименовать">✏️</button>
-                  <button class="remove-widget-btn" title="Удалить" data-widget-id="${widgetId}">X</button>
-                </div>
+        <div class="widget-actions">
+          <button class="edit-title-btn" title="Переименовать">✏️</button>
+          <button class="remove-widget-btn" title="Удалить" data-widget-id="${widgetId}">X</button>
+        </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
     </div>
@@ -895,7 +961,7 @@ function renderBookmarksWidget(widget) {
         ${bookmarks.map(bm => `
           <div class="bookmark-item" data-bookmark-id="${bm.id}">
             <span class="bookmark-drag-handle">
-              ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" />` : '<span class="favicon-placeholder">⠿</span>'}
+              ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" draggable="false" />` : '<span class="favicon-placeholder">⠿</span>'}
             </span>
             <input type="text" class="title-input" value="${escapeHtml(bm.title)}" style="display: none;" />
             <a href="${escapeHtml(bm.url)}" target="_blank" class="bookmark-title">${escapeHtml(bm.title)}</a>
@@ -1045,41 +1111,34 @@ function setupWidgetListeners(container) {
     const widgetId = el.dataset.widgetId;
 
     // Sortable drag-and-drop for bookmark reordering
-    if (typeof Sortable !== 'undefined') {
-      const list = el.querySelector('.bookmarks-list');
-      // Destroy old instance to prevent duplicates
+    const list = el.querySelector('.bookmarks-list');
+    if (list && typeof Sortable !== 'undefined') {
       if (sortableInstances[widgetId]) {
         sortableInstances[widgetId].destroy();
+        delete sortableInstances[widgetId];
       }
-       sortableInstances[widgetId] = Sortable.create(list, {
-         handle: '.bookmark-drag-handle',
-         animation: 150,
-         ghostClass: 'bookmark-ghost',
-         chosenClass: 'bookmark-chosen',
-         dragClass: 'bookmark-drag',
-         swapThreshold: 0.65,
-         onEnd: (evt) => {
-           const workspace = getActiveWorkspace();
-           const widget = workspace.widgets.find(w => w.id === widgetId);
-           if (!widget) return;
-           const items = list.querySelectorAll('.bookmark-item');
-           const newOrder = [];
-           items.forEach(item => {
-             const bmId = item.dataset.bookmarkId;
-             const bm = widget.config.bookmarks.find(b => b.id === bmId);
-             if (bm) newOrder.push(bm);
-           });
-           // Update state and save without re-rendering — Sortable already moved DOM
-           const workspaceIdx = state.workspaces.findIndex(ws => ws.id === workspace.id);
-           if (workspaceIdx === -1) return;
-           const updatedWidgets = [...state.workspaces[workspaceIdx].widgets];
-           const wi = updatedWidgets.findIndex(w => w.id === widgetId);
-           if (wi === -1) return;
-           updatedWidgets[wi] = { ...updatedWidgets[wi], config: { ...updatedWidgets[wi].config, bookmarks: newOrder } };
-           state.workspaces[workspaceIdx] = { ...state.workspaces[workspaceIdx], widgets: updatedWidgets };
-           saveWorkspaces(state.workspaces);
-         }
-       });
+
+      sortableInstances[widgetId] = Sortable.create(list, {
+        draggable: '.bookmark-item',
+        animation: 150,
+        ghostClass: 'bookmark-ghost',
+        chosenClass: 'bookmark-chosen',
+        dragClass: 'bookmark-drag',
+        fallbackOnBody: true,
+        delay: 80,
+        delayOnTouchOnly: true,
+        filter: '.bookmark-title, .edit-btn, .delete-btn, .title-input',
+        preventOnFilter: true,
+        onStart: () => {
+          list.classList.add('dragging');
+          setColumnSortablesDisabled(true);
+        },
+        onEnd: () => {
+          list.classList.remove('dragging');
+          setColumnSortablesDisabled(false);
+          persistBookmarkOrder(widgetId, list);
+        }
+      });
     }
 
     // Add bookmark
@@ -1289,57 +1348,35 @@ function setupAddWidgetListeners(container) {
 function setupWidgetColumnSortable() {
   if (typeof Sortable === 'undefined') return;
 
-  // Destroy old instances
+  const grid = document.getElementById('widget-grid');
+  if (!grid) return;
+
   Object.keys(widgetSortableInstances).forEach(key => {
     widgetSortableInstances[key].destroy();
     delete widgetSortableInstances[key];
   });
 
-  document.querySelectorAll('.widget-column').forEach(col => {
+  grid.querySelectorAll('.widget-column').forEach(col => {
     const colIdx = parseInt(col.dataset.column, 10);
+    if (Number.isNaN(colIdx)) return;
+
     widgetSortableInstances[colIdx] = Sortable.create(col, {
+      group: 'widget-columns',
+      draggable: '.widget',
       handle: '.widget-drag-handle',
       filter: '.edit-title-btn, .remove-widget-btn',
-      preventOnFilter: false,
+      preventOnFilter: true,
       animation: 150,
-      group: 'widget-columns',
       ghostClass: 'widget-ghost',
       chosenClass: 'widget-chosen',
       dragClass: 'widget-drag',
-      swapThreshold: 0.65,
-        onEnd: (evt) => {
-          const workspace = getActiveWorkspace();
-          if (!workspace) return;
-
-          // Read current state from DOM for all columns
-          const columns = document.querySelectorAll('.widget-column');
-          const domState = [];
-          
-          columns.forEach(col => {
-            const colIdx = parseInt(col.dataset.column, 10);
-            const widgets = col.querySelectorAll('.widget');
-            widgets.forEach((widgetEl, index) => {
-              const widgetId = widgetEl.dataset.widgetId;
-              domState.push({ id: widgetId, column: colIdx, order: index });
-            });
-          });
-  
-          // Update workspace to match DOM state — Sortable already moved DOM elements
-          const updatedWidgets = workspace.widgets.map(w => {
-            const domWidget = domState.find(dw => dw.id === w.id);
-            if (domWidget) {
-              return { ...w, column: domWidget.column, order: domWidget.order };
-            }
-            return w;
-          });
-
-          const workspaceIdx = state.workspaces.findIndex(ws => ws.id === workspace.id);
-          if (workspaceIdx !== -1) {
-            state.workspaces[workspaceIdx] = { ...state.workspaces[workspaceIdx], widgets: updatedWidgets };
-            saveWorkspaces(state.workspaces);
-          }
-          renderWidgetGrid();
-        }
+      fallbackOnBody: true,
+      emptyInsertThreshold: 16,
+      onStart: () => setBookmarkSortablesDisabled(true),
+      onEnd: () => {
+        setBookmarkSortablesDisabled(false);
+        persistWidgetLayoutFromGrid(grid);
+      }
     });
   });
 }
