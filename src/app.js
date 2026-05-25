@@ -549,6 +549,11 @@ async function loadWorkspaces() {
       workspace.background = { type: 'color', value: '#1a1a2e' };
       changed = true;
     }
+    // Ensure name exists
+    if (!workspace.name) {
+      workspace.name = 'Добро пожаловать';
+      changed = true;
+    }
     workspace.widgets.forEach((w, idx) => {
       if (w.column === undefined || w.column === null) { w.column = 0; changed = true; }
       if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
