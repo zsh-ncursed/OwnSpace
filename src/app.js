@@ -15,23 +15,6 @@ const WIDGET_TYPES = {
   CALENDAR: 'calendar'
 };
 
-const THEME = {
-  dark: {
-    background: '#1a1a2e',
-    surface: '#16213e',
-    primary: '#0f3460',
-    accent: '#e94560',
-    text: '#eaeaea'
-  },
-  light: {
-    background: '#f5f5f5',
-    surface: '#ffffff',
-    primary: '#0f3460',
-    accent: '#e94560',
-    text: '#1a1a2e'
-  }
-};
-
 // Storage helpers with fallback for testing
 const storage = {
   local: {
@@ -74,13 +57,8 @@ const storage = {
 
 async function getWorkspaces() {
   const result = await storage.local.getItem(STORAGE_KEYS.WORKSPACES);
-  const defaultWorkspace = {
-    id: crypto.randomUUID(),
-    name: 'Добро пожаловать',
-    background: { type: 'color', value: '#1a1a2e' },
-    widgets: []
-  };
-  return result || [defaultWorkspace];
+  if (Array.isArray(result)) return result;
+  return [];
 }
 
 async function saveWorkspaces(workspaces) {
@@ -100,25 +78,25 @@ async function saveCalDAVCredentials(creds) {
   await storage.local.setItem(STORAGE_KEYS.CALDAV, creds);
 }
 
+async function getCalDAVCredentials() {
+  const result = await storage.local.getItem(STORAGE_KEYS.CALDAV);
+  return result || null;
+}
+
 // Browser messaging for extension background page
 const browserMessaging = {
   sendMessage: async (message) => {
-    console.log('[MSG] Attempting to send message:', message.type);
-    
     if (typeof browser !== 'undefined' && browser?.runtime?.sendMessage) {
       try {
-        console.log('[MSG] Using browser.runtime.sendMessage');
-        const result = await browser.runtime.sendMessage(message);
-        console.log('[MSG] Received response:', JSON.stringify(result));
-        return result;
+        return await browser.runtime.sendMessage(message);
       } catch (e) {
-        console.log('[MSG] browser.runtime.sendMessage failed:', e.message);
+        console.error('[MSG] sendMessage failed:', e.message);
       }
     } else {
-      console.log('[MSG] browser.runtime not available');
+      console.warn('[MSG] browser.runtime not available');
     }
-    
-    // Mock fallback for testing
+
+    // Mock fallback for testing outside extension context
     if (message.type === 'test') {
       return { success: true, result: { events: [] } };
     }
@@ -128,6 +106,38 @@ const browserMessaging = {
     return { success: true };
   }
 };
+
+// Export / Import
+async function exportData(encrypted = false, password = null) {
+  const workspaces = await getWorkspaces();
+  const settings = await getSettings();
+  const caldav = await getCalDAVCredentials();
+  const data = { workspaces, settings: { theme: settings.theme }, caldav };
+
+  if (encrypted && password) {
+    const enc = await encryptJson(JSON.stringify(data), password);
+    return JSON.stringify({ iv: enc.iv, data: enc.data, encrypted: true });
+  }
+  return JSON.stringify(data, null, 2);
+}
+
+async function importData(jsonString, password = null) {
+  let data;
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed.encrypted && password) {
+      const dec = await decryptJson({ iv: parsed.iv, data: parsed.data }, password);
+      data = JSON.parse(dec);
+    } else {
+      data = parsed;
+    }
+  } catch (e) {
+    throw new Error('Invalid import data');
+  }
+  if (data.workspaces) await saveWorkspaces(data.workspaces);
+  if (data.settings) await saveSettings({ ...await getSettings(), ...data.settings });
+  if (data.caldav) await saveCalDAVCredentials(data.caldav);
+}
 
 // State
 let state = {
@@ -339,7 +349,7 @@ function showBookmarkImportModal() {
         Загрузите HTML файл, экспортированный из start.me
       </p>
       <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
-      <button id="select-file-btn" class="add-widget-btn" style="width: 100%; margin: 0;">
+      <button id="select-file-btn" class="btn btn-primary" style="width: 100%; margin: 0;">
         📂 Выбрать HTML файл
       </button>
       <div id="import-preview" style="display: none; margin-top: 16px;">
@@ -348,7 +358,7 @@ function showBookmarkImportModal() {
         <div id="import-widget-list" style="margin: 12px 0;"></div>
         <div id="import-error" style="color: var(--accent); margin: 8px 0; display: none;"></div>
         <div style="display: flex; gap: 8px; margin-top: 16px;">
-          <button id="import-confirm-btn" class="add-widget-btn" style="flex: 1; margin: 0;">Импортировать</button>
+          <button id="import-confirm-btn" class="btn btn-primary" style="flex: 1; margin: 0;">Импортировать</button>
           <button id="import-cancel-btn" class="modal-close" style="margin: 0;">Отмена</button>
         </div>
       </div>
@@ -489,6 +499,80 @@ function showNotification(message) {
   }, 3000);
 }
 
+// Reusable custom modal — Firefox may permanently block native confirm()/prompt().
+// Resolves to boolean (confirm) or string|null (prompt).
+function showConfirm({ title, message, confirmText = 'OK', cancelText = 'Отмена', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-overlay';
+    backdrop.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-title" id="modal-title">${escapeHtml(title || 'Подтверждение')}</div>
+        ${message ? `<div class="modal-message">${escapeHtml(message)}</div>` : ''}
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary modal-cancel">${escapeHtml(cancelText)}</button>
+          <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'} modal-ok">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    const okBtn = backdrop.querySelector('.modal-ok');
+    okBtn.focus();
+    const close = (val) => { backdrop.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(false);
+      else if (e.key === 'Enter' && document.activeElement !== backdrop.querySelector('.modal-cancel')) close(true);
+    };
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(false); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', () => close(false));
+    okBtn.addEventListener('click', () => close(true));
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+function showPrompt({ title, message, defaultValue = '', placeholder = '', confirmText = 'OK', cancelText = 'Отмена', inputType = 'text', required = false } = {}) {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-overlay';
+    backdrop.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-title" id="modal-title">${escapeHtml(title || 'Введите значение')}</div>
+        ${message ? `<div class="modal-message">${escapeHtml(message)}</div>` : ''}
+        <input type="${inputType}" class="modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+        <div class="modal-error" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary modal-cancel">${escapeHtml(cancelText)}</button>
+          <button type="button" class="btn btn-primary modal-ok">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    const input = backdrop.querySelector('.modal-input');
+    const errorEl = backdrop.querySelector('.modal-error');
+    input.focus();
+    input.select();
+    const close = (val) => { backdrop.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+    const submit = () => {
+      const v = input.value;
+      if (required && !v) {
+        errorEl.textContent = 'Поле не может быть пустым';
+        errorEl.hidden = false;
+        input.focus();
+        return;
+      }
+      close(v);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+      else if (e.key === 'Enter') submit();
+    };
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
+    backdrop.querySelector('.modal-cancel').addEventListener('click', () => close(null));
+    backdrop.querySelector('.modal-ok').addEventListener('click', submit);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 // Sync state to window for import scripts
 function syncStateToWindow() {
   window.state.workspaces = state.workspaces;
@@ -516,12 +600,7 @@ window.saveAndRender = async () => {
 
 // Theme
 function applyTheme(themeName) {
-  const colors = THEME[themeName];
-  document.documentElement.style.setProperty('--bg', colors.background);
-  document.documentElement.style.setProperty('--surface', colors.surface);
-  document.documentElement.style.setProperty('--primary', colors.primary);
-  document.documentElement.style.setProperty('--accent', colors.accent);
-  document.documentElement.style.setProperty('--text', colors.text);
+  document.documentElement.dataset.theme = themeName;
   document.documentElement.style.colorScheme = themeName === 'light' ? 'light' : 'dark';
 }
 
@@ -535,23 +614,44 @@ async function toggleTheme() {
 
 // Workspace Management
 async function loadWorkspaces() {
-  const ws = await getWorkspaces();
-  // Normalize: ensure all widgets have column and order, and that widgets exists
+  let ws = await getWorkspaces();
+
+  // First-run: create a single default workspace and persist it
+  if (!Array.isArray(ws) || ws.length === 0) {
+    ws = [{
+      id: crypto.randomUUID(),
+      name: 'Добро пожаловать',
+      background: { type: 'color', value: '#1a1a2e' },
+      widgets: []
+    }];
+    await saveWorkspaces(ws);
+  }
+
+  // Deduplicate by id (defensive against historical storage corruption)
+  const seen = new Set();
+  const unique = [];
+  for (const workspace of ws) {
+    if (!workspace || !workspace.id || seen.has(workspace.id)) continue;
+    seen.add(workspace.id);
+    unique.push(workspace);
+  }
+  if (unique.length !== ws.length) {
+    ws = unique;
+    await saveWorkspaces(ws);
+  }
+
+  // Normalize: ensure all fields exist; do NOT rename nameless workspaces to "Добро пожаловать"
   let changed = false;
+  let namelessCount = 0;
   ws.forEach(workspace => {
-    // Ensure widgets exists
-    if (!workspace.widgets) {
-      workspace.widgets = [];
-      changed = true;
-    }
-    // Ensure background exists
+    if (!workspace.widgets) { workspace.widgets = []; changed = true; }
     if (!workspace.background) {
       workspace.background = { type: 'color', value: '#1a1a2e' };
       changed = true;
     }
-    // Ensure name exists
     if (!workspace.name) {
-      workspace.name = 'Добро пожаловать';
+      namelessCount++;
+      workspace.name = `Без названия ${namelessCount > 1 ? namelessCount : ''}`.trim();
       changed = true;
     }
     workspace.widgets.forEach((w, idx) => {
@@ -559,10 +659,25 @@ async function loadWorkspaces() {
       if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
     });
   });
-  // Save normalized data back
-  if (changed) {
-    await saveWorkspaces(ws);
+
+  // Migrate calendar events: {day, month, year, time} → {date: 'YYYY-MM-DD', time?: 'HH:MM'}
+  for (const workspace of ws) {
+    for (const widget of workspace.widgets || []) {
+      if (widget.type !== WIDGET_TYPES.CALENDAR) continue;
+      const events = widget.config?.events || [];
+      const migrated = events.map(e => migrateEvent(e)).filter(Boolean);
+      const sameLen = migrated.length === events.length;
+      const sameShape = events.every((e, i) =>
+        e === migrated[i] || (e.date === migrated[i].date && (e.time || null) === (migrated[i].time || null))
+      );
+      if (!sameLen || !sameShape) {
+        widget.config = { ...(widget.config || {}), events: migrated };
+        changed = true;
+      }
+    }
   }
+  if (changed) await saveWorkspaces(ws);
+
   state.workspaces = ws;
   if (ws.length > 0 && !state.activeWorkspaceId) {
     state.activeWorkspaceId = ws[0].id;
@@ -589,6 +704,7 @@ async function updateWorkspace(id, updates) {
   const updated = state.workspaces.map(ws => ws.id === id ? { ...ws, ...updates } : ws);
   await saveWorkspaces(updated);
   state.workspaces = updated;
+  if ('name' in updates) renderWorkspaceTabs();
   renderWidgetGrid();
 }
 
@@ -664,11 +780,15 @@ function removeWidget(widgetId) {
 
 function updateWidgetConfig(widgetId, config) {
   const workspace = getActiveWorkspace();
-  if (!workspace) return;
-
-  updateWorkspace(workspace.id, {
-    widgets: workspace.widgets.map(w => w.id === widgetId ? { ...w, config: { ...w.config, ...config } } : w)
+  const updatedWorkspaces = state.workspaces.map(ws => {
+    if (ws.id !== workspace.id) return ws;
+    return {
+      ...ws,
+      widgets: ws.widgets.map(w => w.id === widgetId ? { ...w, config: { ...w.config, ...config } } : w)
+    };
   });
+  state.workspaces = updatedWorkspaces;
+  saveWorkspaces(updatedWorkspaces);
 }
 
 // Rendering
@@ -691,80 +811,165 @@ function renderWorkspaceTabs() {
     console.error('workspace-tabs container not found');
     return;
   }
-  
-  // Ensure at least one workspace
+
+  // Defensive: never let tabs render with zero workspaces; fall back to in-memory placeholder
+  // without persisting a new UUID (loadWorkspaces owns first-run creation).
   if (state.workspaces.length === 0) {
-    state.workspaces = [{
-      id: crypto.randomUUID(),
-      name: 'Добро пожаловать',
-      background: { type: 'color', value: '#1a1a2e' },
-      widgets: []
-    }];
-    state.activeWorkspaceId = state.workspaces[0].id;
+    console.warn('[Tabs] state.workspaces is empty — this should not happen; loadWorkspaces creates the initial workspace');
+    return;
   }
 
   container.innerHTML = `
     <div class="workspace-tabs-bar">
-      <div class="workspace-tabs-list">
+      <div class="workspace-tabs-list" id="workspace-tabs-list">
         ${state.workspaces.map(ws => `
-          <button
-            type="button"
+          <div
             class="workspace-tab ${ws.id === state.activeWorkspaceId ? 'is-active' : ''}"
             data-workspace-id="${ws.id}"
-          >${escapeHtml(ws.name)}</button>
+            title="Двойной клик для переименования"
+          >
+            <span class="workspace-tab-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
+            <span class="workspace-tab-name" data-role="display">${escapeHtml(ws.name)}</span>
+            <input
+              type="text"
+              class="workspace-tab-name-input"
+              data-role="input"
+              value="${escapeHtml(ws.name)}"
+              maxlength="40"
+              style="display: none;"
+            />
+            <div class="workspace-tab-actions">
+              <button type="button" class="workspace-tab-delete icon-btn" title="Удалить" aria-label="Удалить">${ICONS.action('x')}</button>
+            </div>
+          </div>
         `).join('')}
-        ${state.workspaces.length < 10 ? '<button type="button" class="workspace-tab workspace-tab-add" id="add-workspace">+</button>' : ''}
+        ${state.workspaces.length < 10 ? `<button type="button" class="workspace-tab workspace-tab-add icon-btn" id="add-workspace" title="Новая вкладка" aria-label="Новая вкладка">${ICONS.btn('plus')}</button>` : ''}
       </div>
-      <div class="workspace-tab-actions">
-        <button type="button" id="bg-settings" title="Настройка фона">🎨</button>
-        <button type="button" id="theme-toggle" title="Переключить тему">${state.theme === 'dark' ? '☀️' : '🌙'}</button>
-        <button type="button" id="export-import" title="Экспорт/Импорт">📤</button>
+      <div class="workspace-tabs-toolbar">
+        <button type="button" class="icon-btn" id="bg-settings" title="Настройка фона">${ICONS.btn('palette')}</button>
+        <button type="button" class="icon-btn" id="theme-toggle" title="Переключить тему">${ICONS.btn(state.theme === 'dark' ? 'sun' : 'moon')}</button>
+        <button type="button" class="icon-btn" id="export-import" title="Экспорт/Импорт">${ICONS.btn('arrow-down-up')}</button>
       </div>
     </div>
   `;
 
-  // Event listeners
+  // Click on tab body → switch workspace
   container.querySelectorAll('.workspace-tab[data-workspace-id]').forEach(tab => {
-    tab.addEventListener('click', () => {
+    tab.addEventListener('click', (e) => {
+      if (e.target.closest('.workspace-tab-actions') || e.target.closest('.workspace-tab-name-input')) return;
       state.activeWorkspaceId = tab.dataset.workspaceId;
-      renderWorkspaceTabs();
+      updateActiveWorkspaceTab();
       renderWidgetGrid();
     });
 
-    tab.addEventListener('dblclick', (e) => {
-      const ws = state.workspaces.find(w => w.id === tab.dataset.workspaceId);
-      if (ws) {
-        const newName = prompt('Переименовать workspace:', ws.name);
-        if (newName && newName.trim()) {
-          updateWorkspace(ws.id, { name: newName.trim() });
-        }
-      }
+    // Double-click on name → enter rename mode
+    const nameEl = tab.querySelector('[data-role="display"]');
+    nameEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      enterTabRenameMode(tab);
     });
 
-    tab.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
+    // X button → delete (with custom confirm modal — Firefox blocks native confirm())
+    tab.querySelector('.workspace-tab-delete').addEventListener('click', async (e) => {
+      e.stopPropagation();
       const ws = state.workspaces.find(w => w.id === tab.dataset.workspaceId);
-      if (ws && state.workspaces.length > 1) {
-        if (confirm(`Удалить "${ws.name}"?`)) {
-          deleteWorkspace(ws.id);
-        }
+      if (!ws) return;
+      if (state.workspaces.length <= 1) {
+        showNotification('Нельзя удалить единственную вкладку');
+        return;
       }
+      const ok = await showConfirm({
+        title: 'Удалить вкладку?',
+        message: `Вкладка "${ws.name}" и все её виджеты будут удалены. Это действие нельзя отменить.`,
+        confirmText: 'Удалить',
+        danger: true
+      });
+      if (ok) deleteWorkspace(ws.id);
     });
   });
 
+  // Setup inline rename behavior
+  container.querySelectorAll('.workspace-tab-name-input').forEach(input => {
+    const commit = () => {
+      const tab = input.closest('.workspace-tab');
+      const id = tab.dataset.workspaceId;
+      const newName = input.value.trim();
+      const ws = state.workspaces.find(w => w.id === id);
+      if (newName && ws && newName !== ws.name) {
+        updateWorkspace(id, { name: newName });
+      } else {
+        renderWorkspaceTabs();
+      }
+    };
+    const cancel = () => renderWorkspaceTabs();
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); input.value = state.workspaces.find(w => w.id === input.closest('.workspace-tab').dataset.workspaceId)?.name || ''; input.blur(); }
+    });
+  });
+
+  // Add button
   const addBtn = container.querySelector('#add-workspace');
   if (addBtn) {
     addBtn.addEventListener('click', addWorkspace);
   }
 
+  // Toolbar buttons
   container.querySelector('#bg-settings').addEventListener('click', showBackgroundSettings);
   container.querySelector('#theme-toggle').addEventListener('click', () => { toggleTheme(); renderWorkspaceTabs(); });
   container.querySelector('#export-import').addEventListener('click', () => {
     showExportImportMenu();
-    // Add CalDAV button listener after menu is created
     setTimeout(() => {
       document.querySelector('#caldav-settings')?.addEventListener('click', showCalDAVSyncSettings);
     }, 100);
+  });
+
+  // Drag-and-drop reorder
+  setupWorkspaceTabsSortable(container.querySelector('#workspace-tabs-list'));
+}
+
+function updateActiveWorkspaceTab() {
+  document.querySelectorAll('.workspace-tab[data-workspace-id]').forEach(t => {
+    t.classList.toggle('is-active', t.dataset.workspaceId === state.activeWorkspaceId);
+  });
+}
+
+function enterTabRenameMode(tab) {
+  const display = tab.querySelector('[data-role="display"]');
+  const input = tab.querySelector('[data-role="input"]');
+  if (!display || !input) return;
+  display.style.display = 'none';
+  input.style.display = 'block';
+  input.focus();
+  input.select();
+}
+
+function setupWorkspaceTabsSortable(listEl) {
+  if (!listEl || typeof Sortable === 'undefined') return;
+  if (listEl._sortable) {
+    listEl._sortable.destroy();
+  }
+  listEl._sortable = Sortable.create(listEl, {
+    draggable: '.workspace-tab[data-workspace-id]',
+    handle: '.workspace-tab-grip',
+    animation: 200,
+    ghostClass: 'workspace-tab-ghost',
+    chosenClass: 'workspace-tab-chosen',
+    dragClass: 'workspace-tab-drag',
+    filter: '.workspace-tab-add, .workspace-tab-name-input, .workspace-tab-rename, .workspace-tab-delete, .workspace-tab-actions',
+    preventOnFilter: true,
+    onEnd: (evt) => {
+      const ids = Array.from(listEl.querySelectorAll('.workspace-tab[data-workspace-id]'))
+        .map(el => el.dataset.workspaceId);
+      const reordered = ids.map(id => state.workspaces.find(ws => ws.id === id)).filter(Boolean);
+      // Keep any tabs that weren't in the list (shouldn't happen) appended at the end
+      const missing = state.workspaces.filter(ws => !ids.includes(ws.id));
+      state.workspaces = [...reordered, ...missing];
+      saveWorkspaces(state.workspaces);
+      // Do not re-render: it would interrupt drag UX and lose active state mid-drop
+    }
   });
 }
 
@@ -797,7 +1002,7 @@ function renderWidgetGrid() {
 
     container.innerHTML = `
       ${emptyCols}
-      <button class="add-widget-btn" id="add-widget-empty" style="grid-column: 1 / -1; z-index: 10;">+ Добавить виджет</button>
+      <button class="add-widget-cta" id="add-widget-empty" style="grid-column: 1 / -1; z-index: 10;">${ICONS.btn('plus')}<span>Добавить виджет</span></button>
       <div id="add-widget-menu" class="modal-overlay" style="display: none;">
         <div class="modal">
           <h3>Добавить виджет</h3>
@@ -837,7 +1042,7 @@ function renderWidgetGrid() {
 
   container.innerHTML = `
     ${columnsHTML}
-    <button class="add-widget-btn" id="add-widget" style="grid-column: 1 / -1;">+ Добавить виджет</button>
+    <button class="add-widget-icon" id="add-widget" title="Добавить виджет" aria-label="Добавить виджет">${ICONS.btn('plus')}</button>
     <div id="add-widget-menu" class="modal-overlay" style="display: none;">
       <div class="modal">
         <h3>Добавить виджет</h3>
@@ -865,52 +1070,18 @@ function renderWidget(widget) {
   return `
     <div class="widget" data-widget-id="${widgetId}">
       <div class="widget-header widget-drag-handle" title="Перетащить виджет">
-        <span class="widget-drag-grip" aria-hidden="true">⠿</span>
-        <span class="widget-title">${escapeHtml(title)}</span>
+        <span class="widget-drag-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
+        <span class="widget-title" data-default-title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+        <input type="text" class="widget-title-input" value="${escapeHtml(title)}" hidden />
         <div class="widget-actions">
-          <button class="edit-title-btn" title="Переименовать">✏️</button>
-          <button class="remove-widget-btn" title="Удалить" data-widget-id="${widgetId}">X</button>
+          <button class="edit-title-btn icon-btn" title="Переименовать">${ICONS.action('pencil')}</button>
+          <button class="remove-widget-btn icon-btn" title="Удалить" data-widget-id="${widgetId}">${ICONS.action('x')}</button>
         </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
     </div>
   `;
 }
-
-// Global remove handler - set up once at script load
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.remove-widget-btn');
-  if (!btn) return;
-  
-  const widgetEl = btn.closest('.widget');
-  if (!widgetEl) return;
-  
-  const widgetId = widgetEl.dataset.widgetId;
-  const workspace = getActiveWorkspace();
-  const widget = workspace?.widgets.find(w => w.id === widgetId);
-  const widgetTitle = widget?.config?.title || 'этот виджет';
-  
-  if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
-    removeWidget(widgetId);
-  }
-});
-
-// Edit title handler
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.edit-title-btn');
-  if (!btn) return;
-  
-  const widgetEl = btn.closest('.widget');
-  const widgetId = widgetEl.dataset.widgetId;
-  const workspace = getActiveWorkspace();
-  const widget = workspace?.widgets.find(w => w.id === widgetId);
-  if (widget) {
-    const newTitle = prompt('Переименовать виджет:', widget.config.title || getDefaultTitle(widget.type));
-    if (newTitle) {
-      updateWidgetConfig(widgetId, { title: newTitle });
-    }
-  }
-});
 
 // Show all / collapse bookmarks handler
 document.addEventListener('click', (e) => {
@@ -966,12 +1137,12 @@ function renderBookmarksWidget(widget) {
         ${bookmarks.map(bm => `
           <div class="bookmark-item" data-bookmark-id="${bm.id}">
             <span class="bookmark-drag-handle">
-              ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" draggable="false" />` : '<span class="favicon-placeholder">⠿</span>'}
+              ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" draggable="false" />` : `<span class="favicon-placeholder">${ICONS.action('globe')}</span>`}
             </span>
             <input type="text" class="title-input" value="${escapeHtml(bm.title)}" style="display: none;" />
             <a href="${escapeHtml(bm.url)}" target="_blank" class="bookmark-title">${escapeHtml(bm.title)}</a>
-            <button class="edit-btn">✏️</button>
-            <button class="delete-btn">X</button>
+            <button class="edit-btn icon-btn" title="Редактировать">${ICONS.action('pencil')}</button>
+            <button class="delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
           </div>
         `).join('')}
       </div>
@@ -1015,40 +1186,142 @@ function renderWeatherWidget(widget) {
   `;
 }
 
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function eventDateKey(year, month, day) {
+  return `${year}-${pad2(month + 1)}-${pad2(day)}`;
+}
+
+function migrateEvent(e) {
+  if (!e) return null;
+  if (typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
+    return { id: e.id, title: e.title, date: e.date, time: e.time || null };
+  }
+  // Old format: { day, month (0-indexed), year, time }
+  if (typeof e.year === 'number' && typeof e.month === 'number' && typeof e.day === 'number') {
+    return {
+      id: e.id,
+      title: e.title,
+      date: eventDateKey(e.year, e.month, e.day),
+      time: e.time || null
+    };
+  }
+  return null;
+}
+
+function eventColor(id, index) {
+  // Golden-angle distribution: each consecutive event gets hue += 137.5°
+  // (maximally distinguishable colors regardless of id).
+  const hue = ((index ?? 0) * 137.508) % 360;
+  return `hsl(${hue} 70% 58%)`;
+}
+
 function renderCalendarWidget(widget) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const monthName = now.toLocaleString('ru', { month: 'long' });
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const viewYear = widget.config.viewYear ?? now.getFullYear();
+  const viewMonth = widget.config.viewMonth ?? now.getMonth();
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString('ru', { month: 'long' });
+  const firstDayRaw = new Date(viewYear, viewMonth, 1).getDay();
+  const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const isViewingCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const todayDay = isViewingCurrentMonth ? now.getDate() : null;
+  const monthPrefix = `${viewYear}-${pad2(viewMonth + 1)}`;
 
   const days = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
   for (let i = 1; i <= daysInMonth; i++) days.push(i);
 
-  const events = widget.config.events || [];
+  const events = (widget.config.events || []).map(migrateEvent).filter(Boolean);
+  const selectedDay = widget.config.selectedDay ?? null;
+  const selectedDateKey = selectedDay ? eventDateKey(viewYear, viewMonth, selectedDay) : null;
+  const selectedDate = selectedDateKey
+    ? events.filter(e => e.date === selectedDateKey)
+        .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+    : [];
+
+  // Group events by day for bars, and assign each a stable color index
+  // (golden-angle hue distribution) so every event has a visually distinct color.
+  const eventsByDay = new Map();
+  const colorIndexByEventId = new Map();
+  const monthEventsSorted = events
+    .filter(e => e.date.startsWith(monthPrefix))
+    .slice()
+    .sort((a, b) => {
+      const d = a.date.localeCompare(b.date);
+      if (d !== 0) return d;
+      return (a.time || '99:99').localeCompare(b.time || '99:99');
+    });
+  monthEventsSorted.forEach((e, idx) => {
+    colorIndexByEventId.set(e.id, idx);
+    const day = parseInt(e.date.slice(8), 10);
+    if (!eventsByDay.has(day)) eventsByDay.set(day, []);
+    eventsByDay.get(day).push(e);
+  });
+
+  const MAX_BARS = 3;
 
   return `
     <div class="calendar-widget" data-widget-id="${widget.id}">
       <div class="calendar-nav">
-        <button class="prev-month">&lt;</button>
-        <span>${monthName} ${year}</span>
-        <button class="next-month">&gt;</button>
+        <button class="prev-month icon-btn" title="Предыдущий месяц">${ICONS.action('chevron-left')}</button>
+        <span class="calendar-title">${monthName} ${viewYear}</span>
+        <button class="next-month icon-btn" title="Следующий месяц">${ICONS.action('chevron-right')}</button>
       </div>
       <div class="calendar-grid">
         ${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => `<div class="calendar-header">${d}</div>`).join('')}
-        ${days.map((day, i) => `
-          <div class="calendar-day ${day ? '' : 'empty'}" data-day="${day}">
-            ${day || ''}
+        ${days.map((day) => {
+          const classes = ['calendar-day'];
+          if (!day) classes.push('empty');
+          if (day === todayDay) classes.push('today');
+          if (day === selectedDay) classes.push('selected');
+          const dayEvents = day ? (eventsByDay.get(day) || []) : [];
+          if (dayEvents.length > 0) classes.push('has-events');
+
+          const visible = dayEvents.slice(0, MAX_BARS);
+          const overflow = dayEvents.length - visible.length;
+          const bars = visible.map(e => {
+            const isAllDay = !e.time;
+            const colorIdx = colorIndexByEventId.get(e.id) ?? 0;
+            return `<div class="event-bar ${isAllDay ? 'event-bar-allday' : ''}"
+                          data-event-id="${e.id}"
+                          style="background:${eventColor(e.id, colorIdx)}"
+                          title="${escapeHtml(e.title)}${e.time ? ' · ' + e.time : ''}"></div>`;
+          }).join('');
+          const overflowHtml = overflow > 0
+            ? `<span class="event-overflow">+${overflow}</span>`
+            : '';
+
+          return `
+            <div class="${classes.join(' ')}" data-day="${day || ''}">
+              <span class="calendar-day-num">${day || ''}</span>
+              ${day && dayEvents.length > 0 ? `<div class="event-bars">${bars}${overflowHtml}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+      ${selectedDay ? `
+        <div class="selected-day-panel">
+          <div class="selected-day-header">
+            <span>${selectedDay} ${monthName}</span>
+            <button class="add-event-btn icon-btn" title="Добавить событие">${ICONS.btn('plus')}</button>
           </div>
-        `).join('')}
-      </div>
-      <button class="add-event-btn">+ Добавить событие</button>
-      <div class="events-list" style="display: none;">
-        <h4>События</h4>
-        <ul></ul>
-      </div>
+          ${selectedDate.length > 0 ? `
+            <ul class="selected-day-events">
+              ${selectedDate.map(e => `
+                <li data-event-id="${e.id}" class="event-item" title="Кликните для редактирования">
+                  ${e.time ? `<span class="event-time">${e.time}</span>` : '<span class="event-time event-time-allday">весь день</span>'}
+                  <span class="event-title">${escapeHtml(e.title)}</span>
+                  <span class="event-color-dot" style="background:${eventColor(e.id, colorIndexByEventId.get(e.id) ?? 0)}"></span>
+                  <button class="event-delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
+                </li>
+              `).join('')}
+            </ul>
+          ` : '<p class="empty-day-text">Нет событий</p>'}
+        </div>
+      ` : `
+        <p class="calendar-hint">${ICONS.action('calendar')} Выберите дату для просмотра событий</p>
+      `}
     </div>
   `;
 }
@@ -1057,59 +1330,72 @@ function renderCalendarWidget(widget) {
 document.addEventListener('click', (e) => {
   const removeBtn = e.target.closest('.remove-widget-btn');
   if (removeBtn) {
-    console.log('[Widget] Remove button clicked');
-    e.preventDefault();
-    e.stopPropagation();
-    
     const widgetEl = removeBtn.closest('.widget');
     if (!widgetEl) return;
-    
+
     const widgetId = widgetEl.dataset.widgetId;
     const workspace = getActiveWorkspace();
     const widget = workspace?.widgets.find(w => w.id === widgetId);
     const widgetTitle = widget?.config?.title || 'этот виджет';
-    
-    console.log('[Widget] Remove clicked, title:', widgetTitle);
-    
-    if (confirm(`Удалить виджет "${widgetTitle}"?`)) {
-      removeWidget(widgetId);
-    }
+
+    (async () => {
+      const ok = await showConfirm({
+        title: 'Удалить виджет?',
+        message: `Виджет "${widgetTitle}" будет удалён. Это действие нельзя отменить.`,
+        confirmText: 'Удалить',
+        danger: true
+      });
+      if (ok) removeWidget(widgetId);
+    })();
     return;
   }
-  
+
   const editBtn = e.target.closest('.edit-title-btn');
   if (editBtn) {
+    e.stopPropagation();
     const widgetEl = editBtn.closest('.widget');
+    if (!widgetEl) return;
     const widgetId = widgetEl.dataset.widgetId;
-    const workspace = getActiveWorkspace();
-    const widget = workspace.widgets.find(w => w.id === widgetId);
-    if (widget) {
-      const newTitle = prompt('Переименовать виджет:', widget.config.title || getDefaultTitle(widget.type));
-      if (newTitle) {
-        updateWidgetConfig(widgetId, { title: newTitle });
+    const titleEl = widgetEl.querySelector('.widget-title');
+    const inputEl = widgetEl.querySelector('.widget-title-input');
+    if (!titleEl || !inputEl) return;
+
+    const original = titleEl.textContent;
+    inputEl.value = original;
+    titleEl.hidden = true;
+    inputEl.hidden = false;
+    inputEl.focus();
+    inputEl.select();
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const v = inputEl.value.trim();
+      if (v && v !== original) updateWidgetConfig(widgetId, { title: v });
+      else {
+        titleEl.hidden = false;
+        inputEl.hidden = true;
       }
-    }
+    };
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      titleEl.hidden = false;
+      inputEl.hidden = true;
+    };
+    inputEl.addEventListener('blur', commit, { once: true });
+    inputEl.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); inputEl.blur(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
+    });
+    return;
   }
 });
 
 // Event Setup
 function setupWidgetListeners(container) {
-  
-  // Edit title
-  container.querySelectorAll('.edit-title-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const widgetEl = e.target.closest('.widget');
-      const widgetId = widgetEl.dataset.widgetId;
-      const workspace = getActiveWorkspace();
-      const widget = workspace.widgets.find(w => w.id === widgetId);
-      if (widget) {
-        const newTitle = prompt('Переименовать виджет:', widget.config.title || getDefaultTitle(widget.type));
-        if (newTitle) {
-          updateWidgetConfig(widgetId, { title: newTitle });
-        }
-      }
-    });
-  });
 
   // Bookmarks
   container.querySelectorAll('.bookmarks-widget').forEach(el => {
@@ -1160,7 +1446,7 @@ function setupWidgetListeners(container) {
       try {
         new URL(fullUrl);
       } catch {
-        alert('Неверный URL');
+        showNotification('Неверный URL');
         return;
       }
 
@@ -1264,10 +1550,10 @@ function setupWidgetListeners(container) {
     });
   });
 
-  // DateTime - update every second
+  // DateTime - update every 30 seconds
   container.querySelectorAll('.datetime-widget').forEach(el => {
     updateDateTime(el);
-    setInterval(() => updateDateTime(el), 1000);
+    setInterval(() => updateDateTime(el), 30000);
   });
 
   // Weather
@@ -1288,7 +1574,163 @@ function setupWidgetListeners(container) {
   // Calendar
   container.querySelectorAll('.calendar-widget').forEach(el => {
     const widgetId = el.dataset.widgetId;
-    // Calendar event handling would go here
+    const workspace = getActiveWorkspace();
+    const widget = workspace.widgets.find(w => w.id === widgetId);
+    const now = new Date();
+    const viewYear = widget.config.viewYear ?? now.getFullYear();
+    const viewMonth = widget.config.viewMonth ?? now.getMonth();
+
+    el.querySelector('.prev-month')?.addEventListener('click', () => {
+      let m = viewMonth - 1;
+      let y = viewYear;
+      if (m < 0) { m = 11; y--; }
+      updateWidgetConfig(widgetId, { viewYear: y, viewMonth: m, selectedDay: null });
+      renderWidgetGrid();
+    });
+
+    el.querySelector('.next-month')?.addEventListener('click', () => {
+      let m = viewMonth + 1;
+      let y = viewYear;
+      if (m > 11) { m = 0; y++; }
+      updateWidgetConfig(widgetId, { viewYear: y, viewMonth: m, selectedDay: null });
+      renderWidgetGrid();
+    });
+
+    el.querySelectorAll('.calendar-day:not(.empty)').forEach(dayEl => {
+      dayEl.addEventListener('click', (e) => {
+        // Click on event-bar inside the cell → open that event for edit
+        const bar = e.target.closest('.event-bar');
+        if (bar) {
+          e.stopPropagation();
+          const eventId = bar.dataset.eventId;
+          const event = (widget.config.events || []).find(ev => ev.id === eventId);
+          if (event) showEventModal(widget, event);
+          return;
+        }
+        const day = parseInt(dayEl.dataset.day, 10);
+        updateWidgetConfig(widgetId, { selectedDay: day });
+        renderWidgetGrid();
+      });
+    });
+
+    el.querySelector('.add-event-btn')?.addEventListener('click', () => {
+      showEventModal(widget, null);
+    });
+
+    el.querySelectorAll('.event-item').forEach(item => {
+      const eventId = item.dataset.eventId;
+      const event = (widget.config.events || []).find(ev => ev.id === eventId);
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.event-delete-btn')) return;
+        showEventModal(widget, event);
+      });
+
+      item.querySelector('.event-delete-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const events = (widget.config.events || []).filter(ev => ev.id !== eventId);
+        updateWidgetConfig(widgetId, { events });
+        renderWidgetGrid();
+      });
+    });
+  });
+}
+
+function showEventModal(widget, existingEvent) {
+  const isEdit = !!existingEvent;
+  existingEvent = existingEvent ? migrateEvent(existingEvent) : null;
+  const now = new Date();
+  let initialDate;
+  if (existingEvent?.date) {
+    initialDate = existingEvent.date;
+  } else if (widget.config.selectedDay != null) {
+    initialDate = eventDateKey(
+      widget.config.viewYear ?? now.getFullYear(),
+      widget.config.viewMonth ?? now.getMonth(),
+      widget.config.selectedDay
+    );
+  } else {
+    initialDate = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  const initialTime = existingEvent?.time ?? '';
+  const initialTitle = existingEvent?.title ?? '';
+  const isAllDay = isEdit && !existingEvent.time;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 class="modal-title">${isEdit ? 'Редактировать событие' : 'Новое событие'}</h3>
+      <form class="event-form">
+        <label class="event-field">
+          <span>Название</span>
+          <input type="text" name="title" class="event-title-input" value="${escapeHtml(initialTitle)}" required autofocus />
+        </label>
+        <div class="event-row">
+          <label class="event-field event-field-date">
+            <span>Дата</span>
+            <input type="date" name="date" class="event-date-input" value="${initialDate}" required />
+          </label>
+          <label class="event-field event-field-time" ${isAllDay ? 'hidden' : ''}>
+            <span>Время</span>
+            <input type="time" name="time" class="event-time-input" value="${initialTime}" />
+          </label>
+        </div>
+        <label class="event-field event-field-checkbox">
+          <input type="checkbox" name="allday" class="event-allday-input" ${isAllDay ? 'checked' : ''} />
+          <span>Весь день</span>
+        </label>
+        <div class="event-actions">
+          <button type="button" class="modal-close" id="cancel-event">Отмена</button>
+          <button type="submit" class="btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.querySelector('#cancel-event').addEventListener('click', close);
+
+  // Toggle time input visibility based on "Весь день"
+  const alldayCb = overlay.querySelector('.event-allday-input');
+  const timeField = overlay.querySelector('.event-field-time');
+  alldayCb.addEventListener('change', () => {
+    timeField.hidden = alldayCb.checked;
+  });
+
+  overlay.querySelector('.event-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const title = form.title.value.trim();
+    if (!title) return;
+
+    const dateVal = form.date.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) return;
+    const allDay = form.allday.checked;
+    const timeVal = allDay ? '' : form.time.value;
+
+    const eventData = {
+      id: existingEvent?.id || crypto.randomUUID(),
+      title,
+      date: dateVal,
+      time: timeVal || null
+    };
+
+    const events = (widget.config.events || []).map(migrateEvent).filter(Boolean);
+    const updated = existingEvent
+      ? events.map(ev => ev.id === existingEvent.id ? eventData : ev)
+      : [...events, eventData];
+
+    const [y, m, d] = dateVal.split('-').map(Number);
+    updateWidgetConfig(widget.id, {
+      events: updated,
+      selectedDay: d,
+      viewYear: y,
+      viewMonth: m - 1
+    });
+    close();
+    renderWidgetGrid();
   });
 }
 
@@ -1299,12 +1741,11 @@ function updateDateTime(el) {
   const year = now.getFullYear();
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
-  const seconds = now.getSeconds().toString().padStart(2, '0');
 
   const dateEl = el.querySelector('.date');
   const timeEl = el.querySelector('.time');
   if (dateEl) dateEl.textContent = `${day}.${month}.${year}`;
-  if (timeEl) timeEl.textContent = `${hours}:${minutes}:${seconds}`;
+  if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
 }
 
 async function fetchWeather(el, apiKey) {
@@ -1532,16 +1973,21 @@ function showExportImportMenu() {
   document.body.appendChild(menu);
 
   menu.querySelector('#export-plain').addEventListener('click', async () => {
-    const { exportData } = await import('./utils/storage.js');
     const data = await exportData(false, null);
     downloadFile(data, 'ownspace-backup.json', 'application/json');
     menu.remove();
   });
 
   menu.querySelector('#export-encrypted').addEventListener('click', async () => {
-    const password = prompt('Введите пароль для шифрования:');
+    const password = await showPrompt({
+      title: 'Шифрование резервной копии',
+      message: 'Введите пароль. Запомните его — без него восстановить данные невозможно.',
+      placeholder: 'Пароль',
+      inputType: 'password',
+      required: true,
+      confirmText: 'Зашифровать'
+    });
     if (!password) return;
-    const { exportData } = await import('./utils/storage.js');
     const data = await exportData(true, password);
     downloadFile(data, 'ownspace-backup-encrypted.json', 'application/json');
     menu.remove();
@@ -1564,12 +2010,23 @@ function showExportImportMenu() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const password = confirm('Файл зашифрован?') ? prompt('Введите пароль:') : null;
-        const { importData } = await import('./utils/storage.js');
+        const looksEncrypted = event.target.result.trimStart().startsWith('{') &&
+                               /"encrypted":\s*true/.test(event.target.result);
+        let password = null;
+        if (looksEncrypted) {
+          password = await showPrompt({
+            title: 'Файл зашифрован',
+            message: 'Введите пароль для расшифровки:',
+            inputType: 'password',
+            confirmText: 'Расшифровать',
+            required: true
+          });
+          if (password === null) return;
+        }
         await importData(event.target.result, password);
         location.reload();
       } catch (err) {
-        alert('Ошибка импорта: ' + err.message);
+        showNotification('Ошибка импорта: ' + err.message);
       }
     };
     reader.readAsText(file);
@@ -1590,28 +2047,402 @@ function downloadFile(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+// ============================================
+// CRYPTO (inlined — AES-GCM + PBKDF2)
+// ============================================
+
+async function deriveEncKey(password) {
+  const enc = new TextEncoder();
+  const salt = enc.encode('ownspace-encryption-v1');
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptJson(data, password) {
+  const enc = new TextEncoder();
+  const key = await deriveEncKey(password);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    enc.encode(JSON.stringify(data))
+  );
+  return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
+}
+
+async function decryptJson(encryptedObj, password) {
+  const dec = new TextDecoder();
+  const key = await deriveEncKey(password);
+  const iv = new Uint8Array(encryptedObj.iv);
+  const data = new Uint8Array(encryptedObj.data);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  );
+  return JSON.parse(dec.decode(decrypted));
+}
+
+async function sha256Hex(text) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ============================================
+// MASTER PASSWORD MANAGEMENT
+// ============================================
+
+let cachedMasterPassword = null;
+let masterPasswordTimer = null;
+const MASTER_PASSWORD_TTL_MS = 15 * 60 * 1000; // 15 минут неактивности
+
+function cacheMasterPassword(pw) {
+  cachedMasterPassword = pw;
+  if (masterPasswordTimer) clearTimeout(masterPasswordTimer);
+  masterPasswordTimer = setTimeout(() => {
+    cachedMasterPassword = null;
+    masterPasswordTimer = null;
+    console.log('[MasterPassword] Cache expired');
+  }, MASTER_PASSWORD_TTL_MS);
+}
+
+function clearMasterPasswordCache() {
+  cachedMasterPassword = null;
+  if (masterPasswordTimer) {
+    clearTimeout(masterPasswordTimer);
+    masterPasswordTimer = null;
+  }
+}
+
+async function getMasterPasswordHash() {
+  const s = await getSettings();
+  return s.masterPasswordHash || '';
+}
+
+async function setMasterPasswordHash(hash) {
+  const s = await getSettings();
+  await saveSettings({ ...s, masterPasswordHash: hash });
+}
+
+// Modal: первичная установка мастер-пароля. Resolves to string | null.
+function showSetupMasterPasswordModal() {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Создание мастер-пароля</h3>
+        <p style="margin: 8px 0 16px; opacity: 0.8; font-size: 14px;">
+          Мастер-пароль защищает учётные данные CalDAV. Если вы его забудете —
+          восстановить пароль будет невозможно.
+        </p>
+        <div class="caldav-form">
+          <label>Новый пароль:</label>
+          <input type="password" id="mp-new" autocomplete="new-password" />
+
+          <label>Повторите пароль:</label>
+          <input type="password" id="mp-confirm" autocomplete="new-password" />
+
+          <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;"></div>
+        </div>
+        <button id="mp-save">Создать</button>
+        <button class="modal-close" id="mp-cancel">Отмена</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const errorEl = modal.querySelector('#mp-error');
+    const newInput = modal.querySelector('#mp-new');
+    const confirmInput = modal.querySelector('#mp-confirm');
+
+    const cleanup = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+
+    modal.querySelector('#mp-save').addEventListener('click', () => {
+      const pw = newInput.value;
+      const confirm = confirmInput.value;
+      if (!pw || pw.length < 4) {
+        errorEl.textContent = 'Минимум 4 символа';
+        return;
+      }
+      if (pw !== confirm) {
+        errorEl.textContent = 'Пароли не совпадают';
+        return;
+      }
+      cleanup(pw);
+    });
+
+    modal.querySelector('#mp-cancel').addEventListener('click', () => cleanup(null));
+    modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(null); });
+    setTimeout(() => newInput.focus(), 50);
+  });
+}
+
+// Modal: запрос существующего мастер-пароля с проверкой по хэшу. Resolves to string | null.
+function showPromptMasterPasswordModal(initialMessage = '') {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Введите мастер-пароль</h3>
+        <p style="margin: 8px 0 16px; opacity: 0.8; font-size: 14px;">
+          Требуется для доступа к зашифрованным учётным данным CalDAV.
+        </p>
+        <div class="caldav-form">
+          <input type="password" id="mp-prompt" autocomplete="current-password" />
+          <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;">${escapeHtml(initialMessage)}</div>
+        </div>
+        <button id="mp-ok">Подтвердить</button>
+        <button class="modal-close" id="mp-cancel">Отмена</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const input = modal.querySelector('#mp-prompt');
+
+    const cleanup = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+
+    const submit = () => {
+      const pw = input.value;
+      if (!pw) return;
+      cleanup(pw);
+    };
+
+    modal.querySelector('#mp-ok').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    modal.querySelector('#mp-cancel').addEventListener('click', () => cleanup(null));
+    modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(null); });
+    setTimeout(() => input.focus(), 50);
+  });
+}
+
+// High-level: возвращает мастер-пароль (из кэша или после ввода). null если отменено.
+async function ensureMasterPassword() {
+  if (cachedMasterPassword) {
+    cacheMasterPassword(cachedMasterPassword); // refresh TTL
+    return cachedMasterPassword;
+  }
+
+  const hash = await getMasterPasswordHash();
+  if (!hash) {
+    // Первичная установка
+    const pw = await showSetupMasterPasswordModal();
+    if (!pw) return null;
+    const newHash = await sha256Hex(pw);
+    await setMasterPasswordHash(newHash);
+    cacheMasterPassword(pw);
+    return pw;
+  }
+
+  // Запрос с проверкой
+  let attempt = 0;
+  let message = '';
+  while (attempt < 3) {
+    const pw = await showPromptMasterPasswordModal(message);
+    if (pw === null) return null;
+    const candidateHash = await sha256Hex(pw);
+    if (candidateHash === hash) {
+      cacheMasterPassword(pw);
+      return pw;
+    }
+    attempt++;
+    message = `Неверный пароль (попытка ${attempt}/3)`;
+  }
+  return null;
+}
+
+// Modal: смена мастер-пароля (с перешифровкой CalDAV creds).
+function showChangeMasterPasswordModal() {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Сменить мастер-пароль</h3>
+        <div class="caldav-form">
+          <label>Текущий пароль:</label>
+          <input type="password" id="mp-old" autocomplete="current-password" />
+
+          <label>Новый пароль:</label>
+          <input type="password" id="mp-new" autocomplete="new-password" />
+
+          <label>Повторите новый пароль:</label>
+          <input type="password" id="mp-confirm" autocomplete="new-password" />
+
+          <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;"></div>
+        </div>
+        <button id="mp-change">Сменить</button>
+        <button class="modal-close" id="mp-cancel">Отмена</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const errorEl = modal.querySelector('#mp-error');
+    const oldInput = modal.querySelector('#mp-old');
+    const newInput = modal.querySelector('#mp-new');
+    const confirmInput = modal.querySelector('#mp-confirm');
+
+    const cleanup = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+
+    modal.querySelector('#mp-change').addEventListener('click', async () => {
+      const oldPw = oldInput.value;
+      const newPw = newInput.value;
+      const confirm = confirmInput.value;
+
+      if (!oldPw || !newPw) {
+        errorEl.textContent = 'Заполните все поля';
+        return;
+      }
+      if (newPw.length < 4) {
+        errorEl.textContent = 'Новый пароль: минимум 4 символа';
+        return;
+      }
+      if (newPw !== confirm) {
+        errorEl.textContent = 'Новые пароли не совпадают';
+        return;
+      }
+
+      const storedHash = await getMasterPasswordHash();
+      const oldHash = await sha256Hex(oldPw);
+      if (oldHash !== storedHash) {
+        errorEl.textContent = 'Неверный текущий пароль';
+        return;
+      }
+
+      // Перешифровать существующие CalDAV creds
+      const stored = await getCalDAVCredentials();
+      if (stored && stored.encryptedCreds) {
+        try {
+          const decrypted = await decryptJson(stored.encryptedCreds, oldPw);
+          const reEncrypted = await encryptJson(decrypted, newPw);
+          await saveCalDAVCredentials({ url: stored.url, encryptedCreds: reEncrypted });
+        } catch (e) {
+          errorEl.textContent = 'Не удалось перешифровать данные: ' + e.message;
+          return;
+        }
+      }
+
+      // Сохранить новый хэш
+      const newHash = await sha256Hex(newPw);
+      await setMasterPasswordHash(newHash);
+      cacheMasterPassword(newPw);
+      cleanup(true);
+    });
+
+    modal.querySelector('#mp-cancel').addEventListener('click', () => cleanup(false));
+    modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(false); });
+    setTimeout(() => oldInput.focus(), 50);
+  });
+}
+
+// Загрузить CalDAV creds. Возвращает { url, username, password } | null.
+// Делает миграцию старого btoa-формата в зашифрованный.
+async function loadCalDAVCredentialsDecrypted() {
+  const stored = await getCalDAVCredentials();
+  if (!stored) return null;
+
+  // Новый формат
+  if (stored.encryptedCreds) {
+    const pw = await ensureMasterPassword();
+    if (!pw) return null;
+    try {
+      const decrypted = await decryptJson(stored.encryptedCreds, pw);
+      return { url: stored.url, username: decrypted.username, password: decrypted.password };
+    } catch (e) {
+      console.error('[CalDAV] Decryption failed:', e);
+      showNotification('Не удалось расшифровать CalDAV. Возможно, данные повреждены.');
+      return null;
+    }
+  }
+
+  // Старый формат btoa — миграция
+  if (typeof stored.password === 'string') {
+    let plainPassword;
+    try {
+      plainPassword = atob(stored.password);
+    } catch {
+      plainPassword = stored.password; // если не base64 — берём как есть
+    }
+    const username = stored.username || '';
+
+    const pw = await ensureMasterPassword();
+    if (pw) {
+      try {
+        const encryptedCreds = await encryptJson({ username, password: plainPassword }, pw);
+        await saveCalDAVCredentials({ url: stored.url, encryptedCreds });
+        console.log('[CalDAV] Migrated legacy credentials to encrypted format');
+      } catch (e) {
+        console.error('[CalDAV] Migration failed:', e);
+      }
+    }
+
+    return { url: stored.url, username, password: plainPassword };
+  }
+
+  return null;
+}
+
+// ============================================
 // CalDAV Settings
-function showCalDAVSyncSettings() {
+// ============================================
+async function showCalDAVSyncSettings() {
+  // Загрузить (и при необходимости мигрировать) существующие creds
+  const existing = await loadCalDAVCredentialsDecrypted();
+  const hasMasterPassword = !!(await getMasterPasswordHash());
+
   const menu = document.createElement('div');
   menu.className = 'modal-overlay';
   menu.innerHTML = `
     <div class="modal">
       <h3>Настройка CalDAV</h3>
+      <p style="margin: 0 0 12px; opacity: 0.7; font-size: 13px;">
+        🔒 Учётные данные шифруются мастер-паролем (AES-GCM).
+      </p>
       <div class="caldav-form">
         <label>URL сервера:</label>
-        <input type="text" id="caldav-url" placeholder="https://caldav.example.com" />
+        <input type="text" id="caldav-url" placeholder="https://caldav.example.com" value="${escapeHtml(existing?.url || '')}" />
 
         <label>Имя пользователя:</label>
-        <input type="text" id="caldav-username" />
+        <input type="text" id="caldav-username" value="${escapeHtml(existing?.username || '')}" />
 
         <label>Пароль:</label>
-        <input type="password" id="caldav-password" />
+        <input type="password" id="caldav-password" autocomplete="new-password" value="${escapeHtml(existing?.password || '')}" />
 
         <button id="caldav-test">Проверить подключение</button>
-        <div id="caldav-status"></div>
+        <div id="caldav-status" style="min-height: 1em; font-size: 13px;"></div>
       </div>
-      <button id="save-caldav">Сохранить</button>
-      <button class="modal-close" id="close-caldav">Отмена</button>
+      <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button id="save-caldav" style="flex: 1;">Сохранить</button>
+        <button class="modal-close" id="close-caldav" style="flex: 1;">Отмена</button>
+      </div>
+      ${hasMasterPassword ? `
+        <hr style="margin: 16px 0; border-color: var(--primary);" />
+        <button id="change-master" style="width: 100%; background: transparent; border: 1px solid var(--primary);">
+          🔑 Сменить мастер-пароль
+        </button>
+      ` : ''}
     </div>
   `;
 
@@ -1621,13 +2452,16 @@ function showCalDAVSyncSettings() {
     const url = menu.querySelector('#caldav-url').value;
     const username = menu.querySelector('#caldav-username').value;
     const password = menu.querySelector('#caldav-password').value;
+    const statusEl = menu.querySelector('#caldav-status');
 
     if (!url || !username || !password) {
-      menu.querySelector('#caldav-status').textContent = 'Заполните все поля';
+      statusEl.textContent = 'Заполните все поля';
+      statusEl.style.color = '';
       return;
     }
 
-    menu.querySelector('#caldav-status').textContent = 'Проверка...';
+    statusEl.textContent = 'Проверка...';
+    statusEl.style.color = '';
 
     try {
       const response = await browserMessaging.sendMessage({
@@ -1636,35 +2470,56 @@ function showCalDAVSyncSettings() {
       });
 
       if (response && response.success) {
-        menu.querySelector('#caldav-status').textContent = 'Подключение успешно!';
-        menu.querySelector('#caldav-status').style.color = 'green';
+        statusEl.textContent = 'Подключение успешно!';
+        statusEl.style.color = '#4caf50';
       } else {
-        menu.querySelector('#caldav-status').textContent = 'Ошибка: ' + (response?.error || 'Unknown');
-        menu.querySelector('#caldav-status').style.color = 'red';
+        statusEl.textContent = 'Ошибка: ' + (response?.error || 'Unknown');
+        statusEl.style.color = 'var(--accent)';
       }
     } catch (err) {
-      menu.querySelector('#caldav-status').textContent = 'Ошибка: ' + err.message;
-      menu.querySelector('#caldav-status').style.color = 'red';
+      statusEl.textContent = 'Ошибка: ' + err.message;
+      statusEl.style.color = 'var(--accent)';
     }
   });
 
   menu.querySelector('#save-caldav').addEventListener('click', async () => {
-    const url = menu.querySelector('#caldav-url').value;
+    const url = menu.querySelector('#caldav-url').value.trim();
     const username = menu.querySelector('#caldav-username').value;
     const password = menu.querySelector('#caldav-password').value;
+    const statusEl = menu.querySelector('#caldav-status');
 
     if (!url || !username || !password) {
-      alert('Заполните все поля');
+      statusEl.textContent = 'Заполните все поля';
+      statusEl.style.color = 'var(--accent)';
       return;
     }
 
-    // Save encrypted credentials would go here
-    // For now, just save to storage (not recommended for production)
-    const { saveCalDAVCredentials } = await import('./utils/storage.js');
-    await saveCalDAVCredentials({ url, username, password: btoa(password) });
+    // Получить мастер-пароль (запросит установку или ввод)
+    const pw = await ensureMasterPassword();
+    if (!pw) {
+      statusEl.textContent = 'Сохранение отменено: требуется мастер-пароль';
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
 
-    menu.remove();
+    try {
+      const encryptedCreds = await encryptJson({ username, password }, pw);
+      await saveCalDAVCredentials({ url, encryptedCreds });
+      menu.remove();
+      showNotification('CalDAV сохранён (зашифровано)');
+    } catch (e) {
+      statusEl.textContent = 'Ошибка шифрования: ' + e.message;
+      statusEl.style.color = 'var(--accent)';
+    }
   });
+
+  const changeBtn = menu.querySelector('#change-master');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', async () => {
+      const ok = await showChangeMasterPasswordModal();
+      if (ok) showNotification('Мастер-пароль изменён');
+    });
+  }
 
   menu.querySelector('#close-caldav').addEventListener('click', () => menu.remove());
   menu.addEventListener('click', (e) => { if (e.target === menu) menu.remove(); });
