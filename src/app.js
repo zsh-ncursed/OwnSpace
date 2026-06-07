@@ -1160,7 +1160,7 @@ function renderBookmarksWidget(widget) {
     <div class="bookmarks-widget" data-widget-id="${widget.id}">
       <div class="add-bookmark">
         <input type="text" placeholder="Введите URL..." class="new-url-input" />
-        <button class="add-bookmark-btn">+</button>
+        <button class="add-bookmark-btn icon-btn" title="Добавить закладку" aria-label="Добавить закладку">${ICONS.btn('plus')}</button>
       </div>
       <div class="bookmarks-list ${isExpanded || !hasMore ? '' : 'collapsed'}">
         ${bookmarks.map(bm => `
@@ -1168,10 +1168,13 @@ function renderBookmarksWidget(widget) {
             <span class="bookmark-drag-handle">
               ${bm.favicon ? `<img src="${bm.favicon}" class="favicon" alt="" draggable="false" />` : `<span class="favicon-placeholder">${ICONS.action('globe')}</span>`}
             </span>
-            <input type="text" class="title-input" value="${escapeHtml(bm.title)}" style="display: none;" />
+            <div class="bookmark-edit" style="display: none;">
+              <input type="text" class="title-input" value="${escapeHtml(bm.title)}" placeholder="Название" />
+              <input type="text" class="url-input" value="${escapeHtml(bm.url)}" placeholder="URL" />
+            </div>
             <a href="${escapeHtml(bm.url)}" target="_blank" class="bookmark-title">${escapeHtml(bm.title)}</a>
-            <button class="edit-btn icon-btn" title="Редактировать">${ICONS.action('pencil')}</button>
-            <button class="delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
+            <button class="edit-btn icon-btn" title="Редактировать" aria-label="Редактировать">${ICONS.action('pencil')}</button>
+            <button class="delete-btn icon-btn" title="Удалить" aria-label="Удалить">${ICONS.action('trash-2')}</button>
           </div>
         `).join('')}
       </div>
@@ -1211,7 +1214,7 @@ function renderTodoWidget(widget) {
       </div>
       <div class="todo-add-row">
         <input type="text" class="todo-new-input" placeholder="Новая задача..." />
-        <button class="todo-add-btn">+</button>
+        <button class="todo-add-btn icon-btn" title="Добавить задачу" aria-label="Добавить задачу">${ICONS.btn('plus')}</button>
       </div>
     </div>
   `;
@@ -1555,29 +1558,50 @@ function setupWidgetListeners(container) {
     el.querySelectorAll('.bookmark-item').forEach(item => {
       const bmId = item.dataset.bookmarkId;
 
-      item.querySelector('.edit-btn').addEventListener('click', () => {
+      const saveBookmark = () => {
+        const newTitle = item.querySelector('.title-input').value.trim() || item.querySelector('.title-input').value;
+        const newUrl = item.querySelector('.url-input').value.trim() || item.querySelector('.url-input').value;
+        const workspace = getActiveWorkspace();
+        const widget = workspace.widgets.find(w => w.id === widgetId);
+        const bookmarks = widget.config.bookmarks.map(b => b.id === bmId ? { ...b, title: newTitle, url: newUrl } : b);
+        updateWidgetConfig(widgetId, { bookmarks });
+      };
+
+      const cancelEdit = () => {
         const titleInput = item.querySelector('.title-input');
+        const urlInput = item.querySelector('.url-input');
+        const link = item.querySelector('.bookmark-title');
+        const workspace = getActiveWorkspace();
+        const widget = workspace.widgets.find(w => w.id === widgetId);
+        const bm = widget.config.bookmarks.find(b => b.id === bmId);
+        titleInput.value = bm.title;
+        urlInput.value = bm.url;
+        item.querySelector('.bookmark-edit').style.display = 'none';
+        link.style.display = '';
+      };
+
+      item.querySelector('.edit-btn').addEventListener('click', () => {
+        const editForm = item.querySelector('.bookmark-edit');
         const link = item.querySelector('.bookmark-title');
 
-        if (titleInput.style.display === 'none') {
-          titleInput.style.display = 'block';
+        if (editForm.style.display === 'none') {
+          editForm.style.display = 'flex';
           link.style.display = 'none';
-          titleInput.focus();
+          editForm.querySelector('.title-input').focus();
+          editForm.querySelector('.title-input').select();
         } else {
-          const newTitle = titleInput.value;
-          const workspace = getActiveWorkspace();
-          const widget = workspace.widgets.find(w => w.id === widgetId);
-          const bookmarks = widget.config.bookmarks.map(b => b.id === bmId ? { ...b, title: newTitle } : b);
-          updateWidgetConfig(widgetId, { bookmarks });
+          saveBookmark();
         }
       });
 
-      item.querySelector('.title-input').addEventListener('blur', () => {
-        const newTitle = item.querySelector('.title-input').value;
-        const workspace = getActiveWorkspace();
-        const widget = workspace.widgets.find(w => w.id === widgetId);
-        const bookmarks = widget.config.bookmarks.map(b => b.id === bmId ? { ...b, title: newTitle } : b);
-        updateWidgetConfig(widgetId, { bookmarks });
+      item.querySelector('.bookmark-edit').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveBookmark();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEdit();
+        }
       });
 
       item.querySelector('.delete-btn').addEventListener('click', () => {

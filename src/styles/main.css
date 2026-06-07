@@ -818,6 +818,7 @@ body {
   display: flex;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+  align-items: center;
 }
 
 .bookmarks-widget .add-bookmark input {
@@ -839,20 +840,40 @@ body {
 }
 
 .bookmarks-widget .add-bookmark button {
-  padding: var(--space-2) var(--space-4);
-  background: var(--accent);
-  border: none;
-  color: white;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-sm);
-  transition: background var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  color: var(--text-muted);
 }
 
 .bookmarks-widget .add-bookmark button:hover {
-  background: var(--accent-hover);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.bookmark-edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bookmark-edit input {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
+.bookmark-edit input.url-input {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .bookmarks-list {
@@ -2042,6 +2063,7 @@ body {
 .todo-add-row {
   display: flex;
   gap: var(--space-2);
+  align-items: center;
 }
 
 .todo-add-row input {
@@ -2063,16 +2085,13 @@ body {
 }
 
 .todo-add-row button {
-  padding: var(--space-2) var(--space-4);
-  background: var(--accent);
-  border: none;
-  color: white;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-sm);
-  transition: background var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.todo-add-row button:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 
 .todo-add-row button:hover {
