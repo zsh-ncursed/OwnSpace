@@ -1276,6 +1276,35 @@ body {
   outline: none;
 }
 
+.weather-widget .weather-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.weather-widget .weather-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-muted);
+}
+
+.weather-widget .weather-icon svg {
+  width: 36px;
+  height: 36px;
+  stroke-width: 1.5;
+}
+
+.weather-widget .wind {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  margin-top: var(--space-1);
+}
+
 /* Calendar widget */
 .calendar-widget {
   font-size: var(--text-sm);
