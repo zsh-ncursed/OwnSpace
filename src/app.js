@@ -1223,10 +1223,14 @@ function renderTodoWidget(widget) {
 function renderWeatherWidget(widget) {
   if (!widget.config.apiKey) {
     return `
-      <div class="weather-widget">
+      <div class="weather-widget" data-widget-id="${widget.id}">
         <p>Введите API ключ OpenWeather:</p>
         <input type="text" placeholder="API ключ" class="api-key-input" />
-        <a href="https://openweathermap.org/api" target="_blank">Получить ключ</a>
+        <div class="weather-widget-actions">
+          <button class="api-key-save-btn icon-btn" title="Сохранить">${ICONS.btn('check')}</button>
+          <span class="api-key-save-status"></span>
+          <a href="https://openweathermap.org/api" target="_blank" class="api-key-link">Получить ключ</a>
+        </div>
       </div>
     `;
   }
@@ -1713,6 +1717,40 @@ function setupWidgetListeners(container) {
     el.querySelector('.change-key-btn')?.addEventListener('click', () => {
       updateWidgetConfig(widgetId, { apiKey: '' });
     });
+
+    const input = el.querySelector('.api-key-input');
+    const saveBtn = el.querySelector('.api-key-save-btn');
+    const status = el.querySelector('.api-key-save-status');
+    if (input && widgetId) {
+      const saveKey = () => {
+        const key = input.value.trim();
+        if (!key) {
+          if (status) {
+            status.textContent = 'Введите ключ';
+            status.dataset.state = 'error';
+          }
+          return;
+        }
+        updateWidgetConfig(widgetId, { apiKey: key });
+        if (status) {
+          status.textContent = '✓ Сохранено';
+          status.dataset.state = 'ok';
+          clearTimeout(saveKey._t);
+          saveKey._t = setTimeout(() => {
+            status.textContent = '';
+            delete status.dataset.state;
+          }, 1800);
+        }
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveKey();
+        }
+      });
+      input.addEventListener('blur', saveKey);
+      saveBtn?.addEventListener('click', saveKey);
+    }
   });
 
   // Calendar

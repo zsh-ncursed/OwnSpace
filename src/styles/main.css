@@ -1175,6 +1175,45 @@ body {
   box-shadow: var(--shadow-glow);
 }
 
+.weather-widget-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.weather-widget-actions .api-key-save-btn {
+  flex: 0 0 auto;
+}
+
+.api-key-save-status {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  flex: 1;
+  text-align: left;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.api-key-save-status[data-state="ok"] {
+  color: #10b981;
+}
+
+.api-key-save-status[data-state="error"] {
+  color: var(--accent);
+}
+
+.api-key-link {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.api-key-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 /* Calendar widget */
 .calendar-widget {
   font-size: var(--text-sm);
