@@ -687,6 +687,16 @@ async function loadWorkspaces() {
       }
     }
   }
+
+  // Migrate weather widgets: ensure city field exists (older saves predate this)
+  for (const workspace of ws) {
+    for (const widget of workspace.widgets || []) {
+      if (widget.type !== WIDGET_TYPES.WEATHER) continue;
+      if (!widget.config) widget.config = {};
+      if (!widget.config.city) { widget.config.city = 'Moscow'; changed = true; }
+    }
+  }
+
   if (changed) await saveWorkspaces(ws);
 
   state.workspaces = ws;
@@ -772,7 +782,7 @@ function addWidget(type) {
 
 function getDefaultWidgetConfig(type) {
   switch (type) {
-    case WIDGET_TYPES.WEATHER: return { apiKey: '', title: 'Погода' };
+    case WIDGET_TYPES.WEATHER: return { apiKey: '', city: 'Moscow', title: 'Погода' };
     case WIDGET_TYPES.BOOKMARKS: return { bookmarks: [], title: 'Закладки' };
     case WIDGET_TYPES.CALENDAR: return { events: [], title: 'Календарь' };
     case WIDGET_TYPES.NOTES: return { content: '', title: 'Заметки' };
@@ -1224,8 +1234,9 @@ function renderWeatherWidget(widget) {
   if (!widget.config.apiKey) {
     return `
       <div class="weather-widget" data-widget-id="${widget.id}">
-        <p>Введите API ключ OpenWeather:</p>
+        <p>Введите API ключ и город OpenWeather:</p>
         <input type="text" placeholder="API ключ" class="api-key-input" />
+        <input type="text" placeholder="Город" class="city-input" value="${widget.config.city || 'Moscow'}" />
         <div class="weather-widget-actions">
           <button class="api-key-save-btn icon-btn" title="Сохранить">${ICONS.btn('check')}</button>
           <span class="api-key-save-status"></span>
@@ -1239,9 +1250,13 @@ function renderWeatherWidget(widget) {
       <div class="weather-content">
         <div class="temp">--°C</div>
         <div class="desc">Загрузка...</div>
-        <div class="location">Moscow</div>
+        <div class="location-row">
+          <span class="location">${widget.config.city || 'Moscow'}</span>
+          <button class="edit-city-btn icon-btn" title="Изменить город" aria-label="Изменить город">${ICONS.btn('pencil')}</button>
+        </div>
       </div>
       <button class="change-key-btn">Изменить ключ</button>
+      <input type="text" class="city-edit-input" value="${widget.config.city || 'Moscow'}" style="display:none" />
     </div>
   `;
 }
@@ -1711,14 +1726,41 @@ function setupWidgetListeners(container) {
     const widget = workspace.widgets.find(w => w.id === widgetId);
 
     if (widget && widget.config.apiKey) {
-      fetchWeather(el, widget.config.apiKey);
+      fetchWeather(el, widget.config.apiKey, widget.config.city || 'Moscow');
     }
 
     el.querySelector('.change-key-btn')?.addEventListener('click', () => {
       updateWidgetConfig(widgetId, { apiKey: '' });
     });
 
+    // Inline city edit (display state)
+    const editCityBtn = el.querySelector('.edit-city-btn');
+    const cityEditInput = el.querySelector('.city-edit-input');
+    if (editCityBtn && cityEditInput) {
+      const saveCity = () => {
+        const newCity = cityEditInput.value.trim() || 'Moscow';
+        if (newCity === (widget?.config.city || 'Moscow')) {
+          cityEditInput.style.display = 'none';
+          return;
+        }
+        updateWidgetConfig(widgetId, { city: newCity });
+        cityEditInput.style.display = 'none';
+      };
+      editCityBtn.addEventListener('click', () => {
+        cityEditInput.value = widget?.config.city || 'Moscow';
+        cityEditInput.style.display = '';
+        cityEditInput.focus();
+        cityEditInput.select();
+      });
+      cityEditInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); saveCity(); }
+        else if (e.key === 'Escape') { cityEditInput.style.display = 'none'; }
+      });
+      cityEditInput.addEventListener('blur', saveCity);
+    }
+
     const input = el.querySelector('.api-key-input');
+    const cityInput = el.querySelector('.city-input');
     const saveBtn = el.querySelector('.api-key-save-btn');
     const status = el.querySelector('.api-key-save-status');
     if (input && widgetId) {
@@ -1731,7 +1773,8 @@ function setupWidgetListeners(container) {
           }
           return;
         }
-        updateWidgetConfig(widgetId, { apiKey: key });
+        const city = cityInput ? (cityInput.value.trim() || 'Moscow') : (widget?.config.city || 'Moscow');
+        updateWidgetConfig(widgetId, { apiKey: key, city });
         if (status) {
           status.textContent = '✓ Сохранено';
           status.dataset.state = 'ok';
@@ -1930,13 +1973,13 @@ function updateDateTime(el) {
   if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
 }
 
-async function fetchWeather(el, apiKey) {
+async function fetchWeather(el, apiKey, city = 'Moscow') {
   try {
     const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=Moscow&appid=${apiKey}&units=metric&lang=ru`
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=ru`
     );
 
-    if (!response.ok) throw new Error('Invalid API key');
+    if (!response.ok) throw new Error('Invalid API key or city');
 
     const data = await response.json();
     el.querySelector('.temp').textContent = `${Math.round(data.main.temp)}°C`;
