@@ -4,7 +4,8 @@
 const STORAGE_KEYS = {
   WORKSPACES: 'workspaces',
   SETTINGS: 'settings',
-  CALDAV: 'caldav'
+  CALDAV: 'caldav',
+  ACTIVE_WORKSPACE: 'activeWorkspaceId'
 };
 
 const WIDGET_TYPES = {
@@ -12,7 +13,8 @@ const WIDGET_TYPES = {
   NOTES: 'notes',
   DATE: 'date',
   WEATHER: 'weather',
-  CALENDAR: 'calendar'
+  CALENDAR: 'calendar',
+  TODO: 'todo'
 };
 
 // Storage helpers with fallback for testing
@@ -80,6 +82,15 @@ async function saveCalDAVCredentials(creds) {
 
 async function getCalDAVCredentials() {
   const result = await storage.local.getItem(STORAGE_KEYS.CALDAV);
+  return result || null;
+}
+
+async function saveActiveWorkspaceId(id) {
+  await storage.local.setItem(STORAGE_KEYS.ACTIVE_WORKSPACE, id);
+}
+
+async function getActiveWorkspaceId() {
+  const result = await storage.local.getItem(STORAGE_KEYS.ACTIVE_WORKSPACE);
   return result || null;
 }
 
@@ -679,7 +690,10 @@ async function loadWorkspaces() {
   if (changed) await saveWorkspaces(ws);
 
   state.workspaces = ws;
-  if (ws.length > 0 && !state.activeWorkspaceId) {
+  const savedActiveId = await getActiveWorkspaceId();
+  if (savedActiveId && ws.some(ws => ws.id === savedActiveId)) {
+    state.activeWorkspaceId = savedActiveId;
+  } else if (ws.length > 0 && !state.activeWorkspaceId) {
     state.activeWorkspaceId = ws[0].id;
   }
 }
@@ -696,6 +710,7 @@ async function addWorkspace() {
   await saveWorkspaces(updated);
   state.workspaces = updated;
   state.activeWorkspaceId = newWs.id;
+  await saveActiveWorkspaceId(newWs.id);
   renderWorkspaceTabs();
   renderWidgetGrid();
 }
@@ -715,6 +730,9 @@ async function deleteWorkspace(id) {
   state.workspaces = updated;
   if (state.activeWorkspaceId === id) {
     state.activeWorkspaceId = updated[0]?.id;
+    if (state.activeWorkspaceId) {
+      await saveActiveWorkspaceId(state.activeWorkspaceId);
+    }
   }
   renderWorkspaceTabs();
   renderWidgetGrid();
@@ -759,6 +777,7 @@ function getDefaultWidgetConfig(type) {
     case WIDGET_TYPES.CALENDAR: return { events: [], title: 'Календарь' };
     case WIDGET_TYPES.NOTES: return { content: '', title: 'Заметки' };
     case WIDGET_TYPES.DATE: return { title: 'Дата и время' };
+    case WIDGET_TYPES.TODO: return { tasks: [], title: 'Список задач' };
     default: return {};
   }
 }
@@ -780,6 +799,7 @@ function removeWidget(widgetId) {
 
 function updateWidgetConfig(widgetId, config) {
   const workspace = getActiveWorkspace();
+  if (!workspace) return;
   const updatedWorkspaces = state.workspaces.map(ws => {
     if (ws.id !== workspace.id) return ws;
     return {
@@ -789,6 +809,7 @@ function updateWidgetConfig(widgetId, config) {
   });
   state.workspaces = updatedWorkspaces;
   saveWorkspaces(updatedWorkspaces);
+  renderWidgetGrid();
 }
 
 // Rendering
@@ -846,6 +867,7 @@ function renderWorkspaceTabs() {
         ${state.workspaces.length < 10 ? `<button type="button" class="workspace-tab workspace-tab-add icon-btn" id="add-workspace" title="Новая вкладка" aria-label="Новая вкладка">${ICONS.btn('plus')}</button>` : ''}
       </div>
       <div class="workspace-tabs-toolbar">
+        <button type="button" class="icon-btn" id="add-widget" title="Добавить виджет" aria-label="Добавить виджет">${ICONS.btn('plus')}</button>
         <button type="button" class="icon-btn" id="bg-settings" title="Настройка фона">${ICONS.btn('palette')}</button>
         <button type="button" class="icon-btn" id="theme-toggle" title="Переключить тему">${ICONS.btn(state.theme === 'dark' ? 'sun' : 'moon')}</button>
         <button type="button" class="icon-btn" id="export-import" title="Экспорт/Импорт">${ICONS.btn('arrow-down-up')}</button>
@@ -858,6 +880,7 @@ function renderWorkspaceTabs() {
     tab.addEventListener('click', (e) => {
       if (e.target.closest('.workspace-tab-actions') || e.target.closest('.workspace-tab-name-input')) return;
       state.activeWorkspaceId = tab.dataset.workspaceId;
+      saveActiveWorkspaceId(state.activeWorkspaceId);
       updateActiveWorkspaceTab();
       renderWidgetGrid();
     });
@@ -1002,7 +1025,10 @@ function renderWidgetGrid() {
 
     container.innerHTML = `
       ${emptyCols}
-      <button class="add-widget-cta" id="add-widget-empty" style="grid-column: 1 / -1; z-index: 10;">${ICONS.btn('plus')}<span>Добавить виджет</span></button>
+      <div class="empty-state-hint" id="add-widget-empty-hint">
+        ${ICONS.btn('plus')}
+        <span>Используйте <kbd>+</kbd> в верхней панели, чтобы добавить виджет</span>
+      </div>
       <div id="add-widget-menu" class="modal-overlay" style="display: none;">
         <div class="modal">
           <h3>Добавить виджет</h3>
@@ -1012,6 +1038,7 @@ function renderWidgetGrid() {
             <button data-type="date">Дата и время</button>
             <button data-type="weather">Погода</button>
             <button data-type="calendar">Календарь</button>
+            <button data-type="todo">Список задач</button>
           </div>
           <button class="modal-close" id="close-menu">Отмена</button>
         </div>
@@ -1042,7 +1069,6 @@ function renderWidgetGrid() {
 
   container.innerHTML = `
     ${columnsHTML}
-    <button class="add-widget-icon" id="add-widget" title="Добавить виджет" aria-label="Добавить виджет">${ICONS.btn('plus')}</button>
     <div id="add-widget-menu" class="modal-overlay" style="display: none;">
       <div class="modal">
         <h3>Добавить виджет</h3>
@@ -1052,6 +1078,7 @@ function renderWidgetGrid() {
           <button data-type="date">Дата и время</button>
           <button data-type="weather">Погода</button>
           <button data-type="calendar">Календарь</button>
+          <button data-type="todo">Список задач</button>
         </div>
         <button class="modal-close" id="close-menu">Отмена</button>
       </div>
@@ -1116,6 +1143,8 @@ function renderWidgetContent(widget) {
       return renderWeatherWidget(widget);
     case WIDGET_TYPES.CALENDAR:
       return renderCalendarWidget(widget);
+    case WIDGET_TYPES.TODO:
+      return renderTodoWidget(widget);
     default:
       return '<div>Unknown widget</div>';
   }
@@ -1162,6 +1191,30 @@ function renderNotesWidget(widget) {
 
 function renderDateTimeWidget(widget) {
   return '<div class="datetime-widget"><div class="date" id="datetime-date"></div><div class="time" id="datetime-time"></div></div>';
+}
+
+function renderTodoWidget(widget) {
+  const tasks = widget.config.tasks || [];
+  const pending = tasks.filter(t => !t.done).length;
+
+  return `
+    <div class="todo-widget" data-widget-id="${widget.id}">
+      <div class="todo-stats">Осталось: ${pending}</div>
+      <div class="todo-list">
+        ${tasks.map(t => `
+          <div class="todo-item ${t.done ? 'todo-done' : ''}" data-task-id="${t.id}">
+            <input type="checkbox" class="todo-checkbox" ${t.done ? 'checked' : ''} />
+            <input type="text" class="todo-text" value="${escapeHtml(t.text)}" ${t.done ? 'readonly' : ''} />
+            <button class="todo-delete icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="todo-add-row">
+        <input type="text" class="todo-new-input" placeholder="Новая задача..." />
+        <button class="todo-add-btn">+</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderWeatherWidget(widget) {
@@ -1556,6 +1609,73 @@ function setupWidgetListeners(container) {
     setInterval(() => updateDateTime(el), 30000);
   });
 
+  // Todo
+  container.querySelectorAll('.todo-widget').forEach(el => {
+    const widgetId = el.dataset.widgetId;
+
+    function getTodoWidget() {
+      const ws = getActiveWorkspace();
+      return ws?.widgets.find(w => w.id === widgetId);
+    }
+
+    // Add task
+    el.querySelector('.todo-add-btn').addEventListener('click', () => {
+      const input = el.querySelector('.todo-new-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const w = getTodoWidget();
+      if (!w) return;
+      const tasks = [...(w.config.tasks || []), {
+        id: crypto.randomUUID(),
+        text,
+        done: false
+      }];
+      updateWidgetConfig(widgetId, { tasks });
+      input.value = '';
+      renderWidgetGrid();
+    });
+    el.querySelector('.todo-new-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        el.querySelector('.todo-add-btn').click();
+      }
+    });
+
+    // Toggle done / edit / delete
+    el.querySelectorAll('.todo-item').forEach(item => {
+      const taskId = item.dataset.taskId;
+
+      item.querySelector('.todo-checkbox').addEventListener('change', () => {
+        const w = getTodoWidget();
+        if (!w) return;
+        const tasks = (w.config.tasks || []).map(t =>
+          t.id === taskId ? { ...t, done: !t.done } : t
+        );
+        updateWidgetConfig(widgetId, { tasks });
+        renderWidgetGrid();
+      });
+
+      item.querySelector('.todo-text').addEventListener('change', () => {
+        const text = item.querySelector('.todo-text').value.trim();
+        if (!text) return;
+        const w = getTodoWidget();
+        if (!w) return;
+        const tasks = (w.config.tasks || []).map(t =>
+          t.id === taskId ? { ...t, text } : t
+        );
+        updateWidgetConfig(widgetId, { tasks });
+      });
+
+      item.querySelector('.todo-delete').addEventListener('click', () => {
+        const w = getTodoWidget();
+        if (!w) return;
+        const tasks = (w.config.tasks || []).filter(t => t.id !== taskId);
+        updateWidgetConfig(widgetId, { tasks });
+        renderWidgetGrid();
+      });
+    });
+  });
+
   // Weather
   container.querySelectorAll('.weather-widget').forEach(el => {
     const widgetId = el.dataset.widgetId;
@@ -1766,15 +1886,15 @@ async function fetchWeather(el, apiKey) {
 }
 
 function setupAddWidgetListeners(container) {
-  const emptyBtn = container.querySelector('#add-widget-empty');
-  const addBtn = container.querySelector('#add-widget');
+  const emptyHint = container.querySelector('#add-widget-empty-hint');
   const menu = container.querySelector('#add-widget-menu');
   const closeBtn = container.querySelector('#close-menu');
+  const addBtn = document.getElementById('add-widget');
 
   const showMenu = () => menu.style.display = 'flex';
   const hideMenu = () => menu.style.display = 'none';
 
-  emptyBtn?.addEventListener('click', showMenu);
+  emptyHint?.addEventListener('click', showMenu);
   addBtn?.addEventListener('click', showMenu);
   closeBtn?.addEventListener('click', hideMenu);
 
