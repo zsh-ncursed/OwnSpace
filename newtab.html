@@ -4,8 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OwnSpace</title>
-  <link rel="stylesheet" href="src/styles/main.css">
   <script src="lib/browser-polyfill.min.js"></script>
+  <script>
+    (async () => {
+      try {
+        const result = await browser.storage.local.get('extensionSettings');
+        const settings = result.extensionSettings || {};
+        if (settings.openInNewTabs === false) {
+          window.location.replace('about:home');
+        }
+      } catch (e) {
+        console.warn('OwnSpace: could not check extensionSettings', e);
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="src/styles/main.css">
   <script src="lib/sortable.min.js"></script>
   <script src="src/components/icons.js"></script>
   <script src="src/app.js"></script>

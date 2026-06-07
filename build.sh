@@ -13,6 +13,7 @@ cp "$ROOT/newtab.html" "$OUT/"
 cp -r "$ROOT/src" "$OUT/"
 cp -r "$ROOT/lib" "$OUT/"
 cp -r "$ROOT/background" "$OUT/"
+cp -r "$ROOT/options" "$OUT/"
 
 cd "$OUT"
 zip -r "$XPI" . -x "*.DS_Store"

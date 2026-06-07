@@ -1,6 +1,33 @@
 // CalDAV Sync Background Script
 // Handles background synchronization with CalDAV servers
 
+async function ensurePinnedOwnSpaceTab() {
+  try {
+    const result = await browser.storage.local.get('extensionSettings');
+    const settings = (result.extensionSettings || {}).pinOwnSpaceTab;
+    if (!settings) return;
+
+    const url = browser.runtime.getURL('newtab.html');
+    const existing = await browser.tabs.query({ url });
+
+    if (existing.length > 0) {
+      for (const tab of existing) {
+        if (!tab.pinned) {
+          await browser.tabs.update(tab.id, { pinned: true });
+        }
+      }
+      return;
+    }
+
+    await browser.tabs.create({ url, pinned: true, active: false });
+  } catch (e) {
+    console.warn('OwnSpace: could not pin tab', e);
+  }
+}
+
+browser.runtime.onStartup.addListener(ensurePinnedOwnSpaceTab);
+browser.runtime.onInstalled.addListener(ensurePinnedOwnSpaceTab);
+
 const CALDAV_OPERATIONS = {
   PROPFIND: 'PROPFIND',
   REPORT: 'REPORT',

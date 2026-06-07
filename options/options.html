@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OwnSpace — Настройки</title>
+  <link rel="stylesheet" href="../src/styles/main.css">
+  <link rel="stylesheet" href="options.css">
+  <script src="../lib/browser-polyfill.min.js"></script>
+  <script src="options.js"></script>
+</head>
+<body>
+  <main class="options-page">
+    <header class="options-header">
+      <div>
+        <h1>OwnSpace</h1>
+        <p class="subtitle">Настройки расширения</p>
+      </div>
+      <a href="../newtab.html" target="_blank" class="open-link">Открыть OwnSpace →</a>
+    </header>
+
+    <section class="options-section">
+      <h2>Поведение</h2>
+
+      <label class="option">
+        <input type="checkbox" id="openInNewTabs">
+        <span class="check-box" aria-hidden="true"></span>
+        <div class="option-body">
+          <div class="option-title">Открывать OwnSpace в новых вкладках</div>
+          <div class="option-desc">Каждая новая вкладка будет открывать OwnSpace вместо стандартной страницы браузера.</div>
+        </div>
+      </label>
+
+      <label class="option">
+        <input type="checkbox" id="pinOwnSpaceTab">
+        <span class="check-box" aria-hidden="true"></span>
+        <div class="option-body">
+          <div class="option-title">Закрепить страницу OwnSpace во вкладке</div>
+          <div class="option-desc">При запуске браузера автоматически открывается закреплённая вкладка с OwnSpace.</div>
+        </div>
+      </label>
+    </section>
+
+    <div class="save-status" id="saveStatus" role="status" aria-live="polite"></div>
+  </main>
+</body>
+</html>

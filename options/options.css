@@ -1,0 +1,184 @@
+/* OwnSpace — Options page */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../lib/fonts/Inter-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  background: var(--bg, #0f0f1a);
+  color: var(--text, #e8e8f0);
+  min-height: 100vh;
+}
+
+.options-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.options-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding-bottom: var(--space-6, 24px);
+  margin-bottom: var(--space-6, 24px);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.options-header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-subtle, rgba(232, 232, 240, 0.6));
+}
+
+.open-link {
+  font-size: var(--text-sm, 13px);
+  color: var(--primary, #6366f1);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity var(--duration-fast, 120ms) ease;
+}
+
+.open-link:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+.options-section h2 {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle, rgba(232, 232, 240, 0.6));
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px);
+  background: var(--surface-1, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: background var(--duration-fast, 120ms) ease,
+              border-color var(--duration-fast, 120ms) ease;
+  margin-bottom: var(--space-3, 12px);
+}
+
+.option:hover {
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.12));
+}
+
+.option input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.check-box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-hover, rgba(255, 255, 255, 0.2));
+  border-radius: 5px;
+  background: transparent;
+  position: relative;
+  margin-top: 2px;
+  transition: background var(--duration-fast, 120ms) ease,
+              border-color var(--duration-fast, 120ms) ease;
+}
+
+.option input[type="checkbox"]:checked + .check-box {
+  background: var(--primary, #6366f1);
+  border-color: var(--primary, #6366f1);
+}
+
+.option input[type="checkbox"]:checked + .check-box::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 11px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.option input[type="checkbox"]:focus-visible + .check-box {
+  outline: 2px solid var(--primary, #6366f1);
+  outline-offset: 2px;
+}
+
+.option-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.option-title {
+  font-size: var(--text-base, 15px);
+  font-weight: var(--weight-medium, 500);
+  color: var(--text, #e8e8f0);
+  line-height: 1.4;
+}
+
+.option-desc {
+  margin-top: 4px;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-subtle, rgba(232, 232, 240, 0.6));
+  line-height: 1.5;
+}
+
+.save-status {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  padding: 8px 16px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--text-sm, 13px);
+  color: var(--text, #e8e8f0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast, 120ms) ease,
+              transform var(--duration-fast, 120ms) ease;
+}
+
+.save-status.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 480px) {
+  .options-page {
+    padding: 24px 16px 80px;
+  }
+  .options-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3, 12px);
+  }
+}
