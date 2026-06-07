@@ -1262,9 +1262,9 @@ function renderWeatherWidget(widget) {
         <div class="location-row">
           <span class="location">${widget.config.city || 'Moscow'}</span>
           <button class="edit-city-btn icon-btn" title="Изменить город" aria-label="Изменить город">${ICONS.btn('pencil')}</button>
+          <button class="change-key-btn icon-btn" title="Изменить ключ" aria-label="Изменить ключ">${ICONS.btn('key')}</button>
         </div>
       </div>
-      <button class="change-key-btn">Изменить ключ</button>
       <input type="text" class="city-edit-input" value="${widget.config.city || 'Moscow'}" style="display:none" />
     </div>
   `;
