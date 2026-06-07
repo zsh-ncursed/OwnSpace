@@ -1293,6 +1293,12 @@ body {
   width: 108px;
   height: 108px;
   color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.weather-widget .weather-icon .icon {
+  width: 108px;
+  height: 108px;
 }
 
 .weather-widget .weather-icon svg {
