@@ -694,6 +694,11 @@ async function loadWorkspaces() {
       if (widget.type !== WIDGET_TYPES.WEATHER) continue;
       if (!widget.config) widget.config = {};
       if (!widget.config.city) { widget.config.city = 'Moscow'; changed = true; }
+      // Normalize env-style paste mistake ("NAME=value" -> "value")
+      if (typeof widget.config.apiKey === 'string') {
+        const m = widget.config.apiKey.match(/^[A-Za-z_][A-Za-z0-9_-]*=(.+)$/);
+        if (m) { widget.config.apiKey = m[1].trim(); changed = true; }
+      }
     }
   }
 
@@ -1764,8 +1769,15 @@ function setupWidgetListeners(container) {
     const saveBtn = el.querySelector('.api-key-save-btn');
     const status = el.querySelector('.api-key-save-status');
     if (input && widgetId) {
+      const parseKey = (raw) => {
+        const trimmed = raw.trim();
+        if (!trimmed) return '';
+        // Unwrap env-style "NAME=VALUE" paste mistake
+        const m = trimmed.match(/^[A-Za-z_][A-Za-z0-9_-]*=(.+)$/);
+        return m ? m[1].trim() : trimmed;
+      };
       const saveKey = () => {
-        const key = input.value.trim();
+        const key = parseKey(input.value);
         if (!key) {
           if (status) {
             status.textContent = 'Введите ключ';
@@ -1775,6 +1787,7 @@ function setupWidgetListeners(container) {
         }
         const city = cityInput ? (cityInput.value.trim() || 'Moscow') : (widget?.config.city || 'Moscow');
         updateWidgetConfig(widgetId, { apiKey: key, city });
+        if (input.value.trim() !== key) input.value = key; // normalize visible value
         if (status) {
           status.textContent = '✓ Сохранено';
           status.dataset.state = 'ok';
@@ -1974,19 +1987,22 @@ function updateDateTime(el) {
 }
 
 async function fetchWeather(el, apiKey, city = 'Moscow') {
+  const descEl = el.querySelector('.desc');
   try {
     const response = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=ru`
     );
 
-    if (!response.ok) throw new Error('Invalid API key or city');
+    if (response.status === 401) throw new Error('Неверный API ключ');
+    if (response.status === 404) throw new Error(`Город «${city}» не найден`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     el.querySelector('.temp').textContent = `${Math.round(data.main.temp)}°C`;
-    el.querySelector('.desc').textContent = data.weather[0].description;
+    descEl.textContent = data.weather[0].description;
     el.querySelector('.location').textContent = data.name;
   } catch (e) {
-    el.querySelector('.desc').textContent = `Ошибка: ${e.message}`;
+    descEl.textContent = `Ошибка: ${e.message}`;
   }
 }
 
