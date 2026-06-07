@@ -1254,7 +1254,7 @@ function renderWeatherWidget(widget) {
     <div class="weather-widget" data-widget-id="${widget.id}">
       <div class="weather-content">
         <div class="weather-main">
-          <div class="weather-icon" aria-hidden="true">${ICONS.btn('cloud')}</div>
+          <div class="weather-icon" data-icon="cloud" aria-hidden="true">${ICONS.btn('cloud')}</div>
           <div class="temp">--°C</div>
         </div>
         <div class="desc">Загрузка...</div>
@@ -2015,7 +2015,9 @@ async function fetchWeather(el, apiKey, city = 'Moscow') {
     if (windEl) windEl.textContent = `${data.wind.speed.toFixed(1)} м/с`;
     if (iconEl) {
       const code = (data.weather[0].icon || '').slice(0, 2);
-      iconEl.innerHTML = ICONS.btn(WEATHER_ICON_MAP[code] || 'cloud');
+      const name = WEATHER_ICON_MAP[code] || 'cloud';
+      iconEl.innerHTML = ICONS.btn(name);
+      iconEl.dataset.icon = name;
     }
   } catch (e) {
     descEl.textContent = `Ошибка: ${e.message}`;
