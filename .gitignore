@@ -10,6 +10,7 @@ docs/
 
 # Build/serve files
 serve.cjs
+ownspace.xpi
 
 # OS files
 .DS_Store
