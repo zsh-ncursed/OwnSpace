@@ -46,6 +46,13 @@ async function init() {
     settings.pinOwnSpaceTab = cb2.checked;
     await saveSettings(settings);
     showSaved();
+    if (cb2.checked) {
+      try {
+        await browser.runtime.sendMessage({ type: 'PIN_TAB_NOW' });
+      } catch (e) {
+        console.warn('OwnSpace: could not send PIN_TAB_NOW', e);
+      }
+    }
   });
 }
 

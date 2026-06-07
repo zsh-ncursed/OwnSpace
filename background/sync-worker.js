@@ -1,13 +1,26 @@
-// CalDAV Sync Background Script
-// Handles background synchronization with CalDAV servers
+// OwnSpace Background Script
+// Handles CalDAV sync + extension-level behaviors (pin tab, new-tab override)
+
+const EXTENSION_DEFAULTS = {
+  openInNewTabs: true,
+  pinOwnSpaceTab: false
+};
+
+async function getExtensionSettings() {
+  const result = await browser.storage.local.get('extensionSettings');
+  return { ...EXTENSION_DEFAULTS, ...(result.extensionSettings || {}) };
+}
+
+function getOwnSpaceUrl() {
+  return browser.runtime.getURL('newtab.html');
+}
 
 async function ensurePinnedOwnSpaceTab() {
   try {
-    const result = await browser.storage.local.get('extensionSettings');
-    const settings = (result.extensionSettings || {}).pinOwnSpaceTab;
-    if (!settings) return;
+    const settings = await getExtensionSettings();
+    if (!settings.pinOwnSpaceTab) return;
 
-    const url = browser.runtime.getURL('newtab.html');
+    const url = getOwnSpaceUrl();
     const existing = await browser.tabs.query({ url });
 
     if (existing.length > 0) {
@@ -16,17 +29,58 @@ async function ensurePinnedOwnSpaceTab() {
           await browser.tabs.update(tab.id, { pinned: true });
         }
       }
+      console.log('[OwnSpace] pinned existing tab');
       return;
     }
 
     await browser.tabs.create({ url, pinned: true, active: false });
+    console.log('[OwnSpace] created and pinned new tab');
   } catch (e) {
-    console.warn('OwnSpace: could not pin tab', e);
+    console.warn('[OwnSpace] could not pin tab', e);
   }
 }
 
-browser.runtime.onStartup.addListener(ensurePinnedOwnSpaceTab);
-browser.runtime.onInstalled.addListener(ensurePinnedOwnSpaceTab);
+async function maybeRedirectNewTab(tab) {
+  try {
+    const targetUrl = tab.pendingUrl || tab.url || '';
+    const isNewTabPage =
+      targetUrl === 'about:newtab' ||
+      targetUrl === 'about:home' ||
+      targetUrl.startsWith('floorp://') ||
+      targetUrl.startsWith('chrome://newtab');
+
+    if (!isNewTabPage) return;
+
+    const settings = await getExtensionSettings();
+    if (settings.openInNewTabs === false) return;
+
+    const ownUrl = getOwnSpaceUrl();
+    await browser.tabs.update(tab.id, { url: ownUrl });
+    console.log(`[OwnSpace] redirected new tab ${targetUrl} -> ${ownUrl}`);
+  } catch (e) {
+    console.warn('[OwnSpace] could not redirect tab', e);
+  }
+}
+
+browser.runtime.onStartup.addListener(() => {
+  console.log('[OwnSpace] onStartup');
+  ensurePinnedOwnSpaceTab();
+});
+
+browser.runtime.onInstalled.addListener(() => {
+  console.log('[OwnSpace] onInstalled');
+  ensurePinnedOwnSpaceTab();
+});
+
+browser.tabs.onCreated.addListener(maybeRedirectNewTab);
+
+browser.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'PIN_TAB_NOW') {
+    ensurePinnedOwnSpaceTab();
+  }
+});
+
+// CalDAV Sync
 
 const CALDAV_OPERATIONS = {
   PROPFIND: 'PROPFIND',
