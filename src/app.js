@@ -114,6 +114,9 @@ const browserMessaging = {
     if (message.type === 'fetchTitle') {
       return { success: false, result: { title: null }, error: 'Not in extension context' };
     }
+    if (message.type === 'sync') {
+      return { success: true, result: { events: [] } };
+    }
     return { success: true };
   }
 };
@@ -1384,6 +1387,10 @@ function renderCalendarWidget(widget) {
           `;
         }).join('')}
       </div>
+      <div class="caldav-sync-row">
+        <button class="caldav-sync-btn icon-btn" title="Синхронизировать CalDAV" aria-label="Синхронизировать">${ICONS.action('rotate-cw')}</button>
+        <span class="caldav-sync-status">${widget.config.caldavCalendarName ? (widget.config.caldavLastSync ? timeAgo(widget.config.caldavLastSync) : 'CalDAV: нажмите для синхронизации') : ''}</span>
+      </div>
       ${selectedDay ? `
         <div class="selected-day-panel">
           <div class="selected-day-header">
@@ -1393,8 +1400,9 @@ function renderCalendarWidget(widget) {
           ${selectedDate.length > 0 ? `
             <ul class="selected-day-events">
               ${selectedDate.map(e => `
-                <li data-event-id="${e.id}" class="event-item" title="Кликните для редактирования">
+                <li data-event-id="${e.id}" class="event-item ${e.source === 'caldav' ? 'event-item-caldav' : ''}" title="${e.source === 'caldav' ? 'CalDAV (только чтение)' : 'Кликните для редактирования'}">
                   ${e.time ? `<span class="event-time">${e.time}</span>` : '<span class="event-time event-time-allday">весь день</span>'}
+                  ${e.source === 'caldav' ? '<span class="caldav-badge">CalDAV</span>' : ''}
                   <span class="event-title">${escapeHtml(e.title)}</span>
                   <span class="event-color-dot" style="background:${eventColor(e.id, colorIndexByEventId.get(e.id) ?? 0)}"></span>
                   <button class="event-delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
@@ -1869,16 +1877,59 @@ function setupWidgetListeners(container) {
 
       item.querySelector('.event-delete-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (event?.source === 'caldav') return;
         const events = (widget.config.events || []).filter(ev => ev.id !== eventId);
         updateWidgetConfig(widgetId, { events });
         renderWidgetGrid();
       });
     });
+
+    // CalDAV sync button
+    el.querySelector('.caldav-sync-btn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const btn = e.currentTarget;
+      btn.classList.add('caldav-syncing');
+      const ok = await syncCalDAVEvents(widgetId);
+      btn.classList.remove('caldav-syncing');
+      if (!ok && !widget.config.caldavCalendarHref) {
+        // No calendar selected → offer picker
+        showCalDAVCalendarPicker(widgetId);
+      }
+    });
+
+    // Auto-sync if calendar is configured and sync is stale (>5 min)
+    if (widget.config.caldavCalendarHref) {
+      const lastSync = widget.config.caldavLastSync;
+      const stale = !lastSync || (Date.now() - new Date(lastSync).getTime() > 300000);
+      if (stale) {
+        syncCalDAVEvents(widgetId).then(ok => {
+          if (!ok) {
+            const statusEl = el.querySelector('.caldav-sync-status');
+            if (statusEl) statusEl.textContent = 'CalDAV: ошибка синхронизации';
+          }
+        });
+      }
+    }
+
+    // If creds exist but no calendar selected → offer picker
+    if (!widget.config.caldavCalendarHref) {
+      getCalDAVCredentials().then(stored => {
+        if (stored) {
+          const statusEl = el.querySelector('.caldav-sync-status');
+          if (statusEl) {
+            statusEl.textContent = 'CalDAV: выберите календарь';
+            statusEl.style.cursor = 'pointer';
+            statusEl.addEventListener('click', () => showCalDAVCalendarPicker(widgetId));
+          }
+        }
+      });
+    }
   });
 }
 
 function showEventModal(widget, existingEvent) {
   const isEdit = !!existingEvent;
+  const isCalDAV = existingEvent?.source === 'caldav';
   existingEvent = existingEvent ? migrateEvent(existingEvent) : null;
   const now = new Date();
   let initialDate;
@@ -1896,6 +1947,28 @@ function showEventModal(widget, existingEvent) {
   const initialTime = existingEvent?.time ?? '';
   const initialTitle = existingEvent?.title ?? '';
   const isAllDay = isEdit && !existingEvent.time;
+
+  if (isCalDAV) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3 class="modal-title">${escapeHtml(initialTitle)}</h3>
+        <p style="margin:8px 0;color:var(--text-muted);font-size:var(--text-sm);">
+          ${initialDate}${isAllDay ? ' · весь день' : ' · ' + initialTime}
+        </p>
+        <div style="display:flex;align-items:center;gap:6px;margin:12px 0;padding:8px;background:var(--primary-soft);border-radius:var(--radius-sm);font-size:var(--text-xs);color:var(--primary);">
+          <span>🔄</span>
+          <span>Синхронизировано из CalDAV. Для изменений отредактируйте в вашем календаре.</span>
+        </div>
+        <button class="modal-close" style="width:100%;">Закрыть</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    return;
+  }
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -2676,6 +2749,153 @@ async function loadCalDAVCredentialsDecrypted() {
 }
 
 // ============================================
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'только что';
+  if (mins < 60) return `${mins} мин назад`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ч назад`;
+  const days = Math.floor(hours / 24);
+  return `${days} дн назад`;
+}
+
+async function syncCalDAVEvents(widgetId) {
+  const workspace = getActiveWorkspace();
+  const widget = workspace.widgets.find(w => w.id === widgetId);
+  if (!widget || !widget.config.caldavCalendarHref) return false;
+
+  const creds = await loadCalDAVCredentialsDecrypted();
+  if (!creds) return false;
+
+  try {
+    const response = await browserMessaging.sendMessage({
+      type: 'sync',
+      payload: {
+        url: creds.url,
+        username: creds.username,
+        password: creds.password,
+        calendarUrl: widget.config.caldavCalendarHref
+      }
+    });
+
+    if (!response || !response.success) {
+      showNotification('CalDAV: ' + (response?.error || 'Ошибка синхронизации'));
+      return false;
+    }
+
+    const remoteEvents = (response.result && response.result.events) || [];
+    const localEvents = (widget.config.events || []).filter(e => e.source !== 'caldav');
+
+    // Merge: CalDAV events replace by uid, add new ones
+    const merged = [...localEvents];
+    const seenUids = new Set();
+    for (const e of remoteEvents) {
+      if (e.uid && !seenUids.has(e.uid)) {
+        seenUids.add(e.uid);
+        merged.push({
+          id: e.uid,
+          title: e.title,
+          date: e.date,
+          time: e.time || (e.isAllDay ? undefined : undefined),
+          source: 'caldav',
+          uid: e.uid
+        });
+      }
+    }
+
+    updateWidgetConfig(widgetId, {
+      events: merged,
+      caldavLastSync: new Date().toISOString()
+    });
+    renderWidgetGrid();
+    return true;
+  } catch (e) {
+    showNotification('CalDAV: ' + e.message);
+    return false;
+  }
+}
+
+async function showCalDAVCalendarPicker(widgetId) {
+  const creds = await loadCalDAVCredentialsDecrypted();
+  if (!creds) {
+    showNotification('Сначала настройте CalDAV (Экспорт/Импорт → Настроить CalDAV)');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal caldav-picker-modal">
+      <h3>Выберите календарь</h3>
+      <p style="margin: 0 0 12px; opacity: 0.7; font-size: 13px;">Поиск календарей...</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  try {
+    const response = await browserMessaging.sendMessage({
+      type: 'test',
+      payload: { url: creds.url, username: creds.username, password: creds.password }
+    });
+
+    if (!response || !response.success) {
+      overlay.querySelector('.modal').innerHTML = `
+        <h3>Ошибка</h3>
+        <p>${response?.error || 'Не удалось получить календари'}</p>
+        <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
+      `;
+      overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+      return;
+    }
+
+    const calendars = response.result.calendars || [];
+    if (calendars.length === 0) {
+      overlay.querySelector('.modal').innerHTML = `
+        <h3>Календари не найдены</h3>
+        <p>На сервере нет календарей</p>
+        <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
+      `;
+      overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+      return;
+    }
+
+    overlay.querySelector('.modal').innerHTML = `
+      <h3>Выберите календарь</h3>
+      <div class="caldav-calendar-list">
+        ${calendars.map((c, i) => `
+          <button class="caldav-calendar-item" data-href="${escapeHtml(c.href)}" data-name="${escapeHtml(c.name)}">
+            <span class="caldav-calendar-dot" style="background:hsl(${i * 137.508}, 60%, 60%)"></span>
+            <span>${escapeHtml(c.name)}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button class="modal-close" style="margin-top:12px;width:100%;background:transparent;border:1px solid var(--border);">Отмена</button>
+    `;
+
+    overlay.querySelectorAll('.caldav-calendar-item').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const href = btn.dataset.href;
+        const name = btn.dataset.name;
+        updateWidgetConfig(widgetId, { caldavCalendarHref: href, caldavCalendarName: name });
+        overlay.remove();
+        showNotification(`CalDAV: подключен «${name}»`);
+        await syncCalDAVEvents(widgetId);
+      });
+    });
+    overlay.querySelector('.modal-close')?.addEventListener('click', () => overlay.remove());
+  } catch (e) {
+    overlay.querySelector('.modal').innerHTML = `
+      <h3>Ошибка</h3>
+      <p>${e.message}</p>
+      <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
+    `;
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+  }
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 // CalDAV Settings
 // ============================================
 async function showCalDAVSyncSettings() {

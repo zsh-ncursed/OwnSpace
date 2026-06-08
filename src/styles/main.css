@@ -1328,6 +1328,79 @@ body {
   font-size: var(--text-sm);
 }
 
+.caldav-sync-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  min-height: 0;
+}
+
+.caldav-sync-row .caldav-sync-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.caldav-sync-row .caldav-sync-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.caldav-sync-btn.caldav-syncing svg {
+  animation: caldav-spin 1s linear infinite;
+}
+
+@keyframes caldav-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.caldav-sync-status {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.caldav-calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.caldav-calendar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.caldav-calendar-item:hover {
+  background: var(--primary-soft);
+}
+
+.caldav-calendar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .calendar-nav {
   display: flex;
   justify-content: space-between;
@@ -1608,6 +1681,23 @@ body {
   background: rgba(248, 113, 113, 0.12);
   color: var(--danger);
   opacity: 1;
+}
+
+.event-item-caldav .event-delete-btn {
+  display: none;
+}
+
+.caldav-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  margin-left: auto;
+  flex-shrink: 0;
+  line-height: 1.4;
 }
 
 .empty-day-text {
