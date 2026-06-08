@@ -115,11 +115,12 @@ class CalDAVClient {
     }
 
     const response = await fetch(url, options);
+    const text = await response.text();
     return {
       status: response.status,
-      text: await response.text(),
+      text,
       xml: response.headers.get('Content-Type')?.includes('xml')
-        ? new DOMParser().parseFromString(await response.text(), 'text/xml')
+        ? new DOMParser().parseFromString(text, 'text/xml')
         : null
     };
   }
@@ -345,7 +346,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const client = new CalDAVClient(url, username, password);
 
           const now = new Date();
-          const startDate = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+          const startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+            .toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
           const endDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
             .toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
