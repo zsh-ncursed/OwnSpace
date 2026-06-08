@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OwnSpace",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Local start page replacement with customizable widgets",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],

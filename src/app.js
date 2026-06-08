@@ -2840,24 +2840,41 @@ async function showCalDAVCalendarPicker(widgetId) {
       payload: { url: creds.url, username: creds.username, password: creds.password }
     });
 
-    if (!response || !response.success) {
-      overlay.querySelector('.modal').innerHTML = `
-        <h3>Ошибка</h3>
-        <p>${response?.error || 'Не удалось получить календари'}</p>
-        <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
-      `;
-      overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
-      return;
+    let calendars = [];
+    if (response && response.success) {
+      calendars = response.result.calendars || [];
     }
 
-    const calendars = response.result.calendars || [];
-    if (calendars.length === 0) {
+    if (!calendars || calendars.length === 0) {
+      // Fallback: PROPFIND discovery failed (common for Google Calendar, iCloud, etc.)
+      // Let user enter calendar URL manually
       overlay.querySelector('.modal').innerHTML = `
-        <h3>Календари не найдены</h3>
-        <p>На сервере нет календарей</p>
-        <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
+        <h3>Введите URL календаря</h3>
+        <p style="margin:0 0 8px;opacity:0.7;font-size:13px;">
+          Сервер не поддерживает автоопределение календарей.
+          Введите URL календаря вручную:
+        </p>
+        <input type="text" id="manual-calendar-url"
+               placeholder="https://apidata.googleusercontent.com/caldav/v2/primary/events/"
+               value="${escapeHtml(creds.url)}"
+               style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);
+                      color:var(--text);border-radius:var(--radius-sm);font:inherit;font-size:13px;" />
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button id="save-manual-calendar" style="flex:1;">Подключить</button>
+          <button class="modal-close" style="flex:1;background:transparent;border:1px solid var(--border);">Отмена</button>
+        </div>
       `;
-      overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+      overlay.querySelector('#save-manual-calendar').addEventListener('click', async () => {
+        const href = overlay.querySelector('#manual-calendar-url').value.trim();
+        if (!href) return;
+        const name = href.split('/').filter(Boolean).pop() || 'Календарь';
+        updateWidgetConfig(widgetId, { caldavCalendarHref: href, caldavCalendarName: name });
+        overlay.remove();
+        showNotification(`CalDAV: подключен «${name}»`);
+        await syncCalDAVEvents(widgetId);
+      });
+      overlay.querySelector('.modal-close')?.addEventListener('click', () => overlay.remove());
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
       return;
     }
 
