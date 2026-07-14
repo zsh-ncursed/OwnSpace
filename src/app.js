@@ -1108,12 +1108,29 @@ function renderWidgetGrid() {
   setupAddWidgetListeners(container);
 }
 
+function widgetBgStyle(widget) {
+  const cfg = widget.config || {};
+  const color = cfg.bgColor;
+  const opacity = cfg.opacity != null ? cfg.opacity : 100;
+  if (!color && opacity >= 100) return '';
+  if (!color) {
+    const bgVar = 'var(--surface)';
+    const o = Math.round(opacity / 100 * 255).toString(16).padStart(2, '0');
+    return `style="background:${bgVar}${opacity < 100 ? o : ''}"`;
+  }
+  const r = parseInt(color.slice(1,3), 16);
+  const g = parseInt(color.slice(3,5), 16);
+  const b = parseInt(color.slice(5,7), 16);
+  const a = opacity / 100;
+  return `style="background:rgba(${r},${g},${b},${a})"`;
+}
+
 function renderWidget(widget) {
   const title = widget.config.title || getDefaultTitle(widget.type);
   const widgetId = widget.id;
 
   return `
-    <div class="widget" data-widget-id="${widgetId}">
+    <div class="widget" data-widget-id="${widgetId}" ${widgetBgStyle(widget)}>
       <div class="widget-header widget-drag-handle" title="Перетащить виджет">
         <span class="widget-drag-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
         <span class="widget-title" data-default-title="${escapeHtml(title)}">${escapeHtml(title)}</span>
@@ -1268,6 +1285,11 @@ function renderWeatherWidget(widget) {
           <button class="change-key-btn icon-btn" title="Изменить ключ" aria-label="Изменить ключ">${ICONS.btn('key')}</button>
         </div>
       </div>
+      <div class="weather-forecast">
+        <div class="forecast-day" data-day="1"><span class="forecast-day-name"></span><span class="forecast-icon"></span><span class="forecast-temp"></span></div>
+        <div class="forecast-day" data-day="2"><span class="forecast-day-name"></span><span class="forecast-icon"></span><span class="forecast-temp"></span></div>
+        <div class="forecast-day" data-day="3"><span class="forecast-day-name"></span><span class="forecast-icon"></span><span class="forecast-temp"></span></div>
+      </div>
       <input type="text" class="city-edit-input" value="${widget.config.city || 'Moscow'}" style="display:none" />
     </div>
   `;
@@ -1281,24 +1303,31 @@ function eventDateKey(year, month, day) {
 
 function migrateEvent(e) {
   if (!e) return null;
+  let result;
   if (typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
-    return { id: e.id, title: e.title, date: e.date, time: e.time || null };
-  }
-  // Old format: { day, month (0-indexed), year, time }
-  if (typeof e.year === 'number' && typeof e.month === 'number' && typeof e.day === 'number') {
-    return {
+    result = { id: e.id, title: e.title, date: e.date, time: e.time || null };
+  } else if (typeof e.year === 'number' && typeof e.month === 'number' && typeof e.day === 'number') {
+    result = {
       id: e.id,
       title: e.title,
       date: eventDateKey(e.year, e.month, e.day),
       time: e.time || null
     };
+  } else {
+    return null;
   }
-  return null;
+  if (e.recurring) result.recurring = e.recurring;
+  if (e.isRecurringInstance) result.isRecurringInstance = true;
+  if (e.recurringParentId) result.recurringParentId = e.recurringParentId;
+  if (e.source) result.source = e.source;
+  if (e.endDate) result.endDate = e.endDate;
+  if (e.endTime) result.endTime = e.endTime;
+  if (e.color) result.color = e.color;
+  return result;
 }
 
-function eventColor(id, index) {
-  // Golden-angle distribution: each consecutive event gets hue += 137.5°
-  // (maximally distinguishable colors regardless of id).
+function eventColor(id, index, customColor) {
+  if (customColor) return customColor;
   const hue = ((index ?? 0) * 137.508) % 360;
   return `hsl(${hue} 70% 58%)`;
 }
@@ -1345,6 +1374,17 @@ function renderCalendarWidget(widget) {
     if (!eventsByDay.has(day)) eventsByDay.set(day, []);
     eventsByDay.get(day).push(e);
   });
+  // Recurring instances inherit parent's color index
+  for (const e of monthEventsSorted) {
+    if (e.isRecurringInstance && e.recurringParentId) {
+      if (colorIndexByEventId.has(e.recurringParentId)) {
+        colorIndexByEventId.set(e.id, colorIndexByEventId.get(e.recurringParentId));
+      } else {
+        const hash = e.recurringParentId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+        colorIndexByEventId.set(e.id, hash % 1000);
+      }
+    }
+  }
 
   const MAX_BARS = 3;
 
@@ -1357,35 +1397,55 @@ function renderCalendarWidget(widget) {
       </div>
       <div class="calendar-grid">
         ${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => `<div class="calendar-header">${d}</div>`).join('')}
-        ${days.map((day) => {
-          const classes = ['calendar-day'];
-          if (!day) classes.push('empty');
-          if (day === todayDay) classes.push('today');
-          if (day === selectedDay) classes.push('selected');
-          const dayEvents = day ? (eventsByDay.get(day) || []) : [];
-          if (dayEvents.length > 0) classes.push('has-events');
+          ${days.map((day) => {
+            const classes = ['calendar-day'];
+            if (!day) classes.push('empty');
+            if (day === todayDay) classes.push('today');
+            if (day === selectedDay) classes.push('selected');
+            const dayEvents = day ? (eventsByDay.get(day) || []) : [];
+            if (dayEvents.length > 0) classes.push('has-events');
 
-          const visible = dayEvents.slice(0, MAX_BARS);
-          const overflow = dayEvents.length - visible.length;
-          const bars = visible.map(e => {
-            const isAllDay = !e.time;
-            const colorIdx = colorIndexByEventId.get(e.id) ?? 0;
-            return `<div class="event-bar ${isAllDay ? 'event-bar-allday' : ''}"
-                          data-event-id="${e.id}"
-                          style="background:${eventColor(e.id, colorIdx)}"
-                          title="${escapeHtml(e.title)}${e.time ? ' · ' + e.time : ''}"></div>`;
-          }).join('');
-          const overflowHtml = overflow > 0
-            ? `<span class="event-overflow">+${overflow}</span>`
-            : '';
+            const allDayEvents = dayEvents.filter(e => !e.time);
+            const timedEvents = dayEvents.filter(e => e.time);
+            let cellStyle = '';
+            if (allDayEvents.length > 0) {
+              classes.push('has-allday');
+              const first = allDayEvents[0];
+              const colorIdx = colorIndexByEventId.get(first.id) ?? 0;
+              const hue = ((colorIdx ?? 0) * 137.508) % 360;
+              cellStyle = `style="background:hsla(${hue},70%,58%,0.2)"`;
+              if (first.color) {
+                const r = parseInt(first.color.slice(1,3), 16);
+                const g = parseInt(first.color.slice(3,5), 16);
+                const b = parseInt(first.color.slice(5,7), 16);
+                cellStyle = `style="background:rgba(${r},${g},${b},0.2)"`;
+              }
+              if (allDayEvents.length === 1) {
+                classes.push('allday-single');
+              }
+            }
 
-          return `
-            <div class="${classes.join(' ')}" data-day="${day || ''}">
-              <span class="calendar-day-num">${day || ''}</span>
-              ${day && dayEvents.length > 0 ? `<div class="event-bars">${bars}${overflowHtml}</div>` : ''}
-            </div>
-          `;
-        }).join('')}
+            const visible = timedEvents.slice(0, MAX_BARS);
+            const overflow = timedEvents.length - visible.length;
+            const bars = visible.map(e => {
+              const colorIdx = colorIndexByEventId.get(e.id) ?? 0;
+              const isRecurring = !!(e.isRecurringInstance || (e.recurring && e.recurring.type && e.recurring.type !== 'none'));
+              return `<div class="event-bar ${isRecurring ? 'event-bar-recurring' : ''}"
+                            data-event-id="${e.id}"
+                            style="background:${eventColor(e.id, colorIdx, e.color)}"
+                            title="${escapeHtml(e.title)} · ${e.time}${isRecurring ? ' (повторяющееся)' : ''}"></div>`;
+            }).join('');
+            const overflowHtml = overflow > 0
+              ? `<span class="event-overflow">+${overflow}</span>`
+              : '';
+
+            return `
+              <div class="${classes.join(' ')}" data-day="${day || ''}" ${cellStyle}>
+                <span class="calendar-day-num">${day || ''}</span>
+                ${timedEvents.length > 0 ? `<div class="event-bars">${bars}${overflowHtml}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
       </div>
       <div class="caldav-sync-row">
         <button class="caldav-sync-btn icon-btn" title="Синхронизировать CalDAV" aria-label="Синхронизировать">${ICONS.action('rotate-cw')}</button>
@@ -1403,9 +1463,10 @@ function renderCalendarWidget(widget) {
                 <li data-event-id="${e.id}" class="event-item ${e.source === 'caldav' ? 'event-item-caldav' : ''}" title="${e.source === 'caldav' ? 'CalDAV (только чтение)' : 'Кликните для редактирования'}">
                   ${e.time ? `<span class="event-time">${e.time}</span>` : '<span class="event-time event-time-allday">весь день</span>'}
                   ${e.source === 'caldav' ? '<span class="caldav-badge">CalDAV</span>' : ''}
+                  ${(e.recurring && e.recurring.type && e.recurring.type !== 'none') || e.isRecurringInstance ? '<span class="event-recurring-badge" title="Повторяющееся событие">↻</span>' : ''}
                   <span class="event-title">${escapeHtml(e.title)}</span>
-                  <span class="event-color-dot" style="background:${eventColor(e.id, colorIndexByEventId.get(e.id) ?? 0)}"></span>
-                  <button class="event-delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
+                  <span class="event-color-dot" style="background:${eventColor(e.id, colorIndexByEventId.get(e.id) ?? 0, e.color)}"></span>
+                  ${e.source !== 'caldav' ? `<button class="event-delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>` : ''}
                 </li>
               `).join('')}
             </ul>
@@ -1448,40 +1509,9 @@ document.addEventListener('click', (e) => {
     const widgetEl = editBtn.closest('.widget');
     if (!widgetEl) return;
     const widgetId = widgetEl.dataset.widgetId;
-    const titleEl = widgetEl.querySelector('.widget-title');
-    const inputEl = widgetEl.querySelector('.widget-title-input');
-    if (!titleEl || !inputEl) return;
-
-    const original = titleEl.textContent;
-    inputEl.value = original;
-    titleEl.hidden = true;
-    inputEl.hidden = false;
-    inputEl.focus();
-    inputEl.select();
-
-    let committed = false;
-    const commit = () => {
-      if (committed) return;
-      committed = true;
-      const v = inputEl.value.trim();
-      if (v && v !== original) updateWidgetConfig(widgetId, { title: v });
-      else {
-        titleEl.hidden = false;
-        inputEl.hidden = true;
-      }
-    };
-    const cancel = () => {
-      if (committed) return;
-      committed = true;
-      titleEl.hidden = false;
-      inputEl.hidden = true;
-    };
-    inputEl.addEventListener('blur', commit, { once: true });
-    inputEl.addEventListener('keydown', (ev) => {
-      ev.stopPropagation();
-      if (ev.key === 'Enter') { ev.preventDefault(); inputEl.blur(); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
-    });
+    const workspace = getActiveWorkspace();
+    const widget = workspace?.widgets.find(w => w.id === widgetId);
+    if (widget) showWidgetSettingsModal(widget);
     return;
   }
 });
@@ -1875,11 +1905,27 @@ function setupWidgetListeners(container) {
         showEventModal(widget, event);
       });
 
-      item.querySelector('.event-delete-btn')?.addEventListener('click', (e) => {
+      item.querySelector('.event-delete-btn')?.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (event?.source === 'caldav') return;
-        const events = (widget.config.events || []).filter(ev => ev.id !== eventId);
-        updateWidgetConfig(widgetId, { events });
+        const isRecurring = !!(event?.recurring?.type && event.recurring.type !== 'none') || !!(event?.isRecurringInstance);
+        if (isRecurring) {
+          const choice = await showRecurringDeleteChoice();
+          if (!choice) return;
+          if (choice === 'all') {
+            const parentId = event.recurringParentId || event.id;
+            const updated = (widget.config.events || []).filter(ev =>
+              !(ev.recurringParentId === parentId || ev.id === parentId)
+            );
+            updateWidgetConfig(widgetId, { events: updated });
+          } else {
+            const updated = (widget.config.events || []).filter(ev => ev.id !== eventId);
+            updateWidgetConfig(widgetId, { events: updated });
+          }
+        } else {
+          const updated = (widget.config.events || []).filter(ev => ev.id !== eventId);
+          updateWidgetConfig(widgetId, { events: updated });
+        }
         renderWidgetGrid();
       });
     });
@@ -1927,6 +1973,167 @@ function setupWidgetListeners(container) {
   });
 }
 
+function isCustomRecurring(r) {
+  return r && r.type !== 'none' && (r.interval > 1 || !!r.endDate);
+}
+
+function showWidgetSettingsModal(widget) {
+  const config = widget.config || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 class="modal-title">Настройки виджета</h3>
+      <form class="widget-settings-form">
+        <label class="event-field">
+          <span>Название</span>
+          <input type="text" name="title" class="widget-settings-title" value="${escapeHtml(config.title || '')}" />
+        </label>
+        <label class="event-field">
+          <span>Цвет фона</span>
+          <div class="event-color-swatches" style="margin-top:4px;">
+            ${['', '#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#a855f7','#ec4899'].map(c => {
+              const selected = c ? config.bgColor === c : !config.bgColor;
+              return `<button type="button" class="event-color-swatch ${selected ? 'is-selected' : ''}" data-color="${c}" style="${c ? 'background:'+c : 'background:var(--surface-2);font-size:12px;line-height:26px;text-align:center;color:var(--text-muted)'}" aria-label="${c || 'Нет'}">${c ? '' : '×'}</button>`;
+            }).join('')}
+          </div>
+          <input type="color" name="bgColor" class="widget-settings-color" value="${config.bgColor || '#3b82f6'}" style="margin-top:6px;width:100%;height:36px;padding:2px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);cursor:pointer;" />
+        </label>
+        <label class="event-field">
+          <span>Непрозрачность: <span class="widget-opacity-value">${config.opacity != null ? config.opacity : 100}</span>%</span>
+          <input type="range" name="opacity" class="widget-settings-opacity" min="0" max="100" value="${config.opacity != null ? config.opacity : 100}" style="width:100%;" />
+        </label>
+        <div class="event-actions" style="margin-top:var(--space-4);">
+          <button type="button" class="modal-close btn btn-secondary" id="widget-settings-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Color swatch click handler
+  const swatches = overlay.querySelectorAll('.event-color-swatch');
+  const colorInput = overlay.querySelector('.widget-settings-color');
+  swatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('is-selected'));
+      sw.classList.add('is-selected');
+    });
+  });
+
+  // Slider value display
+  const slider = overlay.querySelector('.widget-settings-opacity');
+  const sliderVal = overlay.querySelector('.widget-opacity-value');
+  slider.addEventListener('input', () => {
+    sliderVal.textContent = slider.value;
+  });
+
+  // Save
+  const close = () => overlay.remove();
+  overlay.querySelector('#widget-settings-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('.widget-settings-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const selectedSwatch = overlay.querySelector('.event-color-swatch.is-selected');
+    const bgColor = selectedSwatch?.dataset.color || form.bgColor.value || null;
+    updateWidgetConfig(widget.id, {
+      title: form.title.value.trim() || config.title,
+      bgColor: bgColor || null,
+      opacity: parseInt(slider.value)
+    });
+    close();
+  });
+}
+
+function showRecurringDeleteChoice() {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-overlay';
+    backdrop.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-title">Удаление повторяющегося события</div>
+        <div class="modal-message">Это событие повторяется. Что вы хотите сделать?</div>
+        <div class="modal-actions" style="flex-direction:column;gap:8px;">
+          <button type="button" class="btn btn-danger" id="choice-all">Удалить текущее и все последующие</button>
+          <button type="button" class="btn btn-secondary" id="choice-one">Удалить только это событие</button>
+          <button type="button" class="btn btn-secondary" id="choice-cancel" style="margin-top:4px;">Отмена</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    const close = (val) => { backdrop.remove(); resolve(val); };
+    backdrop.querySelector('#choice-all').addEventListener('click', () => close('all'));
+    backdrop.querySelector('#choice-one').addEventListener('click', () => close('one'));
+    backdrop.querySelector('#choice-cancel').addEventListener('click', () => close(null));
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
+  });
+}
+
+function localDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function generateRecurringEvents(baseEvent, recurringConfig) {
+  const instances = [];
+  const startDate = new Date(baseEvent.date + 'T' + (baseEvent.time || '00:00'));
+
+  const endDate = recurringConfig.endDate ? new Date(recurringConfig.endDate + 'T23:59:59') : null;
+  let current = new Date(startDate);
+
+  const maxCount = 365;
+  let count = 0;
+
+  // Advance past the first occurrence (base event covers it)
+  advanceDate(current, recurringConfig.type, recurringConfig.interval);
+
+  while ((!endDate || current <= endDate) && count < maxCount) {
+    const instanceDate = new Date(current);
+    const instance = {
+      id: crypto.randomUUID(),
+      title: baseEvent.title,
+      date: localDateStr(instanceDate),
+      time: baseEvent.time,
+      endDate: baseEvent.endDate,
+      endTime: baseEvent.endTime,
+      source: baseEvent.source,
+      color: baseEvent.color,
+      recurring: { ...recurringConfig },
+      isRecurringInstance: true,
+      recurringParentId: baseEvent.id
+    };
+
+    instances.push(instance);
+    count++;
+
+    advanceDate(current, recurringConfig.type, recurringConfig.interval);
+  }
+
+  return instances;
+}
+
+function advanceDate(date, type, interval) {
+  switch (type) {
+    case 'daily':
+      date.setDate(date.getDate() + interval);
+      break;
+    case 'weekly':
+      date.setDate(date.getDate() + (interval * 7));
+      break;
+    case 'monthly':
+      date.setMonth(date.getMonth() + interval);
+      break;
+    case 'yearly':
+      date.setFullYear(date.getFullYear() + interval);
+      break;
+  }
+}
+
 function showEventModal(widget, existingEvent) {
   const isEdit = !!existingEvent;
   const isCalDAV = existingEvent?.source === 'caldav';
@@ -1947,6 +2154,8 @@ function showEventModal(widget, existingEvent) {
   const initialTime = existingEvent?.time ?? '';
   const initialTitle = existingEvent?.title ?? '';
   const isAllDay = isEdit && !existingEvent.time;
+  const isRecurring = !!existingEvent?.recurring;
+  const isRecurringInstance = !!(existingEvent?.isRecurringInstance);
 
   if (isCalDAV) {
     const overlay = document.createElement('div');
@@ -1982,20 +2191,71 @@ function showEventModal(widget, existingEvent) {
         </label>
         <div class="event-row">
           <label class="event-field event-field-date">
-            <span>Дата</span>
+            <span>Дата начала</span>
             <input type="date" name="date" class="event-date-input" value="${initialDate}" required />
           </label>
           <label class="event-field event-field-time" ${isAllDay ? 'hidden' : ''}>
-            <span>Время</span>
+            <span>Время начала</span>
             <input type="time" name="time" class="event-time-input" value="${initialTime}" />
+          </label>
+        </div>
+        <div class="event-row" id="end-date-row" ${isAllDay ? 'hidden' : ''}>
+          <label class="event-field event-field-date">
+            <span>Дата окончания</span>
+            <input type="date" name="endDate" class="event-end-date-input" value="${initialDate}" />
+          </label>
+          <label class="event-field event-field-time">
+            <span>Время окончания</span>
+            <input type="time" name="endTime" class="event-end-time-input" value="${initialTime}" />
           </label>
         </div>
         <label class="event-field event-field-checkbox">
           <input type="checkbox" name="allday" class="event-allday-input" ${isAllDay ? 'checked' : ''} />
           <span>Весь день</span>
         </label>
+        <div class="event-color-picker" ${isAllDay ? '' : 'hidden'}>
+          <span class="event-color-picker-label">Цвет</span>
+          <div class="event-color-swatches">
+            ${['#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#a855f7','#ec4899'].map(c => `
+              <button type="button" class="event-color-swatch ${existingEvent?.color === c ? 'is-selected' : ''}" data-color="${c}" style="background:${c}" aria-label="${c}"></button>
+            `).join('')}
+            <button type="button" class="event-color-swatch event-color-swatch-none ${!existingEvent?.color ? 'is-selected' : ''}" data-color="" aria-label="Авто">🎨</button>
+          </div>
+          <input type="hidden" name="color" value="${existingEvent?.color || ''}" />
+        </div>
+        <div class="event-recurrence">
+          <label class="event-field">
+            <span>Повторение</span>
+            <select name="recurringType" class="event-recurring-type">
+              <option value="none" ${!isRecurring ? 'selected' : ''}>Не повторять</option>
+              <option value="daily" ${existingEvent?.recurring?.type === 'daily' && !isCustomRecurring(existingEvent?.recurring) ? 'selected' : ''}>Каждый день</option>
+              <option value="weekly" ${existingEvent?.recurring?.type === 'weekly' && !isCustomRecurring(existingEvent?.recurring) ? 'selected' : ''}>Каждую неделю</option>
+              <option value="monthly" ${existingEvent?.recurring?.type === 'monthly' && !isCustomRecurring(existingEvent?.recurring) ? 'selected' : ''}>Каждый месяц</option>
+              <option value="yearly" ${existingEvent?.recurring?.type === 'yearly' && !isCustomRecurring(existingEvent?.recurring) ? 'selected' : ''}>Каждый год</option>
+              <option value="custom" ${isCustomRecurring(existingEvent?.recurring) ? 'selected' : ''}>Своё</option>
+            </select>
+          </label>
+          <div class="event-recurring-custom" style="display:${isCustomRecurring(existingEvent?.recurring) ? 'flex' : 'none'}">
+            <div class="event-field event-recurring-custom-row">
+              <span>Каждые</span>
+              <input type="number" name="recurringInterval" class="event-recurring-interval" min="1" value="${existingEvent?.recurring?.interval || 1}" />
+              <select name="recurringUnit" class="event-recurring-unit">
+                <option value="daily" ${existingEvent?.recurring?.type === 'daily' ? 'selected' : ''}>дней</option>
+                <option value="weekly" ${existingEvent?.recurring?.type === 'weekly' ? 'selected' : ''}>недель</option>
+                <option value="monthly" ${existingEvent?.recurring?.type === 'monthly' ? 'selected' : ''}>месяцев</option>
+                <option value="yearly" ${existingEvent?.recurring?.type === 'yearly' ? 'selected' : ''}>лет</option>
+              </select>
+            </div>
+            <label class="event-field">
+              <span>Окончание</span>
+              <input type="date" name="recurringEndDate" class="event-recurring-end-date" value="${existingEvent?.recurring?.endDate || ''}" />
+            </label>
+          </div>
+        </div>
         <div class="event-actions">
           <button type="button" class="modal-close" id="cancel-event">Отмена</button>
+          ${isEdit && !isCalDAV ? '<button type="button" class="btn-danger" id="delete-event">Удалить</button>' : ''}
+          ${(isRecurring || isRecurringInstance) && !isCalDAV ? `<button type="button" class="btn-danger" id="delete-recurring-event">${isRecurringInstance ? 'Удалить все повторения' : 'Удалить повторяющиеся'}</button>` : ''}
           <button type="submit" class="btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
         </div>
       </form>
@@ -2006,46 +2266,175 @@ function showEventModal(widget, existingEvent) {
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   overlay.querySelector('#cancel-event').addEventListener('click', close);
+  
+  if (isEdit && !isCalDAV) {
+    const handleDelete = async (removeAll) => {
+      const events = (widget.config.events || []).map(migrateEvent).filter(Boolean);
+      let updated;
+      if (removeAll) {
+        const parentId = existingEvent.recurringParentId || existingEvent.id;
+        updated = events.filter(ev =>
+          !(ev.recurringParentId === parentId || ev.id === parentId)
+        );
+      } else {
+        updated = events.filter(ev => ev.id !== existingEvent.id);
+      }
+      updateWidgetConfig(widget.id, { events: updated });
+      close();
+      renderWidgetGrid();
+      showNotification('Событие удалено');
+    };
+
+    const deleteBtn = document.getElementById('delete-event');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        const ok = await showConfirm({
+          title: 'Удалить событие?',
+          message: `Событие "${initialTitle}" будет удалено. Это действие нельзя отменить.`,
+          confirmText: 'Удалить',
+          danger: true
+        });
+        if (ok) {
+          if (isRecurring || isRecurringInstance) {
+            const choice = await showRecurringDeleteChoice();
+            if (!choice) return;
+            await handleDelete(choice === 'all');
+          } else {
+            await handleDelete(false);
+          }
+        }
+      });
+    }
+
+    const deleteRecurringBtn = document.getElementById('delete-recurring-event');
+    if (deleteRecurringBtn) {
+      deleteRecurringBtn.addEventListener('click', async () => {
+        const choice = await showRecurringDeleteChoice();
+        if (!choice) return;
+        await handleDelete(choice === 'all');
+      });
+    }
+  }
 
   // Toggle time input visibility based on "Весь день"
   const alldayCb = overlay.querySelector('.event-allday-input');
   const timeField = overlay.querySelector('.event-field-time');
+  const endDateRow = document.getElementById('end-date-row');
+  const colorPicker = overlay.querySelector('.event-color-picker');
   alldayCb.addEventListener('change', () => {
     timeField.hidden = alldayCb.checked;
+    if (endDateRow) endDateRow.hidden = alldayCb.checked;
+    if (colorPicker) colorPicker.hidden = !alldayCb.checked;
   });
+
+  // Color swatch picker
+  const swatches = overlay.querySelectorAll('.event-color-swatch');
+  const colorInput = overlay.querySelector('input[name="color"]');
+  swatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('is-selected'));
+      sw.classList.add('is-selected');
+      if (colorInput) colorInput.value = sw.dataset.color;
+    });
+  });
+
+  // Toggle custom recurring fields
+  const recurringTypeEl = overlay.querySelector('.event-recurring-type');
+  const customBlock = overlay.querySelector('.event-recurring-custom');
+  if (recurringTypeEl && customBlock) {
+    const toggleCustom = () => {
+      customBlock.style.display = recurringTypeEl.value === 'custom' ? 'flex' : 'none';
+    };
+    recurringTypeEl.addEventListener('change', toggleCustom);
+  }
 
   overlay.querySelector('.event-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const form = e.target;
     const title = form.title.value.trim();
-    if (!title) return;
+    if (!title) {
+      showNotification('Введите название события');
+      return;
+    }
 
-    const dateVal = form.date.value;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) return;
+    const startDateVal = form.date.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateVal)) {
+      showNotification('Выберите дату начала');
+      return;
+    }
     const allDay = form.allday.checked;
-    const timeVal = allDay ? '' : form.time.value;
+    const startTimeVal = allDay ? '' : form.time.value;
 
+    if (!allDay && startTimeVal) {
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(startTimeVal)) {
+        showNotification('Введите корректное время (формат HH:MM)');
+        return;
+      }
+    }
+
+    let endDateVal = startDateVal;
+    let endTimeVal = startTimeVal;
+    if (!allDay) {
+      endDateVal = form.endDate.value || startDateVal;
+      endTimeVal = form.endTime.value || startTimeVal;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(endDateVal)) {
+        showNotification('Введите корректную дату окончания');
+        return;
+      }
+      if (endTimeVal) {
+        if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTimeVal)) {
+          showNotification('Введите корректное время окончания (формат HH:MM)');
+          return;
+        }
+      }
+    }
+
+    const recurringType = form.recurringType?.value || 'none';
+    let recurring;
+    if (recurringType === 'custom') {
+      recurring = {
+        type: form.recurringUnit?.value || 'daily',
+        interval: form.recurringInterval ? parseInt(form.recurringInterval.value) || 1 : 1,
+        endDate: form.recurringEndDate?.value || null
+      };
+    } else if (recurringType !== 'none') {
+      recurring = { type: recurringType, interval: 1 };
+    } else {
+      recurring = null;
+    }
     const eventData = {
       id: existingEvent?.id || crypto.randomUUID(),
       title,
-      date: dateVal,
-      time: timeVal || null
+      date: startDateVal,
+      time: startTimeVal || null,
+      endDate: allDay ? null : endDateVal,
+      endTime: allDay ? null : endTimeVal || null,
+      source: existingEvent?.source || 'local',
+      color: form.color?.value || null,
+      recurring
     };
 
-    const events = (widget.config.events || []).map(migrateEvent).filter(Boolean);
-    const updated = existingEvent
-      ? events.map(ev => ev.id === existingEvent.id ? eventData : ev)
-      : [...events, eventData];
+    const allEvents = (widget.config.events || []).map(migrateEvent).filter(Boolean);
+    let updatedEvents = existingEvent
+      ? allEvents.map(ev => ev.id === existingEvent.id ? eventData : ev)
+      : [...allEvents, eventData];
 
-    const [y, m, d] = dateVal.split('-').map(Number);
+    if (!existingEvent && eventData.recurring) {
+      const recurringInstances = generateRecurringEvents(eventData, eventData.recurring);
+      updatedEvents = [...updatedEvents, ...recurringInstances];
+    }
+
+    const [y, m, d] = startDateVal.split('-').map(Number);
     updateWidgetConfig(widget.id, {
-      events: updated,
+      events: updatedEvents,
       selectedDay: d,
       viewYear: y,
       viewMonth: m - 1
     });
     close();
     renderWidgetGrid();
+    showNotification(isEdit ? 'Событие обновлено' : 'Событие добавлено');
   });
 }
 
@@ -2092,8 +2481,63 @@ async function fetchWeather(el, apiKey, city = 'Moscow') {
       iconEl.innerHTML = ICONS.btn(name);
       iconEl.dataset.icon = name;
     }
+
+    // Fetch 5-day forecast
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${data.coord.lat}&lon=${data.coord.lon}&appid=${apiKey}&units=metric&lang=ru`;
+    const forecastRes = await fetch(forecastUrl);
+    if (!forecastRes.ok) throw new Error(`Forecast HTTP ${forecastRes.status}`);
+    const forecastData = await forecastRes.json();
+    renderForecast(el, forecastData);
   } catch (e) {
     descEl.textContent = `Ошибка: ${e.message}`;
+  }
+}
+
+const DAY_NAMES_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+function renderForecast(el, forecastData) {
+  const forecastDays = el.querySelectorAll('.forecast-day');
+  if (!forecastDays.length) return;
+
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  })();
+
+  const dayGroups = {};
+  for (const entry of forecastData.list || []) {
+    const d = new Date(entry.dt * 1000);
+    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!dayGroups[dayKey]) dayGroups[dayKey] = [];
+    dayGroups[dayKey].push(entry);
+  }
+
+  const dayKeys = Object.keys(dayGroups).sort();
+  let dayIdx = 0;
+
+  for (const dayKey of dayKeys) {
+    if (dayKey === todayKey) continue;
+    if (dayIdx >= 3) break;
+
+    const entries = dayGroups[dayKey];
+    const entryDate = new Date(entries[0].dt * 1000);
+    const dayEl = forecastDays[dayIdx];
+    dayEl.querySelector('.forecast-day-name').textContent = DAY_NAMES_RU[entryDate.getDay()];
+
+    // Pick entry closest to 12:00
+    let best = entries[0];
+    let bestDist = Infinity;
+    for (const e of entries) {
+      const h = new Date(e.dt * 1000).getHours();
+      const dist = Math.abs(h - 12);
+      if (dist < bestDist) { bestDist = dist; best = e; }
+    }
+
+    const code = (best.weather[0].icon || '').slice(0, 2);
+    const iconName = WEATHER_ICON_MAP[code] || 'cloud';
+    dayEl.querySelector('.forecast-icon').innerHTML = ICONS.btn(iconName);
+    dayEl.querySelector('.forecast-temp').textContent = `${Math.round(best.main.temp)}°`;
+    dayIdx++;
   }
 }
 
