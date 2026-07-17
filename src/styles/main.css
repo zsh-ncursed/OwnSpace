@@ -549,6 +549,26 @@ body {
   height: 14px;
 }
 
+.pin-widget-btn[data-pinned="true"] {
+  color: var(--primary);
+  opacity: 1;
+}
+.pin-widget-btn[data-pinned="true"]:hover {
+  color: var(--accent);
+}
+
+.widget-pinned {
+  outline: 1px solid var(--primary);
+  outline-offset: -1px;
+}
+.widget-pinned .widget-header {
+  cursor: default;
+}
+.widget-pinned .widget-drag-grip {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
 .add-widget-icon {
   display: flex;
   align-items: center;

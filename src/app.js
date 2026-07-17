@@ -671,6 +671,7 @@ async function loadWorkspaces() {
     workspace.widgets.forEach((w, idx) => {
       if (w.column === undefined || w.column === null) { w.column = 0; changed = true; }
       if (w.order === undefined || w.order === null) { w.order = idx; changed = true; }
+      if (w.pinned === undefined) { w.pinned = false; changed = true; }
     });
   });
 
@@ -780,6 +781,7 @@ function addWidget(type) {
     type,
     column: targetCol,
     order: colWidgets.length,
+    pinned: false,
     config: getDefaultWidgetConfig(type)
   };
 
@@ -815,7 +817,7 @@ function removeWidget(widgetId) {
   });
 }
 
-function updateWidgetConfig(widgetId, config) {
+function updateWidgetConfig(widgetId, config, skipRender) {
   const workspace = getActiveWorkspace();
   if (!workspace) return;
   const updatedWorkspaces = state.workspaces.map(ws => {
@@ -827,7 +829,7 @@ function updateWidgetConfig(widgetId, config) {
   });
   state.workspaces = updatedWorkspaces;
   saveWorkspaces(updatedWorkspaces);
-  renderWidgetGrid();
+  if (!skipRender) renderWidgetGrid();
 }
 
 // Rendering
@@ -1128,15 +1130,17 @@ function widgetBgStyle(widget) {
 function renderWidget(widget) {
   const title = widget.config.title || getDefaultTitle(widget.type);
   const widgetId = widget.id;
+  const pinned = widget.pinned || false;
 
   return `
-    <div class="widget" data-widget-id="${widgetId}" ${widgetBgStyle(widget)}>
-      <div class="widget-header widget-drag-handle" title="Перетащить виджет">
+    <div class="widget ${pinned ? 'widget-pinned' : ''}" data-widget-id="${widgetId}" ${widgetBgStyle(widget)}>
+      <div class="widget-header ${pinned ? '' : 'widget-drag-handle'}" title="${pinned ? 'Виджет закреплён' : 'Перетащить виджет'}">
         <span class="widget-drag-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
         <span class="widget-title" data-default-title="${escapeHtml(title)}">${escapeHtml(title)}</span>
         <input type="text" class="widget-title-input" value="${escapeHtml(title)}" hidden />
         <div class="widget-actions">
-          <button class="edit-title-btn icon-btn" title="Переименовать">${ICONS.action('pencil')}</button>
+          <button class="pin-widget-btn icon-btn" title="${pinned ? 'Открепить' : 'Закрепить'}" data-pinned="${pinned}">${ICONS.action(pinned ? 'pin' : 'pin-off')}</button>
+          <button class="edit-title-btn icon-btn" title="Редактировать">${ICONS.action('pencil')}</button>
           <button class="remove-widget-btn icon-btn" title="Удалить" data-widget-id="${widgetId}">${ICONS.action('x')}</button>
         </div>
       </div>
@@ -1503,6 +1507,16 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  const pinBtn = e.target.closest('.pin-widget-btn');
+  if (pinBtn) {
+    e.stopPropagation();
+    const widgetEl = pinBtn.closest('.widget');
+    if (!widgetEl) return;
+    const widgetId = widgetEl.dataset.widgetId;
+    toggleWidgetPin(widgetId);
+    return;
+  }
+
   const editBtn = e.target.closest('.edit-title-btn');
   if (editBtn) {
     e.stopPropagation();
@@ -1515,6 +1529,23 @@ document.addEventListener('click', (e) => {
     return;
   }
 });
+
+function toggleWidgetPin(widgetId) {
+  const workspace = getActiveWorkspace();
+  if (!workspace) return;
+  const widget = workspace.widgets.find(w => w.id === widgetId);
+  if (!widget) return;
+
+  const newPinned = !widget.pinned;
+  const updatedWidgets = workspace.widgets.map(w =>
+    w.id === widgetId ? { ...w, pinned: newPinned } : w
+  );
+  const wsIdx = state.workspaces.findIndex(ws => ws.id === workspace.id);
+  if (wsIdx === -1) return;
+  state.workspaces[wsIdx] = { ...state.workspaces[wsIdx], widgets: updatedWidgets };
+  saveWorkspaces(state.workspaces);
+  renderWidgetGrid();
+}
 
 // Event Setup
 function setupWidgetListeners(container) {
@@ -1688,7 +1719,7 @@ function setupWidgetListeners(container) {
     textarea.addEventListener('input', () => {
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
-        updateWidgetConfig(widgetId, { content: textarea.value });
+        updateWidgetConfig(widgetId, { content: textarea.value }, true);
       }, 500);
     });
   });
@@ -2596,9 +2627,9 @@ function setupWidgetColumnSortable() {
 
     widgetSortableInstances[colIdx] = Sortable.create(col, {
       group: 'widget-columns',
-      draggable: '.widget',
+      draggable: '.widget:not(.widget-pinned)',
       handle: '.widget-drag-handle',
-      filter: '.edit-title-btn, .remove-widget-btn',
+      filter: '.edit-title-btn, .remove-widget-btn, .pin-widget-btn',
       preventOnFilter: true,
       animation: 150,
       ghostClass: 'widget-ghost',
