@@ -11,6 +11,7 @@ import {
 } from './master-password.js';
 import { encryptJson } from '../crypto.js';
 import { saveCalDAVCredentials } from '../storage.js';
+import { updateWidgetConfig } from '../widgets/management.js';
 
 export async function syncCalDAVEvents(widgetId) {
   const workspace = getActiveWorkspace();
@@ -87,22 +88,6 @@ export async function syncCalDAVEvents(widgetId) {
   }
 }
 
-function updateWidgetConfig(widgetId, config) {
-  const workspace = getActiveWorkspace();
-  if (!workspace) return;
-  const updatedWorkspaces = state.workspaces.map((ws) => {
-    if (ws.id !== workspace.id) return ws;
-    return {
-      ...ws,
-      widgets: ws.widgets.map((w) =>
-        w.id === widgetId ? { ...w, config: { ...w.config, ...config } } : w,
-      ),
-    };
-  });
-  state.workspaces = updatedWorkspaces;
-  saveWorkspaces(updatedWorkspaces);
-}
-
 export async function showCalDAVCalendarPicker(widgetId) {
   const creds = await loadCalDAVCredentialsDecrypted();
   if (!creds) {
@@ -166,7 +151,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
           updateWidgetConfig(widgetId, {
             caldavCalendarHref: href,
             caldavCalendarName: name,
-          });
+          }, true);
           overlay.remove();
           showNotification(`CalDAV: подключен «${name}»`);
           await syncCalDAVEvents(widgetId);

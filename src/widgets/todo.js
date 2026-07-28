@@ -1,5 +1,7 @@
 import { escapeHtml } from '../ui/escape.js';
 
+export const WIDGET_TYPE = 'todo';
+
 export function renderTodoWidget(widget) {
   const tasks = widget.config.tasks || [];
   const pending = tasks.filter((t) => !t.done).length;
@@ -27,3 +29,11 @@ export function renderTodoWidget(widget) {
     </div>
   `;
 }
+
+export default {
+  type: WIDGET_TYPE,
+  title: 'Список задач',
+  icon: 'list-checks',
+  defaultConfig: { tasks: [], title: 'Список задач' },
+  render: renderTodoWidget,
+};

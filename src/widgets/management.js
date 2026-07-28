@@ -1,44 +1,18 @@
-import { WIDGET_TYPES } from '../utils/constants.js';
 import { state, getActiveWorkspace } from '../state.js';
 import { saveWorkspaces } from '../storage.js';
 import { getTargetColumn, sortableInstances } from '../sortable.js';
 import { updateWorkspace } from '../workspaces.js';
 import { renderWidgetGrid } from '../render/grid.js';
+import { widgetRegistry } from './registry.js';
 
 export function getDefaultTitle(type) {
-  switch (type) {
-    case WIDGET_TYPES.BOOKMARKS:
-      return 'Закладки';
-    case WIDGET_TYPES.NOTES:
-      return 'Заметки';
-    case WIDGET_TYPES.DATE:
-      return 'Дата и время';
-    case WIDGET_TYPES.WEATHER:
-      return 'Погода';
-    case WIDGET_TYPES.CALENDAR:
-      return 'Календарь';
-    default:
-      return 'Widget';
-  }
+  const plugin = widgetRegistry.get(type);
+  return plugin ? plugin.title : 'Widget';
 }
 
 export function getDefaultWidgetConfig(type) {
-  switch (type) {
-    case WIDGET_TYPES.WEATHER:
-      return { apiKey: '', city: 'Moscow', title: 'Погода' };
-    case WIDGET_TYPES.BOOKMARKS:
-      return { bookmarks: [], title: 'Закладки' };
-    case WIDGET_TYPES.CALENDAR:
-      return { events: [], title: 'Календарь' };
-    case WIDGET_TYPES.NOTES:
-      return { content: '', title: 'Заметки' };
-    case WIDGET_TYPES.DATE:
-      return { title: 'Дата и время' };
-    case WIDGET_TYPES.TODO:
-      return { tasks: [], title: 'Список задач' };
-    default:
-      return {};
-  }
+  const plugin = widgetRegistry.get(type);
+  return plugin ? { ...plugin.defaultConfig } : {};
 }
 
 export function widgetBgStyle(widget) {
@@ -60,7 +34,6 @@ export function widgetBgStyle(widget) {
   return `style="background:rgba(${r},${g},${b},${a})"`;
 }
 
-// Widget Management
 export function addWidget(type) {
   const workspace = getActiveWorkspace();
   if (!workspace) return;
@@ -70,13 +43,15 @@ export function addWidget(type) {
     (w) => (w.column ?? 0) === targetCol,
   );
 
+  const config = getDefaultWidgetConfig(type);
+
   const newWidget = {
     id: crypto.randomUUID(),
     type,
     column: targetCol,
     order: colWidgets.length,
     pinned: false,
-    config: getDefaultWidgetConfig(type),
+    config,
   };
 
   updateWorkspace(workspace.id, {

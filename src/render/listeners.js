@@ -52,73 +52,76 @@ export function setupWidgetListeners(container) {
       });
     }
 
-    el.querySelector('.add-bookmark-btn').addEventListener('click', async () => {
-      const input = el.querySelector('.new-url-input');
-      const url = input.value.trim();
-      if (!url) return;
+    const addBtn = el.querySelector('.add-bookmark-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', async () => {
+        const input = el.querySelector('.new-url-input');
+        const url = input.value.trim();
+        if (!url) return;
 
-      let fullUrl = url;
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        fullUrl = 'https://' + url;
-      }
-
-      try {
-        new URL(fullUrl);
-      } catch {
-        showNotification('Неверный URL');
-        return;
-      }
-
-      const hostname = new URL(fullUrl).hostname;
-      const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-
-      const workspace = getActiveWorkspace();
-      const widget = workspace.widgets.find((w) => w.id === widgetId);
-      const bookmarks = widget.config.bookmarks || [];
-
-      let title = fullUrl;
-      let titleSource = 'hostname';
-
-      try {
-        const response = await browserMessaging.sendMessage({
-          type: 'fetchTitle',
-          payload: { url: fullUrl },
-        });
-        if (response.success && response.result?.title) {
-          title = response.result.title;
-          titleSource = 'fetched';
+        let fullUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          fullUrl = 'https://' + url;
         }
-      } catch {
-        /* browserMessaging not available */
-      }
 
-      if (titleSource !== 'fetched') {
         try {
-          const resp = await fetch(fullUrl, { mode: 'cors' });
-          if (resp.ok) {
-            const html = await resp.text();
-            const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-            if (match) {
-              title = match[1].trim();
-              titleSource = 'fetched';
-            }
+          new URL(fullUrl);
+        } catch {
+          showNotification('Неверный URL');
+          return;
+        }
+
+        const hostname = new URL(fullUrl).hostname;
+        const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+
+        const workspace = getActiveWorkspace();
+        const widget = workspace.widgets.find((w) => w.id === widgetId);
+        const bookmarks = widget.config.bookmarks || [];
+
+        let title = fullUrl;
+        let titleSource = 'hostname';
+
+        try {
+          const response = await browserMessaging.sendMessage({
+            type: 'fetchTitle',
+            payload: { url: fullUrl },
+          });
+          if (response.success && response.result?.title) {
+            title = response.result.title;
+            titleSource = 'fetched';
           }
         } catch {
-          /* fetch failed */
+          /* browserMessaging not available */
         }
-      }
 
-      const newBookmark = {
-        id: crypto.randomUUID(),
-        url: fullUrl,
-        title,
-        favicon,
-      };
+        if (titleSource !== 'fetched') {
+          try {
+            const resp = await fetch(fullUrl, { mode: 'cors' });
+            if (resp.ok) {
+              const html = await resp.text();
+              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              if (match) {
+                title = match[1].trim();
+                titleSource = 'fetched';
+              }
+            }
+          } catch {
+            /* fetch failed */
+          }
+        }
 
-      updateWidgetConfig(widgetId, {
-        bookmarks: [...bookmarks, newBookmark],
+        const newBookmark = {
+          id: crypto.randomUUID(),
+          url: fullUrl,
+          title,
+          favicon,
+        };
+
+        updateWidgetConfig(widgetId, {
+          bookmarks: [...bookmarks, newBookmark],
+        });
       });
-    });
+    }
 
     el.querySelectorAll('.bookmark-item').forEach((item) => {
       const bmId = item.dataset.bookmarkId;
@@ -151,23 +154,26 @@ export function setupWidgetListeners(container) {
         link.style.display = '';
       };
 
-      item.querySelector('.edit-btn').addEventListener('click', () => {
-        const editForm = item.querySelector('.bookmark-edit');
-        const link = item.querySelector('.bookmark-title');
+      const editBtn = item.querySelector('.edit-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          const editForm = item.querySelector('.bookmark-edit');
+          const link = item.querySelector('.bookmark-title');
 
-        if (editForm.style.display === 'none') {
-          editForm.style.display = 'flex';
-          link.style.display = 'none';
-          editForm.querySelector('.title-input').focus();
-          editForm.querySelector('.title-input').select();
-        } else {
-          saveBookmark();
-        }
-      });
+          if (editForm.style.display === 'none') {
+            editForm.style.display = 'flex';
+            link.style.display = 'none';
+            editForm.querySelector('.title-input').focus();
+            editForm.querySelector('.title-input').select();
+          } else {
+            saveBookmark();
+          }
+        });
+      }
 
-      item
-        .querySelector('.bookmark-edit')
-        .addEventListener('keydown', (e) => {
+      const bookmarkEdit = item.querySelector('.bookmark-edit');
+      if (bookmarkEdit) {
+        bookmarkEdit.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
             saveBookmark();
@@ -176,15 +182,19 @@ export function setupWidgetListeners(container) {
             cancelEdit();
           }
         });
+      }
 
-      item.querySelector('.delete-btn').addEventListener('click', () => {
-        const workspace = getActiveWorkspace();
-        const widget = workspace.widgets.find((w) => w.id === widgetId);
-        const bookmarks = widget.config.bookmarks.filter(
-          (b) => b.id !== bmId,
-        );
-        updateWidgetConfig(widgetId, { bookmarks });
-      });
+      const deleteBtn = item.querySelector('.delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+          const workspace = getActiveWorkspace();
+          const widget = workspace.widgets.find((w) => w.id === widgetId);
+          const bookmarks = widget.config.bookmarks.filter(
+            (b) => b.id !== bmId,
+          );
+          updateWidgetConfig(widgetId, { bookmarks });
+        });
+      }
     });
   });
 
@@ -214,26 +224,32 @@ export function setupWidgetListeners(container) {
       return ws?.widgets.find((w) => w.id === widgetId);
     }
 
-    el.querySelector('.todo-add-btn').addEventListener('click', () => {
-      const input = el.querySelector('.todo-new-input');
-      const text = input.value.trim();
-      if (!text) return;
-      const w = getTodoWidget();
-      if (!w) return;
-      const tasks = [
-        ...(w.config.tasks || []),
-        { id: crypto.randomUUID(), text, done: false },
-      ];
-      updateWidgetConfig(widgetId, { tasks });
-      input.value = '';
-      renderWidgetGrid();
-    });
-    el.querySelector('.todo-new-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        el.querySelector('.todo-add-btn').click();
-      }
-    });
+    const todoAddBtn = el.querySelector('.todo-add-btn');
+    if (todoAddBtn) {
+      todoAddBtn.addEventListener('click', () => {
+        const input = el.querySelector('.todo-new-input');
+        const text = input.value.trim();
+        if (!text) return;
+        const w = getTodoWidget();
+        if (!w) return;
+        const tasks = [
+          ...(w.config.tasks || []),
+          { id: crypto.randomUUID(), text, done: false },
+        ];
+        updateWidgetConfig(widgetId, { tasks });
+        input.value = '';
+        renderWidgetGrid();
+      });
+    }
+    const todoNewInput = el.querySelector('.todo-new-input');
+    if (todoNewInput) {
+      todoNewInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          todoAddBtn?.click();
+        }
+      });
+    }
 
     el.querySelectorAll('.todo-item').forEach((item) => {
       const taskId = item.dataset.taskId;

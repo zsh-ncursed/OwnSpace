@@ -193,4 +193,4 @@ function setupWorkspaceTabsSortable() {
   });
 }
 
-export { renderApp, renderWorkspaceTabs, updateActiveWorkspaceTab, enterTabRenameMode, setupToolbarButtons, setupWorkspaceTabsSortable };
+export { renderApp, renderWorkspaceTabs };

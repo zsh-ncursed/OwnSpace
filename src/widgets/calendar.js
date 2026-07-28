@@ -1,9 +1,7 @@
 import { escapeHtml } from '../ui/escape.js';
-import { pad2, timeAgo } from '../utils/date.js';
+import { pad2, timeAgo, eventDateKey } from '../utils/date.js';
 
-function eventDateKey(year, month, day) {
-  return `${year}-${pad2(month + 1)}-${pad2(day)}`;
-}
+export const WIDGET_TYPE = 'calendar';
 
 export function migrateEvent(e) {
   if (!e) return null;
@@ -283,3 +281,11 @@ export function renderCalendarWidget(widget) {
     </div>
   `;
 }
+
+export default {
+  type: WIDGET_TYPE,
+  title: 'Календарь',
+  icon: 'calendar',
+  defaultConfig: { events: [], title: 'Календарь' },
+  render: renderCalendarWidget,
+};

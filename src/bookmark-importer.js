@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { getTargetColumn } from './sortable.js';
 import { saveWorkspaces } from './storage.js';
 import { showNotification } from './ui/modals.js';
 
@@ -181,6 +182,11 @@ export function showBookmarkImportModal() {
 
       document.getElementById('import-preview').style.display = 'block';
     };
+    reader.onerror = () => {
+      document.getElementById('import-error').textContent =
+        'Ошибка чтения файла.';
+      document.getElementById('import-error').style.display = 'block';
+    };
     reader.readAsText(file);
   });
 
@@ -205,26 +211,18 @@ export function showBookmarkImportModal() {
     );
 
     const widgetsToAdd = [];
-    const colCounts = [0, 0, 0, 0];
-    workspace.widgets.forEach((w) => {
-      let col = parseInt(w.column ?? 0, 10);
-      if (isNaN(col) || col < 0 || col >= 4) {
-        col = 0;
-      }
-      colCounts[col] = (colCounts[col] || 0) + 1;
-    });
+    const targetCol = getTargetColumn(workspace);
+    const existingInCol = workspace.widgets.filter((w) => (w.column ?? 0) === targetCol).length;
 
-    currentImportData.widgetGroups.forEach((wg) => {
-      const targetCol = colCounts.indexOf(Math.min(...colCounts));
+    currentImportData.widgetGroups.forEach((wg, idx) => {
       const newWidget = {
         id: crypto.randomUUID(),
         type: 'bookmarks',
         column: targetCol,
-        order: colCounts[targetCol],
+        order: existingInCol + idx,
         config: { title: wg.name || 'Импорт', bookmarks: wg.bookmarks },
       };
       widgetsToAdd.push(newWidget);
-      colCounts[targetCol]++;
     });
 
     (async () => {

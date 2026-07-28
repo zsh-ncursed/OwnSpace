@@ -1,4 +1,4 @@
-import { encryptJson, decryptJson } from '../crypto.js';
+import { encryptJson, decryptJson } from './crypto.js';
 import {
   getWorkspaces,
   saveWorkspaces,
@@ -6,7 +6,7 @@ import {
   saveSettings,
   getCalDAVCredentials,
   saveCalDAVCredentials,
-} from '../storage.js';
+} from './storage.js';
 
 export async function exportData(encrypted = false, password = null) {
   const workspaces = await getWorkspaces();

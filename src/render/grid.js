@@ -1,16 +1,9 @@
-import { WIDGET_TYPES } from '../utils/constants.js';
 import { getActiveWorkspace } from '../state.js';
 import { escapeHtml } from '../ui/escape.js';
 import { getDefaultTitle, widgetBgStyle } from '../widgets/management.js';
-import { renderNotesWidget } from '../widgets/notes.js';
-import { renderDateTimeWidget } from '../widgets/datetime.js';
-import { renderBookmarksWidget } from '../widgets/bookmarks.js';
-import { renderTodoWidget } from '../widgets/todo.js';
-import { renderWeatherWidget } from '../widgets/weather.js';
-import { renderCalendarWidget } from '../widgets/calendar.js';
+import { widgetRegistry } from '../widgets/registry.js';
 import { setupWidgetColumnSortable, setupAddWidgetListeners, setupWidgetListeners } from './listeners.js';
 
-// Widget Grid Rendering
 export function renderWidgetGrid() {
   const grid = document.getElementById('widget-grid');
   if (!grid) return;
@@ -34,6 +27,11 @@ export function renderWidgetGrid() {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
   );
 
+  const enabledPlugins = widgetRegistry.getEnabled();
+  const menuButtons = enabledPlugins
+    .map((p) => `<button data-type="${p.type}">${p.title}</button>`)
+    .join('');
+
   grid.innerHTML = `
     <div class="widget-grid" style="${bgStyle}">
       ${columns
@@ -50,12 +48,7 @@ export function renderWidgetGrid() {
     </div>
     <div id="add-widget-menu" class="add-widget-menu" style="display:none;">
       <div class="widget-options">
-        <button data-type="${WIDGET_TYPES.BOOKMARKS}">Закладки</button>
-        <button data-type="${WIDGET_TYPES.NOTES}">Заметки</button>
-        <button data-type="${WIDGET_TYPES.DATE}">Дата и время</button>
-        <button data-type="${WIDGET_TYPES.WEATHER}">Погода</button>
-        <button data-type="${WIDGET_TYPES.CALENDAR}">Календарь</button>
-        <button data-type="${WIDGET_TYPES.TODO}">Список задач</button>
+        ${menuButtons}
       </div>
       <button class="modal-close" id="close-menu">Отмена</button>
     </div>
@@ -90,22 +83,9 @@ export function renderWidget(widget) {
 }
 
 export function renderWidgetContent(widget) {
-  switch (widget.type) {
-    case WIDGET_TYPES.BOOKMARKS:
-      return renderBookmarksWidget(widget);
-    case WIDGET_TYPES.NOTES:
-      return renderNotesWidget(widget);
-    case WIDGET_TYPES.DATE:
-      return renderDateTimeWidget(widget);
-    case WIDGET_TYPES.TODO:
-      return renderTodoWidget(widget);
-    case WIDGET_TYPES.WEATHER:
-      return renderWeatherWidget(widget);
-    case WIDGET_TYPES.CALENDAR:
-      return renderCalendarWidget(widget);
-    default:
-      return '<p>Unknown widget type</p>';
+  const plugin = widgetRegistry.get(widget.type);
+  if (plugin && plugin.render) {
+    return plugin.render(widget);
   }
+  return '<p>Unknown widget type</p>';
 }
-
-export { setupWidgetColumnSortable, setupAddWidgetListeners };

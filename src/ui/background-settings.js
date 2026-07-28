@@ -3,10 +3,11 @@ import { updateWorkspace } from '../workspaces.js';
 import { renderWidgetGrid } from '../render/grid.js';
 
 async function compressImage(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (file.size <= 500 * 1024) {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
       return;
     }
@@ -35,14 +36,20 @@ async function compressImage(file) {
 
       canvas.toBlob(
         (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to compress image'));
+            return;
+          }
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('Failed to read compressed image'));
           reader.readAsDataURL(blob);
         },
         'image/jpeg',
         0.8,
       );
     };
+    img.onerror = () => reject(new Error('Failed to load image'));
     img.src = URL.createObjectURL(file);
   });
 }

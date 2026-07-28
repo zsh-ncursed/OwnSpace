@@ -1,5 +1,7 @@
 import { escapeHtml } from '../ui/escape.js';
 
+export const WIDGET_TYPE = 'notes';
+
 export function renderNotesWidget(widget) {
   const content = widget.config.content || '';
   return `
@@ -8,3 +10,11 @@ export function renderNotesWidget(widget) {
     </div>
   `;
 }
+
+export default {
+  type: WIDGET_TYPE,
+  title: 'Заметки',
+  icon: 'file-text',
+  defaultConfig: { content: '', title: 'Заметки' },
+  render: renderNotesWidget,
+};

@@ -1,3 +1,5 @@
+export const WIDGET_TYPE = 'weather';
+
 const WEATHER_ICON_MAP = {
   '01': 'sun',
   '02': 'cloud_sun',
@@ -73,9 +75,11 @@ export async function fetchWeather(el, apiKey, city = 'Moscow') {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
-    el.querySelector('.temp').textContent = `${Math.round(data.main.temp)}°C`;
-    descEl.textContent = data.weather[0].description;
-    el.querySelector('.location').textContent = data.name;
+    const tempEl = el.querySelector('.temp');
+    const locEl = el.querySelector('.location');
+    if (tempEl) tempEl.textContent = `${Math.round(data.main.temp)}°C`;
+    if (descEl) descEl.textContent = data.weather[0].description;
+    if (locEl) locEl.textContent = data.name;
     if (windEl) windEl.textContent = `${data.wind.speed.toFixed(1)} м/с`;
     if (iconEl) {
       const code = (data.weather[0].icon || '').slice(0, 2);
@@ -91,7 +95,7 @@ export async function fetchWeather(el, apiKey, city = 'Moscow') {
     const forecastData = await forecastRes.json();
     renderForecast(el, forecastData);
   } catch (e) {
-    descEl.textContent = `Ошибка: ${e.message}`;
+    if (descEl) descEl.textContent = `Ошибка: ${e.message}`;
   }
 }
 
@@ -143,3 +147,11 @@ function renderForecast(el, forecastData) {
     dayIdx++;
   }
 }
+
+export default {
+  type: WIDGET_TYPE,
+  title: 'Погода',
+  icon: 'cloud-sun',
+  defaultConfig: { apiKey: '', city: 'Moscow', title: 'Погода' },
+  render: renderWeatherWidget,
+};

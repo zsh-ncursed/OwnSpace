@@ -84,7 +84,10 @@ function persistWidgetLayoutFromGrid(grid) {
 function getTargetColumn(workspace) {
   const colCounts = [0, 0, 0, 0];
   workspace.widgets.forEach((w) => {
-    const col = w.column ?? 0;
+    let col = parseInt(w.column ?? 0, 10);
+    if (isNaN(col) || col < 0 || col >= 4) {
+      col = 0;
+    }
     colCounts[col] = (colCounts[col] || 0) + 1;
   });
   return colCounts.indexOf(Math.min(...colCounts));

@@ -1,5 +1,7 @@
 import { escapeHtml } from '../ui/escape.js';
 
+export const WIDGET_TYPE = 'bookmarks';
+
 export function renderBookmarksWidget(widget) {
   const bookmarks = widget.config.bookmarks || [];
   const isExpanded = window._bookmarkExpanded
@@ -37,3 +39,11 @@ export function renderBookmarksWidget(widget) {
     </div>
   `;
 }
+
+export default {
+  type: WIDGET_TYPE,
+  title: 'Закладки',
+  icon: 'bookmark',
+  defaultConfig: { bookmarks: [], title: 'Закладки' },
+  render: renderBookmarksWidget,
+};

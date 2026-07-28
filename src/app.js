@@ -2,12 +2,14 @@ import { state, syncStateToWindow } from './state.js';
 import { loadTheme } from './ui/theme.js';
 import { loadWorkspaces } from './workspaces.js';
 import { renderApp } from './render/tabs.js';
+import { getSettings } from './storage.js';
 
 import './render/listeners.js';
 import './widgets/event-modal.js';
 
 window.state = state;
 window._bookmarkExpanded = {};
+window._pluginSettings = {};
 
 let appInitialized = false;
 
@@ -25,6 +27,7 @@ async function initApp() {
 
   await loadTheme();
   await loadWorkspaces();
+  window._pluginSettings = await getSettings();
   console.log('Workspaces:', state.workspaces.length);
 
   syncStateToWindow();
