@@ -228,14 +228,14 @@ describe('calcMonthFinance', () => {
     expect(r.income).toBe(500);
   });
 
-  it('excludes timed event on today that has not started yet', () => {
-    // Event today at 18:00, now is 12:00 → not counted
+  it('excludes timed event on today that has not started yet from sum, but block shows', () => {
+    // Event today at 18:00, now is 12:00 → not counted in income, but block shows
     const events = [
       { id: '1', date: '2026-07-20', time: '18:00', moneyType: 'income', money: 2000 },
     ];
     const r = calcMonthFinance(events, NOW);
     expect(r.income).toBe(0);
-    expect(r.hasMoney).toBe(false);
+    expect(r.hasMoney).toBe(true);
   });
 
   it('counts timed event on today that has started', () => {
@@ -322,5 +322,36 @@ describe('calcMonthFinance', () => {
     const r = calcMonthFinance(events, NOW);
     expect(r.net).toBe(-1000);
     expect(r.hasMoney).toBe(true);
+  });
+
+  it('shows block (hasMoney=true) when all money events are future', () => {
+    // Event tomorrow with money — not counted in income/expense, but block should show
+    const events = [
+      { id: '1', date: '2026-07-21', time: '10:00', moneyType: 'income', money: 5000 },
+    ];
+    const r = calcMonthFinance(events, NOW);
+    expect(r.income).toBe(0);
+    expect(r.expense).toBe(0);
+    expect(r.net).toBe(0);
+    expect(r.hasMoney).toBe(true);
+  });
+
+  it('shows block when timed event today has not started yet', () => {
+    // Event today at 18:00, now is 12:00 — not counted, but block shows
+    const events = [
+      { id: '1', date: '2026-07-20', time: '18:00', moneyType: 'income', money: 2000 },
+    ];
+    const r = calcMonthFinance(events, NOW);
+    expect(r.income).toBe(0);
+    expect(r.hasMoney).toBe(true);
+  });
+
+  it('hasMoney=false when no events have money at all', () => {
+    const events = [
+      { id: '1', date: '2026-07-05', time: '09:00', moneyType: null, money: null },
+      { id: '2', date: '2026-07-06', time: '10:00' },
+    ];
+    const r = calcMonthFinance(events, NOW);
+    expect(r.hasMoney).toBe(false);
   });
 });

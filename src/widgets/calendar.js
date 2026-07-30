@@ -74,10 +74,12 @@ export function calcMonthFinance(events, now = new Date()) {
 
   let income = 0;
   let expense = 0;
+  let hasMoney = false;
   for (const e of events) {
     if (e.source === 'caldav') continue;
     if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
     if (!e.date || !e.date.startsWith(monthPrefix)) continue;
+    hasMoney = true;
     const started = e.time
       ? (() => {
           const ms = new Date(`${e.date}T${e.time}`).getTime();
@@ -88,7 +90,7 @@ export function calcMonthFinance(events, now = new Date()) {
     if (e.moneyType === 'income') income += e.money;
     else expense += e.money;
   }
-  return { income, expense, net: income - expense, hasMoney: income > 0 || expense > 0 };
+  return { income, expense, net: income - expense, hasMoney };
 }
 
 export function generateRecurringEvents(baseEvent, recurringConfig) {
