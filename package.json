@@ -1,0 +1,17 @@
+{
+  "name": "ownspace",
+  "version": "1.2.1",
+  "description": "Local start page replacement with customizable widgets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^2.1.0"
+  }
+}

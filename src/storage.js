@@ -5,7 +5,7 @@ export const storage = {
     getItem: async (key) => {
       if (typeof browser !== 'undefined' && browser.storage) {
         const result = await browser.storage.local.get(key);
-        return result[key];
+        return result[key] ?? null;
       } else {
         const value = localStorage.getItem(key);
         if (!value) {
