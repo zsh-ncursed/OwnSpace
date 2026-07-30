@@ -171,26 +171,15 @@ export function renderCalendarWidget(widget) {
 
   const MAX_BARS = 3;
 
-  // Financial result for current month: sum of money across PAST events.
-  const nowMs = now.getTime();
+  // Financial result for current month: sum of money across events up to
+  // and INCLUDING today. Future events (date > today) are excluded.
   const todayDateStr = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
-  const isPastEvent = (e) => {
-    if (e.time) {
-      const endStr = (e.endDate && e.endTime)
-        ? `${e.endDate}T${e.endTime}`
-        : (e.endDate ? `${e.endDate}T23:59` : `${e.date}T${e.time}`);
-      const endMs = new Date(endStr).getTime();
-      if (isNaN(endMs)) return false;
-      return endMs < nowMs;
-    }
-    return e.date < todayDateStr;
-  };
   let monthIncome = 0;
   let monthExpense = 0;
   for (const e of monthEventsSorted) {
     if (e.source === 'caldav') continue;
     if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
-    if (!isPastEvent(e)) continue;
+    if (e.date > todayDateStr) continue;
     if (e.moneyType === 'income') monthIncome += e.money;
     else monthExpense += e.money;
   }
