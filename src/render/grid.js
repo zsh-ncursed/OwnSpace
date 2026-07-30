@@ -5,59 +5,89 @@ import { widgetRegistry } from '../widgets/registry.js';
 import { setupWidgetColumnSortable, setupAddWidgetListeners, setupWidgetListeners } from './listeners.js';
 
 export function renderWidgetGrid() {
-  const grid = document.getElementById('widget-grid');
-  if (!grid) return;
+  const container = document.getElementById('widget-grid');
+  if (!container) return;
   const workspace = getActiveWorkspace();
-  if (!workspace) return;
-
-  const bg = workspace.background || { type: 'color', value: '#1a1a2e' };
-  let bgStyle = '';
-  if (bg.type === 'color') {
-    bgStyle = `background: ${bg.value};`;
-  } else if (bg.type === 'gradient') {
-    bgStyle = `background: ${bg.value};`;
-  } else if (bg.type === 'image') {
-    bgStyle = `background: url(${bg.value}) center/cover no-repeat;`;
+  if (!workspace) {
+    container.innerHTML = '<div class="workspace"><p>Загрузка...</p></div>';
+    return;
   }
 
-  const columns = [0, 1, 2, 3];
-  const widgetsByCol = columns.map((col) =>
-    workspace.widgets
-      .filter((w) => (w.column ?? 0) === col)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-  );
+  const widgets = workspace.widgets || [];
+  const bg = workspace.background || { type: 'color', value: '#1a1a2e' };
+
+  let bgValue;
+  if (bg.type === 'color') bgValue = bg.value;
+  else if (bg.type === 'gradient') bgValue = bg.value;
+  else if (bg.type === 'image') bgValue = `url(${bg.value}) center/cover no-repeat`;
+  else bgValue = 'var(--bg)';
 
   const enabledPlugins = widgetRegistry.getEnabled();
   const menuButtons = enabledPlugins
     .map((p) => `<button data-type="${p.type}">${p.title}</button>`)
     .join('');
 
-  grid.innerHTML = `
-    <div class="widget-grid" style="${bgStyle}">
-      ${columns
-        .map(
-          (col) => `
-        <div class="widget-column" data-column="${col}">
-          ${widgetsByCol[col]
-            .map((w) => renderWidget(w))
-            .join('')}
-        </div>
-      `,
-        )
-        .join('')}
-    </div>
-    <div id="add-widget-menu" class="add-widget-menu" style="display:none;">
-      <div class="widget-options">
-        ${menuButtons}
+  container.className = 'widget-grid widget-grid-layout';
+  container.style.cssText = `display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; padding: 20px; flex: 1; min-height: 0; overflow: auto; background: ${bgValue};`;
+
+  if (widgets.length === 0) {
+    const emptyCols = [0, 1, 2, 3]
+      .map((i) => `<div class="widget-column" data-column="${i}"></div>`)
+      .join('');
+    container.innerHTML = `
+      ${emptyCols}
+      <div class="empty-state-hint" id="add-widget-empty-hint">
+        ${ICONS.btn('plus')}
+        <span>Используйте <kbd>+</kbd> в верхней панели, чтобы добавить виджет</span>
       </div>
-      <button class="modal-close" id="close-menu">Отмена</button>
+      <div id="add-widget-menu" class="modal-overlay" style="display: none;">
+        <div class="modal">
+          <h3>Добавить виджет</h3>
+          <div class="widget-options">
+            ${menuButtons}
+          </div>
+          <button class="modal-close" id="close-menu">Отмена</button>
+        </div>
+      </div>
+    `;
+    setupWidgetColumnSortable();
+    setupWidgetListeners(container);
+    setupAddWidgetListeners(container);
+    return;
+  }
+
+  const columns = [[], [], [], []];
+  widgets.forEach((w) => {
+    const col = w.column ?? 0;
+    if (col >= 0 && col < 4) columns[col].push(w);
+    else columns[0].push(w);
+  });
+  columns.forEach((col) => col.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+
+  const columnsHTML = columns
+    .map((colWidgets, idx) => `
+      <div class="widget-column" data-column="${idx}">
+        ${colWidgets.map((w) => renderWidget(w)).join('')}
+      </div>
+    `)
+    .join('');
+
+  container.innerHTML = `
+    ${columnsHTML}
+    <div id="add-widget-menu" class="modal-overlay" style="display: none;">
+      <div class="modal">
+        <h3>Добавить виджет</h3>
+        <div class="widget-options">
+          ${menuButtons}
+        </div>
+        <button class="modal-close" id="close-menu">Отмена</button>
+      </div>
     </div>
-    ${workspace.widgets.length === 0 ? `<div id="add-widget-empty-hint" class="add-widget-empty-hint"><span>${ICONS.btn('plus')} Добавить виджет</span></div>` : ''}
   `;
 
   setupWidgetColumnSortable();
-  setupWidgetListeners(grid);
-  setupAddWidgetListeners(grid);
+  setupWidgetListeners(container);
+  setupAddWidgetListeners(container);
 }
 
 export function renderWidget(widget) {
