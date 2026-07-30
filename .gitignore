@@ -1,9 +1,8 @@
 # Dependencies
 node_modules/
 
-# Package files
+# Package lock (regenerated on install)
 package-lock.json
-package.json
 
 # Documentation
 docs/

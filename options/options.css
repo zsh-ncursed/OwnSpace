@@ -69,6 +69,13 @@ body {
   color: var(--text-subtle, rgba(232, 232, 240, 0.6));
 }
 
+.section-desc {
+  margin: 0 0 var(--space-4, 16px);
+  font-size: var(--text-sm, 13px);
+  color: var(--text-subtle, rgba(232, 232, 240, 0.6));
+  line-height: 1.5;
+}
+
 .option {
   display: flex;
   align-items: flex-start;
