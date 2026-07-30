@@ -61,6 +61,36 @@ export function isCustomRecurring(r) {
   return r && r.type !== 'none' && (r.interval > 1 || !!r.endDate);
 }
 
+/**
+ * Calculate monthly financial result from events.
+ * Counts only events that have STARTED (start time <= now).
+ * All-day events count if date <= today. CalDAV events excluded.
+ * Returns { income, expense, net, hasMoney }.
+ */
+export function calcMonthFinance(events, now = new Date()) {
+  const nowMs = now.getTime();
+  const todayDateStr = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const monthPrefix = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+
+  let income = 0;
+  let expense = 0;
+  for (const e of events) {
+    if (e.source === 'caldav') continue;
+    if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
+    if (!e.date || !e.date.startsWith(monthPrefix)) continue;
+    const started = e.time
+      ? (() => {
+          const ms = new Date(`${e.date}T${e.time}`).getTime();
+          return !isNaN(ms) && ms <= nowMs;
+        })()
+      : e.date <= todayDateStr;
+    if (!started) continue;
+    if (e.moneyType === 'income') income += e.money;
+    else expense += e.money;
+  }
+  return { income, expense, net: income - expense, hasMoney: income > 0 || expense > 0 };
+}
+
 export function generateRecurringEvents(baseEvent, recurringConfig) {
   const instances = [];
   const startDate = new Date(
@@ -171,31 +201,9 @@ export function renderCalendarWidget(widget) {
 
   const MAX_BARS = 3;
 
-  // Financial result for current month: sum of money across events that
-  // have STARTED (start time <= now). Future events excluded.
-  // All-day events: count if date <= today. Deleted events are already
-  // removed from the events array, so no special handling needed.
-  const nowMs = now.getTime();
-  const todayDateStr = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
-  const hasStarted = (e) => {
-    if (e.time) {
-      const startMs = new Date(`${e.date}T${e.time}`).getTime();
-      if (isNaN(startMs)) return false;
-      return startMs <= nowMs;
-    }
-    return e.date <= todayDateStr;
-  };
-  let monthIncome = 0;
-  let monthExpense = 0;
-  for (const e of monthEventsSorted) {
-    if (e.source === 'caldav') continue;
-    if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
-    if (!hasStarted(e)) continue;
-    if (e.moneyType === 'income') monthIncome += e.money;
-    else monthExpense += e.money;
-  }
-  const monthNet = monthIncome - monthExpense;
-  const hasAnyMoney = monthIncome > 0 || monthExpense > 0;
+  // Financial result for current month via pure helper.
+  const { income: monthIncome, expense: monthExpense, net: monthNet, hasMoney: hasAnyMoney } =
+    calcMonthFinance(monthEventsSorted, now);
   const fmtMoney = (v) => {
     const sign = v < 0 ? '−' : '';
     const abs = Math.abs(v);
