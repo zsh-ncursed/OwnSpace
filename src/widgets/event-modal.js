@@ -68,10 +68,11 @@ export function showEventModal(widget, existingEvent) {
     title: '',
     date: localDateStr(new Date()),
     time: '',
-    endDate: '',
     endTime: '',
     color: '',
     recurring: { type: 'none', interval: 1, endDate: '' },
+    moneyType: 'expense',
+    money: null,
   };
 
   const overlay = document.createElement('div');
@@ -118,6 +119,16 @@ export function showEventModal(widget, existingEvent) {
           <label>Дата окончания повторов:</label>
           <input type="date" id="event-recurring-enddate" value="${event.recurring?.endDate || ''}" />
         </div>
+        <div class="event-money">
+          <label>Деньги:</label>
+          <div class="event-money-row">
+            <select id="event-moneytype" class="event-money-type">
+              <option value="expense" ${event.moneyType === 'expense' ? 'selected' : ''}>− Расход</option>
+              <option value="income" ${event.moneyType === 'income' ? 'selected' : ''}>+ Доход</option>
+            </select>
+            <input type="number" id="event-money" class="event-money-amount" min="0" step="0.01" placeholder="0" value="${(typeof event.money === 'number' && isFinite(event.money)) ? event.money : ''}" />
+          </div>
+        </div>
       </form>
       <div style="display: flex; gap: 8px; margin-top: 16px;">
         <button id="save-event" class="btn btn-primary" style="flex: 1;">${isEdit ? 'Сохранить' : 'Добавить'}</button>
@@ -145,6 +156,17 @@ export function showEventModal(widget, existingEvent) {
 
     if (!title || !date) return;
 
+    const moneyRaw = overlay.querySelector('#event-money')?.value;
+    let moneyAmount = null;
+    if (moneyRaw !== undefined && moneyRaw !== '' && moneyRaw !== null) {
+      const parsed = parseFloat(moneyRaw.replace(',', '.'));
+      if (!isNaN(parsed) && isFinite(parsed) && parsed > 0) {
+        moneyAmount = Math.round(parsed * 100) / 100;
+      }
+    }
+    const moneyTypeVal = overlay.querySelector('#event-moneytype')?.value || 'expense';
+    const hasMoney = moneyAmount !== null && moneyAmount > 0;
+
     const newEvent = {
       id: event.id,
       title,
@@ -160,6 +182,8 @@ export function showEventModal(widget, existingEvent) {
               endDate: recurringEndDate || undefined,
             }
           : undefined,
+      moneyType: hasMoney ? moneyTypeVal : null,
+      money: hasMoney ? moneyAmount : null,
     };
 
     let events = widget.config.events || [];

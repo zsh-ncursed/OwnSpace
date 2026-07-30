@@ -11,6 +11,7 @@ const BUILTIN_WIDGETS = [
   { type: 'weather', title: 'Погода' },
   { type: 'calendar', title: 'Календарь' },
   { type: 'todo', title: 'Список задач' },
+  { type: 'calculator', title: 'Калькулятор' },
 ];
 
 const DEFAULTS = {

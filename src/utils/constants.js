@@ -12,4 +12,5 @@ export const WIDGET_TYPES = {
   WEATHER: 'weather',
   CALENDAR: 'calendar',
   TODO: 'todo',
+  CALCULATOR: 'calculator',
 };

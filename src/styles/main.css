@@ -2630,6 +2630,174 @@ body {
   background: var(--accent-hover);
 }
 
+/* Calendar financial result */
+.calendar-money-result {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.calendar-money-result[data-net="positive"] {
+  background: color-mix(in srgb, var(--success, #22c55e) 12%, var(--surface-2));
+}
+.calendar-money-result[data-net="negative"] {
+  background: color-mix(in srgb, var(--danger, #ef4444) 12%, var(--surface-2));
+}
+.calendar-money-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  flex: 1 1 100%;
+}
+.calendar-money-net {
+  font-size: var(--text-lg, 1.125rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.calendar-money-result[data-net="positive"] .calendar-money-net {
+  color: var(--success, #22c55e);
+}
+.calendar-money-result[data-net="negative"] .calendar-money-net {
+  color: var(--danger, #ef4444);
+}
+.calendar-money-breakdown {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.calendar-money-income { color: var(--success, #22c55e); }
+.calendar-money-expense { color: var(--danger, #ef4444); }
+
+/* Event modal money fields */
+.event-money {
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.event-money-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+.event-money-type {
+  flex: 0 0 auto;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.event-money-amount {
+  flex: 1 1 auto;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Calculator widget */
+.calculator-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  outline: none;
+}
+.calculator-widget:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary) inset;
+  border-radius: var(--radius-sm);
+}
+.calc-display {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 64px;
+  word-break: break-all;
+}
+.calc-history {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  min-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.calc-current {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.calc-last {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.calc-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+}
+.calc-key {
+  padding: var(--space-2) 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+.calc-key:hover {
+  background: var(--surface-2);
+}
+.calc-key:active {
+  transform: scale(0.96);
+}
+.calc-key-wide {
+  grid-column: span 1;
+}
+.calc-key.calc-plus,
+.calc-key.calc-minus,
+.calc-key.calc-mul,
+.calc-key.calc-div,
+.calc-key.calc-percent {
+  background: var(--surface-2);
+  color: var(--primary);
+}
+.calc-key.calc-equals {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.calc-key.calc-equals:hover {
+  background: var(--primary-hover);
+}
+.calc-key.calc-clear {
+  color: var(--danger, #ef4444);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

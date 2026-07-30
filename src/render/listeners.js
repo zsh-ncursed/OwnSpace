@@ -17,6 +17,7 @@ import { browserMessaging } from '../export-import.js';
 import { state } from '../state.js';
 import { syncCalDAVEvents, showCalDAVCalendarPicker } from '../caldav/sync.js';
 import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.js';
+import { setupCalculatorWidget } from '../widgets/calculator.js';
 
 export function setupWidgetListeners(container) {
   container.querySelectorAll('.bookmarks-widget').forEach((el) => {
@@ -496,6 +497,13 @@ export function setupWidgetListeners(container) {
       }
       if (ok) renderWidgetGrid();
     });
+  });
+
+  container.querySelectorAll('.calculator-widget').forEach((el) => {
+    const widgetId = el.dataset.widgetId;
+    const workspace = getActiveWorkspace();
+    const widget = workspace?.widgets.find((w) => w.id === widgetId);
+    if (widget) setupCalculatorWidget(el, widget);
   });
 }
 

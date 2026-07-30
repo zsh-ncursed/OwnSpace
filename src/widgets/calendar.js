@@ -29,6 +29,8 @@ export function migrateEvent(e) {
   if (e.endDate) result.endDate = e.endDate;
   if (e.endTime) result.endTime = e.endTime;
   if (e.color) result.color = e.color;
+  if (e.moneyType === 'income' || e.moneyType === 'expense') result.moneyType = e.moneyType;
+  if (typeof e.money === 'number' && isFinite(e.money)) result.money = e.money;
   return result;
 }
 
@@ -86,6 +88,8 @@ export function generateRecurringEvents(baseEvent, recurringConfig) {
       isRecurringInstance: true,
       recurringParentId: baseEvent.id,
       color: baseEvent.color || null,
+      moneyType: baseEvent.moneyType || null,
+      money: typeof baseEvent.money === 'number' ? baseEvent.money : null,
     };
 
     instances.push(instance);
@@ -166,6 +170,38 @@ export function renderCalendarWidget(widget) {
   }
 
   const MAX_BARS = 3;
+
+  // Financial result for current month: sum of money across PAST events.
+  const nowMs = now.getTime();
+  const todayDateStr = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const isPastEvent = (e) => {
+    if (e.time) {
+      const endStr = (e.endDate && e.endTime)
+        ? `${e.endDate}T${e.endTime}`
+        : (e.endDate ? `${e.endDate}T23:59` : `${e.date}T${e.time}`);
+      const endMs = new Date(endStr).getTime();
+      if (isNaN(endMs)) return false;
+      return endMs < nowMs;
+    }
+    return e.date < todayDateStr;
+  };
+  let monthIncome = 0;
+  let monthExpense = 0;
+  for (const e of monthEventsSorted) {
+    if (e.source === 'caldav') continue;
+    if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
+    if (!isPastEvent(e)) continue;
+    if (e.moneyType === 'income') monthIncome += e.money;
+    else monthExpense += e.money;
+  }
+  const monthNet = monthIncome - monthExpense;
+  const hasAnyMoney = monthIncome > 0 || monthExpense > 0;
+  const fmtMoney = (v) => {
+    const sign = v < 0 ? '−' : '';
+    const abs = Math.abs(v);
+    const s = abs % 1 === 0 ? abs.toString() : abs.toFixed(2);
+    return `${sign}${s} ₽`;
+  };
 
   return `
     <div class="calendar-widget" data-widget-id="${widget.id}">
@@ -278,6 +314,16 @@ export function renderCalendarWidget(widget) {
         <p class="calendar-hint">${ICONS.action('calendar')} Выберите дату для просмотра событий</p>
       `
       }
+      ${hasAnyMoney ? `
+        <div class="calendar-money-result" data-net="${monthNet >= 0 ? 'positive' : 'negative'}">
+          <span class="calendar-money-label">Финансовый результат</span>
+          <span class="calendar-money-net">${fmtMoney(monthNet)}</span>
+          <span class="calendar-money-breakdown">
+            <span class="calendar-money-income">+ ${fmtMoney(monthIncome)}</span>
+            <span class="calendar-money-expense">− ${fmtMoney(monthExpense)}</span>
+          </span>
+        </div>
+      ` : ''}
     </div>
   `;
 }
