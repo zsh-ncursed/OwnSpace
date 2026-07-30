@@ -324,8 +324,8 @@ describe('calcMonthFinance', () => {
     expect(r.hasMoney).toBe(true);
   });
 
-  it('shows block (hasMoney=true) when all money events are future', () => {
-    // Event tomorrow with money — not counted in income/expense, but block should show
+  it('hides block when all money events are future (not started)', () => {
+    // Event tomorrow with money — not counted, block hidden
     const events = [
       { id: '1', date: '2026-07-21', time: '10:00', moneyType: 'income', money: 5000 },
     ];
@@ -333,17 +333,17 @@ describe('calcMonthFinance', () => {
     expect(r.income).toBe(0);
     expect(r.expense).toBe(0);
     expect(r.net).toBe(0);
-    expect(r.hasMoney).toBe(true);
+    expect(r.hasMoney).toBe(false);
   });
 
-  it('shows block when timed event today has not started yet', () => {
-    // Event today at 18:00, now is 12:00 — not counted, but block shows
+  it('hides block when timed event today has not started yet', () => {
+    // Event today at 18:00, now is 12:00 — not counted, block hidden
     const events = [
       { id: '1', date: '2026-07-20', time: '18:00', moneyType: 'income', money: 2000 },
     ];
     const r = calcMonthFinance(events, NOW);
     expect(r.income).toBe(0);
-    expect(r.hasMoney).toBe(true);
+    expect(r.hasMoney).toBe(false);
   });
 
   it('hasMoney=false when no events have money at all', () => {
