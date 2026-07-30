@@ -2709,6 +2709,56 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Event recurring config */
+.event-recurring-config {
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.event-recurring-interval-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+.event-recurring-interval-controls input[type="number"] {
+  flex: 0 0 80px;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.event-recurring-interval-controls select {
+  flex: 1 1 auto;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.event-recurring-end-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.event-recurring-end-row input {
+  flex: 1 1 auto;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
 /* Calculator widget */
 .calculator-widget {
   display: flex;

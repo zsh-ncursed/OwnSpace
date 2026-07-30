@@ -42,6 +42,15 @@ export function eventColor(_id, index, customColor) {
 
 export function advanceDate(date, type, interval) {
   switch (type) {
+    case 'seconds':
+      date.setSeconds(date.getSeconds() + interval);
+      break;
+    case 'minutes':
+      date.setMinutes(date.getMinutes() + interval);
+      break;
+    case 'hours':
+      date.setHours(date.getHours() + interval);
+      break;
     case 'daily':
       date.setDate(date.getDate() + interval);
       break;
@@ -58,7 +67,10 @@ export function advanceDate(date, type, interval) {
 }
 
 export function isCustomRecurring(r) {
-  return r && r.type !== 'none' && (r.interval > 1 || !!r.endDate);
+  if (!r || r.type === 'none') return false;
+  if (r.interval > 1) return true;
+  if (r.endDate) return true;
+  return false;
 }
 
 /**

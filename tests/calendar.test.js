@@ -99,6 +99,26 @@ describe('advanceDate', () => {
     expect(date.getFullYear()).toBe(2027);
   });
 
+  it('advances seconds', () => {
+    const date = new Date(2026, 6, 15, 10, 30, 0);
+    advanceDate(date, 'seconds', 90);
+    expect(date.getSeconds()).toBe(30);
+    expect(date.getMinutes()).toBe(31);
+  });
+
+  it('advances minutes', () => {
+    const date = new Date(2026, 6, 15, 10, 30, 0);
+    advanceDate(date, 'minutes', 45);
+    expect(date.getMinutes()).toBe(15);
+    expect(date.getHours()).toBe(11);
+  });
+
+  it('advances hours', () => {
+    const date = new Date(2026, 6, 15, 10, 0, 0);
+    advanceDate(date, 'hours', 6);
+    expect(date.getHours()).toBe(16);
+  });
+
   it('advances with custom interval', () => {
     const date = new Date(2026, 0, 1);
     advanceDate(date, 'daily', 5);

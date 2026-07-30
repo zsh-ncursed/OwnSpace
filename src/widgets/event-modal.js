@@ -103,21 +103,34 @@ export function showEventModal(widget, existingEvent) {
         </div>
         <div class="event-field">
           <label>Повтор:</label>
-          <select id="event-recurring-type">
-            <option value="none" ${event.recurring?.type === 'none' ? 'selected' : ''}>Не повторять</option>
-            <option value="daily" ${event.recurring?.type === 'daily' ? 'selected' : ''}>Ежедневно</option>
-            <option value="weekly" ${event.recurring?.type === 'weekly' ? 'selected' : ''}>Еженедельно</option>
-            <option value="monthly" ${event.recurring?.type === 'monthly' ? 'selected' : ''}>Ежемесячно</option>
-            <option value="yearly" ${event.recurring?.type === 'yearly' ? 'selected' : ''}>Ежегодно</option>
+          <select id="event-recurring-toggle">
+            <option value="none" ${!event.recurring || event.recurring?.type === 'none' ? 'selected' : ''}>Не повторять</option>
+            <option value="interval" ${event.recurring && event.recurring?.type !== 'none' ? 'selected' : ''}>Интервал (каждые N)</option>
           </select>
         </div>
-        <div class="event-field">
-          <label>Интервал (каждые N):</label>
-          <input type="number" id="event-recurring-interval" min="1" value="${event.recurring?.interval || 1}" />
-        </div>
-        <div class="event-field">
-          <label>Дата окончания повторов:</label>
-          <input type="date" id="event-recurring-enddate" value="${event.recurring?.endDate || ''}" />
+        <div class="event-recurring-config" id="recurring-config" style="display:${event.recurring && event.recurring?.type !== 'none' ? 'block' : 'none'};">
+          <div class="event-field event-recurring-interval-row">
+            <label>Период:</label>
+            <div class="event-recurring-interval-controls">
+              <input type="number" id="event-recurring-interval" min="1" value="${event.recurring?.interval || 1}" />
+              <select id="event-recurring-unit">
+                <option value="seconds" ${event.recurring?.type === 'seconds' ? 'selected' : ''}>секунд</option>
+                <option value="minutes" ${event.recurring?.type === 'minutes' ? 'selected' : ''}>минут</option>
+                <option value="hours" ${event.recurring?.type === 'hours' ? 'selected' : ''}>часов</option>
+                <option value="daily" ${event.recurring?.type === 'daily' ? 'selected' : ''}>дней</option>
+                <option value="weekly" ${event.recurring?.type === 'weekly' ? 'selected' : ''}>недель</option>
+                <option value="monthly" ${event.recurring?.type === 'monthly' ? 'selected' : ''}>месяцев</option>
+                <option value="yearly" ${event.recurring?.type === 'yearly' ? 'selected' : ''}>лет</option>
+              </select>
+            </div>
+          </div>
+          <div class="event-field">
+            <label>Окончание:</label>
+            <div class="event-recurring-end-row">
+              <input type="date" id="event-recurring-enddate" value="${event.recurring?.endDate || ''}" />
+              <input type="time" id="event-recurring-endtime" value="${event.recurring?.endTime || ''}" />
+            </div>
+          </div>
         </div>
         <div class="event-money">
           <label>Деньги:</label>
@@ -144,14 +157,18 @@ export function showEventModal(widget, existingEvent) {
     const time = overlay.querySelector('#event-time').value || null;
     const endTime = overlay.querySelector('#event-endtime').value || null;
     const color = overlay.querySelector('#event-color').value || null;
-    const recurringType = overlay.querySelector('#event-recurring-type').value;
+    const recurringToggle = overlay.querySelector('#event-recurring-toggle').value;
     const recurringInterval =
       parseInt(
         overlay.querySelector('#event-recurring-interval').value,
         10,
       ) || 1;
+    const recurringUnit = overlay.querySelector('#event-recurring-unit').value;
     const recurringEndDate = overlay.querySelector(
       '#event-recurring-enddate',
+    ).value;
+    const recurringEndTime = overlay.querySelector(
+      '#event-recurring-endtime',
     ).value;
 
     if (!title || !date) return;
@@ -167,6 +184,18 @@ export function showEventModal(widget, existingEvent) {
     const moneyTypeVal = overlay.querySelector('#event-moneytype')?.value || 'expense';
     const hasMoney = moneyAmount !== null && moneyAmount > 0;
 
+    let recurring = undefined;
+    if (recurringToggle === 'interval') {
+      recurring = {
+        type: recurringUnit,
+        interval: recurringInterval,
+      };
+      if (recurringEndDate) {
+        recurring.endDate = recurringEndDate;
+        if (recurringEndTime) recurring.endTime = recurringEndTime;
+      }
+    }
+
     const newEvent = {
       id: event.id,
       title,
@@ -174,14 +203,7 @@ export function showEventModal(widget, existingEvent) {
       time,
       endTime: endTime || undefined,
       color: color || undefined,
-      recurring:
-        recurringType !== 'none'
-          ? {
-              type: recurringType,
-              interval: recurringInterval,
-              endDate: recurringEndDate || undefined,
-            }
-          : undefined,
+      recurring,
       moneyType: hasMoney ? moneyTypeVal : null,
       money: hasMoney ? moneyAmount : null,
     };
@@ -212,6 +234,13 @@ export function showEventModal(widget, existingEvent) {
     .addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
+  });
+
+  const recurringToggle = overlay.querySelector('#event-recurring-toggle');
+  const recurringConfig = overlay.querySelector('#recurring-config');
+  recurringToggle?.addEventListener('change', () => {
+    recurringConfig.style.display =
+      recurringToggle.value === 'interval' ? 'block' : 'none';
   });
 }
 
