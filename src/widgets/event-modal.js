@@ -100,11 +100,11 @@ export function showEventModal(widget, existingEvent) {
             <input type="time" id="event-time" value="${event.time || ''}" class="event-time-input" ${isAllDay ? 'style="display:none"' : ''} />
           </div>
         </div>
-        <div class="event-field">
+        <div class="event-field event-end-field" ${isAllDay ? 'style="display:none"' : ''}>
           <label>Окончание:</label>
           <div class="event-datetime-row">
             <input type="date" id="event-enddate" value="${event.endDate || event.date}" />
-            <input type="time" id="event-endtime" value="${event.endTime || ''}" class="event-time-input" ${isAllDay ? 'style="display:none"' : ''} />
+            <input type="time" id="event-endtime" value="${event.endTime || ''}" class="event-time-input" />
           </div>
         </div>
         <div class="event-field">
@@ -258,10 +258,13 @@ export function showEventModal(widget, existingEvent) {
 
   const allDayCheckbox = overlay.querySelector('#event-allday');
   const timeInputs = overlay.querySelectorAll('.event-time-input');
+  const endField = overlay.querySelector('.event-end-field');
   allDayCheckbox?.addEventListener('change', () => {
+    const checked = allDayCheckbox.checked;
     timeInputs.forEach((input) => {
-      input.style.display = allDayCheckbox.checked ? 'none' : '';
+      input.style.display = checked ? 'none' : '';
     });
+    endField.style.display = checked ? 'none' : '';
   });
 }
 
