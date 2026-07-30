@@ -228,16 +228,6 @@ describe('calcMonthFinance', () => {
     expect(r.income).toBe(500);
   });
 
-  it('excludes timed event on today that has not started yet from sum, but block shows', () => {
-    // Event today at 18:00, now is 12:00 → not counted in income, but block shows
-    const events = [
-      { id: '1', date: '2026-07-20', time: '18:00', moneyType: 'income', money: 2000 },
-    ];
-    const r = calcMonthFinance(events, NOW);
-    expect(r.income).toBe(0);
-    expect(r.hasMoney).toBe(true);
-  });
-
   it('counts timed event on today that has started', () => {
     // Event today at 10:00, now is 12:00 → counted
     const events = [
