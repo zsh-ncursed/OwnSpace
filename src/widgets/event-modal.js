@@ -67,6 +67,7 @@ export function showEventModal(widget, existingEvent) {
     id: crypto.randomUUID(),
     title: '',
     date: localDateStr(new Date()),
+    endDate: '',
     time: '',
     endTime: '',
     color: '',
@@ -74,6 +75,7 @@ export function showEventModal(widget, existingEvent) {
     moneyType: 'expense',
     money: null,
   };
+  const isAllDay = !event.time;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -85,17 +87,25 @@ export function showEventModal(widget, existingEvent) {
           <label>Название:</label>
           <input type="text" id="event-title" value="${escapeHtml(event.title)}" />
         </div>
-        <div class="event-field">
-          <label>Дата:</label>
-          <input type="date" id="event-date" value="${event.date}" />
+        <div class="event-field event-checkbox-field">
+          <label class="event-checkbox-label">
+            <input type="checkbox" id="event-allday" ${isAllDay ? 'checked' : ''} />
+            <span>Весь день</span>
+          </label>
         </div>
         <div class="event-field">
-          <label>Время начала:</label>
-          <input type="time" id="event-time" value="${event.time || ''}" />
+          <label>Начало:</label>
+          <div class="event-datetime-row">
+            <input type="date" id="event-date" value="${event.date}" />
+            <input type="time" id="event-time" value="${event.time || ''}" class="event-time-input" ${isAllDay ? 'style="display:none"' : ''} />
+          </div>
         </div>
         <div class="event-field">
-          <label>Время окончания:</label>
-          <input type="time" id="event-endtime" value="${event.endTime || ''}" />
+          <label>Окончание:</label>
+          <div class="event-datetime-row">
+            <input type="date" id="event-enddate" value="${event.endDate || event.date}" />
+            <input type="time" id="event-endtime" value="${event.endTime || ''}" class="event-time-input" ${isAllDay ? 'style="display:none"' : ''} />
+          </div>
         </div>
         <div class="event-field">
           <label>Цвет:</label>
@@ -154,8 +164,10 @@ export function showEventModal(widget, existingEvent) {
   overlay.querySelector('#save-event').addEventListener('click', () => {
     const title = overlay.querySelector('#event-title').value.trim();
     const date = overlay.querySelector('#event-date').value;
-    const time = overlay.querySelector('#event-time').value || null;
-    const endTime = overlay.querySelector('#event-endtime').value || null;
+    const endDate = overlay.querySelector('#event-enddate').value;
+    const allDay = overlay.querySelector('#event-allday').checked;
+    const time = allDay ? null : (overlay.querySelector('#event-time').value || null);
+    const endTime = allDay ? null : (overlay.querySelector('#event-endtime').value || null);
     const color = overlay.querySelector('#event-color').value || null;
     const recurringToggle = overlay.querySelector('#event-recurring-toggle').value;
     const recurringInterval =
@@ -200,6 +212,7 @@ export function showEventModal(widget, existingEvent) {
       id: event.id,
       title,
       date,
+      endDate: allDay ? null : (endDate || null),
       time,
       endTime: endTime || undefined,
       color: color || undefined,
@@ -241,6 +254,14 @@ export function showEventModal(widget, existingEvent) {
   recurringToggle?.addEventListener('change', () => {
     recurringConfig.style.display =
       recurringToggle.value === 'interval' ? 'block' : 'none';
+  });
+
+  const allDayCheckbox = overlay.querySelector('#event-allday');
+  const timeInputs = overlay.querySelectorAll('.event-time-input');
+  allDayCheckbox?.addEventListener('change', () => {
+    timeInputs.forEach((input) => {
+      input.style.display = allDayCheckbox.checked ? 'none' : '';
+    });
   });
 }
 
