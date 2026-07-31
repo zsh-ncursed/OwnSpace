@@ -1,4 +1,4 @@
-import { localDateStr } from '../utils/date.js';
+import { localDateStr, eventDateKey } from '../utils/date.js';
 import { escapeHtml } from '../ui/escape.js';
 import { showConfirm } from '../ui/modals.js';
 import { state } from '../state.js';
@@ -63,10 +63,16 @@ export function showWidgetSettingsModal(widget) {
 
 export function showEventModal(widget, existingEvent) {
   const isEdit = !!existingEvent;
+  const now = new Date();
+  const viewYear = widget.config.viewYear ?? now.getFullYear();
+  const viewMonth = widget.config.viewMonth ?? now.getMonth();
+  const selectedDay = widget.config.selectedDay ?? now.getDate();
+  const initialDate = existingEvent?.date
+    || eventDateKey(viewYear, viewMonth, selectedDay);
   const event = existingEvent || {
     id: crypto.randomUUID(),
     title: '',
-    date: localDateStr(new Date()),
+    date: initialDate,
     endDate: '',
     time: '',
     endTime: '',
