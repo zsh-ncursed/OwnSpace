@@ -10,6 +10,7 @@ mkdir -p "$OUT"
 
 cp "$ROOT/manifest.json" "$OUT/"
 cp "$ROOT/newtab.html" "$OUT/"
+cp -r "$ROOT/icons" "$OUT/"
 cp -r "$ROOT/src" "$OUT/"
 cp -r "$ROOT/lib" "$OUT/"
 cp -r "$ROOT/background" "$OUT/"
