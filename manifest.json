@@ -15,10 +15,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "ownspace@extension.local",
-      "strict_min_version": "140.0",
-      "data_collection_permissions": {
-        "required": ["none"]
-      }
+      "strict_min_version": "115.0"
     }
   },
   "browser_url_overrides": {
