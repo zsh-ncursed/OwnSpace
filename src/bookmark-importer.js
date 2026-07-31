@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { getTargetColumn } from './sortable.js';
 import { saveWorkspaces } from './storage.js';
 import { showNotification } from './ui/modals.js';
+import { escapeHtml } from './ui/escape.js';
 
 export function parseStartMeHtml(html) {
   let bookmarks = [];
@@ -174,7 +175,7 @@ export function showBookmarkImportModal() {
 
       if (result.widgetGroups.length > 1) {
         widgetList.innerHTML = `<ul style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;">
-          ${result.widgetGroups.map((wg) => `<li style="padding: 4px 0; border-bottom: 1px solid var(--primary);">📁 ${wg.name} — ${wg.bookmarks.length} закладок</li>`).join('')}
+          ${result.widgetGroups.map((wg) => `<li style="padding: 4px 0; border-bottom: 1px solid var(--primary);">📁 ${escapeHtml(wg.name)} — ${wg.bookmarks.length} закладок</li>`).join('')}
         </ul>`;
       } else {
         widgetList.innerHTML = '';

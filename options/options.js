@@ -54,14 +54,22 @@ async function initWidgetToggles(appSettings) {
   BUILTIN_WIDGETS.forEach((w) => {
     const label = document.createElement('label');
     label.className = 'option';
-    label.innerHTML = `
-      <input type="checkbox" data-widget-type="${w.type}" ${enabled.includes(w.type) ? 'checked' : ''}>
-      <span class="check-box" aria-hidden="true"></span>
-      <div class="option-body">
-        <div class="option-title">${w.title}</div>
-      </div>
-    `;
-    const checkbox = label.querySelector('input');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.dataset.widgetType = w.type;
+    if (enabled.includes(w.type)) checkbox.checked = true;
+    const box = document.createElement('span');
+    box.className = 'check-box';
+    box.setAttribute('aria-hidden', 'true');
+    const body = document.createElement('div');
+    body.className = 'option-body';
+    const title = document.createElement('div');
+    title.className = 'option-title';
+    title.textContent = w.title;
+    body.appendChild(title);
+    label.appendChild(checkbox);
+    label.appendChild(box);
+    label.appendChild(body);
     checkbox.addEventListener('change', async () => {
       let list = appSettings.enabledWidgets || BUILTIN_WIDGETS.map((x) => x.type);
       if (checkbox.checked) {

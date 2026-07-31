@@ -6,19 +6,7 @@
   <title>OwnSpace</title>
   <link rel="icon" type="image/png" href="icons/icon96.png">
   <script src="lib/browser-polyfill.min.js"></script>
-  <script>
-    (async () => {
-      try {
-        const result = await browser.storage.local.get('extensionSettings');
-        const settings = result.extensionSettings || {};
-        if (settings.openInNewTabs === false) {
-          window.location.replace('about:home');
-        }
-      } catch (e) {
-        console.warn('OwnSpace: could not check extensionSettings', e);
-      }
-    })();
-  </script>
+  <script src="src/newtab-redirect.js" defer></script>
   <link rel="stylesheet" href="src/styles/main.css">
   <script src="lib/sortable.min.js"></script>
   <script src="src/components/icons.js"></script>
