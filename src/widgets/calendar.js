@@ -97,31 +97,43 @@ export function isCustomRecurring(r) {
 
 /**
  * Calculate monthly financial result from events.
- * Counts only events that have STARTED (start time <= now).
- * All-day events count if date <= today. CalDAV events excluded.
- * Returns { income, expense, net, hasMoney }.
+ * @param events - events of the VIEWED month (already filtered by month)
+ * @param viewYear/viewMonth - the month being viewed
+ * @param now - current time (for "started" check)
+ * Past months: all events count. Current month: only started events. Future: none.
  */
-export function calcMonthFinance(events, now = new Date()) {
+export function calcMonthFinance(events, viewYear, viewMonth, now = new Date()) {
   const nowMs = now.getTime();
   const todayDateStr = eventDateKey(now.getFullYear(), now.getMonth(), now.getDate());
-  const monthPrefix = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const isCurrentMonth =
+    viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const isPastMonth =
+    viewYear < now.getFullYear() ||
+    (viewYear === now.getFullYear() && viewMonth < now.getMonth());
 
   let income = 0;
   let expense = 0;
   for (const e of events) {
     if (e.source === 'caldav') continue;
     if (typeof e.money !== 'number' || !isFinite(e.money) || e.money <= 0) continue;
-    if (!e.date || !e.date.startsWith(monthPrefix)) continue;
-    const started = e.time
-      ? (() => {
-          const [y, m, d] = e.date.split('-').map(Number);
-          const [hh, mm] = e.time.split(':').map(Number);
-          if (!y || !m || !d) return false;
-          const ms = new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
-          return !isNaN(ms) && ms <= nowMs;
-        })()
-      : e.date <= todayDateStr;
-    if (!started) continue;
+    if (!e.date) continue;
+    if (isPastMonth) {
+      // all events in a past month have started
+    } else if (!isCurrentMonth) {
+      continue; // future month — nothing started yet
+    } else {
+      // current month — check started
+      const started = e.time
+        ? (() => {
+            const [y, m, d] = e.date.split('-').map(Number);
+            const [hh, mm] = e.time.split(':').map(Number);
+            if (!y || !m || !d) return false;
+            const ms = new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
+            return !isNaN(ms) && ms <= nowMs;
+          })()
+        : e.date <= todayDateStr;
+      if (!started) continue;
+    }
     if (e.moneyType === 'income') income += e.money;
     else expense += e.money;
   }
@@ -256,7 +268,7 @@ export function renderCalendarWidget(widget) {
 
   // Financial result for current month via pure helper.
   const { income: monthIncome, expense: monthExpense, net: monthNet, hasMoney: hasAnyMoney } =
-    calcMonthFinance(monthEventsSorted, now);
+    calcMonthFinance(monthEventsSorted, viewYear, viewMonth, now);
   const fmtMoney = (v) => {
     const sign = v < 0 ? '−' : '';
     const abs = Math.abs(v);

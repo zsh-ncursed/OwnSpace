@@ -315,7 +315,7 @@ describe('calcMonthFinance', () => {
   const NOW = new Date(2026, 6, 20, 12, 0, 0);
 
   it('returns zeros for empty events', () => {
-    const r = calcMonthFinance([], NOW);
+    const r = calcMonthFinance([], 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.expense).toBe(0);
     expect(r.net).toBe(0);
@@ -327,7 +327,7 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-05', time: '09:00', moneyType: 'income', money: 3000 },
       { id: '2', date: '2026-07-10', time: '14:00', moneyType: 'expense', money: 1000 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(3000);
     expect(r.expense).toBe(1000);
     expect(r.net).toBe(2000);
@@ -338,7 +338,7 @@ describe('calcMonthFinance', () => {
     const events = [
       { id: '1', date: '2026-07-20', time: null, moneyType: 'income', money: 500 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(500);
   });
 
@@ -347,7 +347,7 @@ describe('calcMonthFinance', () => {
     const events = [
       { id: '1', date: '2026-07-20', time: '10:00', moneyType: 'income', money: 2000 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(2000);
   });
 
@@ -356,7 +356,7 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-21', time: '10:00', moneyType: 'income', money: 5000 },
       { id: '2', date: '2026-07-25', time: null, moneyType: 'expense', money: 500 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.expense).toBe(0);
   });
@@ -373,7 +373,7 @@ describe('calcMonthFinance', () => {
     };
     const instances = generateRecurringEvents(base, { type: 'daily', interval: 1 });
     const all = [base, ...instances];
-    const r = calcMonthFinance(all, NOW);
+    const r = calcMonthFinance(all, 2026, 6, NOW);
     // July 1..19 = 19 events × 100 = 1900 (July 20 at 09:00 also started → 20)
     expect(r.income).toBe(2000);
   });
@@ -383,17 +383,26 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-05', time: '09:00', moneyType: 'income', money: 3000, source: 'caldav' },
       { id: '2', date: '2026-07-05', time: '10:00', moneyType: 'expense', money: 500, source: 'caldav' },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.expense).toBe(0);
   });
 
-  it('ignores events from other months', () => {
+  it('filters by viewed month: june events viewed in july are past', () => {
     const events = [
       { id: '1', date: '2026-06-30', time: '09:00', moneyType: 'income', money: 9999 },
-      { id: '2', date: '2026-08-01', time: '09:00', moneyType: 'income', money: 9999 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    // viewing June — past month, all count
+    const r = calcMonthFinance(events, 2026, 5, NOW);
+    expect(r.income).toBe(9999);
+  });
+
+  it('filters by viewed month: august events viewed in july are future', () => {
+    const events = [
+      { id: '1', date: '2026-08-01', time: '09:00', moneyType: 'income', money: 9999 },
+    ];
+    // viewing August — future month, none count
+    const r = calcMonthFinance(events, 2026, 7, NOW);
     expect(r.income).toBe(0);
   });
 
@@ -404,7 +413,7 @@ describe('calcMonthFinance', () => {
       { id: '3', date: '2026-07-05', time: '11:00', moneyType: 'income', money: 'not a number' },
       { id: '4', date: '2026-07-05', time: '12:00', moneyType: 'expense', money: 200 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.expense).toBe(200);
   });
@@ -414,7 +423,7 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-05', time: '09:00', moneyType: 'income', money: 1000 },
       // event id=2 was deleted, simply absent from array
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(1000);
   });
 
@@ -423,7 +432,7 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-05', time: '09:00', moneyType: 'income', money: 500 },
       { id: '2', date: '2026-07-06', time: '10:00', moneyType: 'expense', money: 1500 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.net).toBe(-1000);
     expect(r.hasMoney).toBe(true);
   });
@@ -433,7 +442,7 @@ describe('calcMonthFinance', () => {
     const events = [
       { id: '1', date: '2026-07-21', time: '10:00', moneyType: 'income', money: 5000 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.expense).toBe(0);
     expect(r.net).toBe(0);
@@ -445,7 +454,7 @@ describe('calcMonthFinance', () => {
     const events = [
       { id: '1', date: '2026-07-20', time: '18:00', moneyType: 'income', money: 2000 },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.income).toBe(0);
     expect(r.hasMoney).toBe(false);
   });
@@ -455,8 +464,50 @@ describe('calcMonthFinance', () => {
       { id: '1', date: '2026-07-05', time: '09:00', moneyType: null, money: null },
       { id: '2', date: '2026-07-06', time: '10:00' },
     ];
-    const r = calcMonthFinance(events, NOW);
+    const r = calcMonthFinance(events, 2026, 6, NOW);
     expect(r.hasMoney).toBe(false);
+  });
+
+  it('past month: counts all events regardless of started status', () => {
+    // Viewed: June 2026, NOW: July 20. All June events are past.
+    const events = [
+      { id: '1', date: '2026-06-30', time: '23:59', moneyType: 'income', money: 1000 },
+      { id: '2', date: '2026-06-01', time: '00:01', moneyType: 'expense', money: 200 },
+    ];
+    const r = calcMonthFinance(events, 2026, 5, NOW);
+    expect(r.income).toBe(1000);
+    expect(r.expense).toBe(200);
+    expect(r.net).toBe(800);
+    expect(r.hasMoney).toBe(true);
+  });
+
+  it('future month: counts nothing (no events started yet)', () => {
+    // Viewed: August 2026, NOW: July 20. All August events are future.
+    const events = [
+      { id: '1', date: '2026-08-01', time: '09:00', moneyType: 'income', money: 5000 },
+      { id: '2', date: '2026-08-31', time: null, moneyType: 'expense', money: 1000 },
+    ];
+    const r = calcMonthFinance(events, 2026, 7, NOW);
+    expect(r.income).toBe(0);
+    expect(r.expense).toBe(0);
+    expect(r.hasMoney).toBe(false);
+  });
+
+  it('past month: recurring instances all count', () => {
+    // Daily recurring at 09:00 from June 1 with money 100 income.
+    const base = {
+      id: 'base',
+      title: 'T',
+      date: '2026-06-01',
+      time: '09:00',
+      moneyType: 'income',
+      money: 100,
+    };
+    const instances = generateRecurringEvents(base, { type: 'daily', interval: 1 });
+    const all = [base, ...instances].filter((e) => e.date.startsWith('2026-06'));
+    const r = calcMonthFinance(all, 2026, 5, NOW);
+    expect(r.income).toBe(100 * all.length);
+    expect(r.hasMoney).toBe(true);
   });
 });
 
