@@ -7,6 +7,8 @@ import {
   generateRecurringEvents,
   upsertEventWithRecurring,
   calcMonthFinance,
+  shiftMonth,
+  deleteEvent,
 } from '../src/widgets/calendar.js';
 
 describe('migrateEvent', () => {
@@ -455,5 +457,77 @@ describe('calcMonthFinance', () => {
     ];
     const r = calcMonthFinance(events, NOW);
     expect(r.hasMoney).toBe(false);
+  });
+});
+
+describe('shiftMonth', () => {
+  it('goes to previous month', () => {
+    expect(shiftMonth(2026, 6, -1)).toEqual({ viewYear: 2026, viewMonth: 5, selectedDay: null });
+  });
+
+  it('wraps from January to December of previous year', () => {
+    expect(shiftMonth(2026, 0, -1)).toEqual({ viewYear: 2025, viewMonth: 11, selectedDay: null });
+  });
+
+  it('goes to next month', () => {
+    expect(shiftMonth(2026, 6, 1)).toEqual({ viewYear: 2026, viewMonth: 7, selectedDay: null });
+  });
+
+  it('wraps from December to January of next year', () => {
+    expect(shiftMonth(2026, 11, 1)).toEqual({ viewYear: 2027, viewMonth: 0, selectedDay: null });
+  });
+
+  it('always resets selectedDay', () => {
+    expect(shiftMonth(2026, 5, -1).selectedDay).toBeNull();
+    expect(shiftMonth(2026, 5, 1).selectedDay).toBeNull();
+  });
+});
+
+describe('deleteEvent', () => {
+  it('deletes a single non-recurring event', () => {
+    const events = [
+      { id: 'a', title: 'A', date: '2026-07-01' },
+      { id: 'b', title: 'B', date: '2026-07-02' },
+    ];
+    const result = deleteEvent(events, 'a', false);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('b');
+  });
+
+  it('deletes only one instance when choice is not "all"', () => {
+    const events = [
+      { id: 'base', title: 'Base', date: '2026-07-01', recurring: { type: 'daily', interval: 1 } },
+      { id: 'inst1', title: 'Base', date: '2026-07-02', isRecurringInstance: true, recurringParentId: 'base' },
+      { id: 'inst2', title: 'Base', date: '2026-07-03', isRecurringInstance: true, recurringParentId: 'base' },
+    ];
+    const result = deleteEvent(events, 'inst1', true, 'one');
+    expect(result).toHaveLength(2);
+    expect(result.find((e) => e.id === 'inst1')).toBeUndefined();
+  });
+
+  it('deletes entire series when choice is "all" and event is the base', () => {
+    const events = [
+      { id: 'base', title: 'Base', date: '2026-07-01', recurring: { type: 'daily', interval: 1 } },
+      { id: 'inst1', title: 'Base', date: '2026-07-02', isRecurringInstance: true, recurringParentId: 'base' },
+      { id: 'inst2', title: 'Base', date: '2026-07-03', isRecurringInstance: true, recurringParentId: 'base' },
+    ];
+    const result = deleteEvent(events, 'base', true, 'all');
+    expect(result).toHaveLength(0);
+  });
+
+  it('deletes entire series when event is an instance (uses recurringParentId)', () => {
+    const events = [
+      { id: 'base', title: 'Base', date: '2026-07-01', recurring: { type: 'daily', interval: 1 } },
+      { id: 'inst1', title: 'Base', date: '2026-07-02', isRecurringInstance: true, recurringParentId: 'base' },
+      { id: 'inst2', title: 'Base', date: '2026-07-03', isRecurringInstance: true, recurringParentId: 'base' },
+    ];
+    const result = deleteEvent(events, 'inst1', true, 'all');
+    expect(result).toHaveLength(0);
+  });
+
+  it('no-op for unknown id', () => {
+    const events = [{ id: 'a', title: 'A', date: '2026-07-01' }];
+    const result = deleteEvent(events, '999', false);
+    expect(result).toHaveLength(1);
   });
 });

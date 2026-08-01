@@ -18,6 +18,8 @@ import { state } from '../state.js';
 import { syncCalDAVEvents, showCalDAVCalendarPicker } from '../caldav/sync.js';
 import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.js';
 import { setupCalculatorWidget } from '../widgets/calculator.js';
+import { addTask, toggleTask, renameTask, deleteTask } from '../widgets/todo.js';
+import { shiftMonth, deleteEvent } from '../widgets/calendar.js';
 
 // ponytail: single ticker for all datetime widgets — survives re-renders,
 // skips detached nodes (querySelector finds none); replaces per-render setInterval leak.
@@ -269,14 +271,10 @@ export function setupWidgetListeners(container) {
     if (todoAddBtn) {
       todoAddBtn.addEventListener('click', () => {
         const input = el.querySelector('.todo-new-input');
-        const text = input.value.trim();
-        if (!text) return;
         const w = getTodoWidget();
         if (!w) return;
-        const tasks = [
-          ...(w.config.tasks || []),
-          { id: crypto.randomUUID(), text, done: false },
-        ];
+        const tasks = addTask(w.config.tasks || [], input.value);
+        if (tasks === w.config.tasks) return;
         updateWidgetConfig(widgetId, { tasks }, true);
         input.value = '';
         renderSingleWidget(widgetId);
@@ -300,30 +298,23 @@ export function setupWidgetListeners(container) {
         .addEventListener('change', () => {
           const w = getTodoWidget();
           if (!w) return;
-          const tasks = (w.config.tasks || []).map((t) =>
-            t.id === taskId ? { ...t, done: !t.done } : t,
-          );
+          const tasks = toggleTask(w.config.tasks || [], taskId);
           updateWidgetConfig(widgetId, { tasks }, true);
           renderSingleWidget(widgetId);
         });
 
       item.querySelector('.todo-text').addEventListener('change', () => {
-        const text = item.querySelector('.todo-text').value.trim();
-        if (!text) return;
+        const text = item.querySelector('.todo-text').value;
         const w = getTodoWidget();
         if (!w) return;
-        const tasks = (w.config.tasks || []).map((t) =>
-          t.id === taskId ? { ...t, text } : t,
-        );
+        const tasks = renameTask(w.config.tasks || [], taskId, text);
         updateWidgetConfig(widgetId, { tasks }, true);
       });
 
       item.querySelector('.todo-delete').addEventListener('click', () => {
         const w = getTodoWidget();
         if (!w) return;
-        const tasks = (w.config.tasks || []).filter(
-          (t) => t.id !== taskId,
-        );
+        const tasks = deleteTask(w.config.tasks || [], taskId);
         updateWidgetConfig(widgetId, { tasks }, true);
         renderSingleWidget(widgetId);
       });
@@ -427,32 +418,14 @@ export function setupWidgetListeners(container) {
     const viewMonth = widget.config.viewMonth ?? now.getMonth();
 
     el.querySelector('.prev-month')?.addEventListener('click', () => {
-      let m = viewMonth - 1;
-      let y = viewYear;
-      if (m < 0) {
-        m = 11;
-        y--;
-      }
-      updateWidgetConfig(widgetId, {
-        viewYear: y,
-        viewMonth: m,
-        selectedDay: null,
-      }, true);
+      const nv = shiftMonth(viewYear, viewMonth, -1);
+      updateWidgetConfig(widgetId, nv, true);
       renderSingleWidget(widgetId);
     });
 
     el.querySelector('.next-month')?.addEventListener('click', () => {
-      let m = viewMonth + 1;
-      let y = viewYear;
-      if (m > 11) {
-        m = 0;
-        y++;
-      }
-      updateWidgetConfig(widgetId, {
-        viewYear: y,
-        viewMonth: m,
-        selectedDay: null,
-      }, true);
+      const nv = shiftMonth(viewYear, viewMonth, 1);
+      updateWidgetConfig(widgetId, nv, true);
       renderSingleWidget(widgetId);
     });
 
@@ -500,26 +473,10 @@ export function setupWidgetListeners(container) {
           if (isRecurring) {
             const choice = await showRecurringDeleteChoice();
             if (!choice) return;
-            if (choice === 'all') {
-              const parentId = event.recurringParentId || event.id;
-              const updated = (widget.config.events || []).filter(
-                (ev) =>
-                  !(
-                    ev.recurringParentId === parentId ||
-                    ev.id === parentId
-                  ),
-              );
-              updateWidgetConfig(widgetId, { events: updated }, true);
-            } else {
-              const updated = (widget.config.events || []).filter(
-                (ev) => ev.id !== eventId,
-              );
-              updateWidgetConfig(widgetId, { events: updated }, true);
-            }
+            const updated = deleteEvent(widget.config.events || [], eventId, true, choice);
+            updateWidgetConfig(widgetId, { events: updated }, true);
           } else {
-            const updated = (widget.config.events || []).filter(
-              (ev) => ev.id !== eventId,
-            );
+            const updated = deleteEvent(widget.config.events || [], eventId, false);
             updateWidgetConfig(widgetId, { events: updated }, true);
           }
           renderSingleWidget(widgetId);

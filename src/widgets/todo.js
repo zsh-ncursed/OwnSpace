@@ -2,6 +2,26 @@ import { escapeHtml } from '../ui/escape.js';
 
 export const WIDGET_TYPE = 'todo';
 
+export function addTask(tasks, text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return tasks;
+  return [...tasks, { id: crypto.randomUUID(), text: trimmed, done: false }];
+}
+
+export function toggleTask(tasks, taskId) {
+  return tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t));
+}
+
+export function renameTask(tasks, taskId, text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return tasks;
+  return tasks.map((t) => (t.id === taskId ? { ...t, text: trimmed } : t));
+}
+
+export function deleteTask(tasks, taskId) {
+  return tasks.filter((t) => t.id !== taskId);
+}
+
 export function renderTodoWidget(widget) {
   const tasks = widget.config.tasks || [];
   const pending = tasks.filter((t) => !t.done).length;

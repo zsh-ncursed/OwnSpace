@@ -40,6 +40,28 @@ export function eventColor(_id, index, customColor) {
   return `hsl(${hue} 70% 58%)`;
 }
 
+export function shiftMonth(viewYear, viewMonth, delta) {
+  let m = viewMonth + delta;
+  let y = viewYear;
+  if (m < 0) { m = 11; y--; }
+  else if (m > 11) { m = 0; y++; }
+  return { viewYear: y, viewMonth: m, selectedDay: null };
+}
+
+export function deleteEvent(events, eventId, isRecurring, choice) {
+  if (!isRecurring) {
+    return events.filter((e) => e.id !== eventId);
+  }
+  if (choice === 'all') {
+    const event = events.find((e) => e.id === eventId);
+    const parentId = event?.recurringParentId || event?.id || eventId;
+    return events.filter((e) =>
+      !(e.recurringParentId === parentId || e.id === parentId),
+    );
+  }
+  return events.filter((e) => e.id !== eventId);
+}
+
 export function advanceDate(date, type, interval) {
   switch (type) {
     case 'seconds':
