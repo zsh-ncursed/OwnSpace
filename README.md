@@ -1,4 +1,4 @@
-Ош# OwnSpace Browser Extension
+## OwnSpace Browser Extension
 
 Local start page replacement with customizable widgets — аналог start.me без облачного бэкенда.
 
