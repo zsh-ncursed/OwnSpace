@@ -1,4 +1,5 @@
 // Vitest setup — polyfill localStorage + mock browser API for jsdom env
+import { beforeEach } from 'vitest';
 
 // jsdom doesn't always hoist localStorage to globalThis; define an in-memory polyfill.
 const _store = new Map();

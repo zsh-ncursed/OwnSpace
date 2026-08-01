@@ -15,8 +15,14 @@ export async function exportData(encrypted = false, password = null) {
   const data = { workspaces, settings: { theme: settings.theme }, caldav };
 
   if (encrypted && password) {
-    const enc = await encryptJson(JSON.stringify(data), password);
-    return JSON.stringify({ iv: enc.iv, data: enc.data, encrypted: true });
+    // encryptJson JSON.stringifies internally — no double-encoding here.
+    const enc = await encryptJson(data, password);
+    return JSON.stringify({
+      salt: enc.salt,
+      iv: enc.iv,
+      data: enc.data,
+      encrypted: true,
+    });
   }
   return JSON.stringify(data, null, 2);
 }
@@ -27,10 +33,13 @@ export async function importData(jsonString, password = null) {
     const parsed = JSON.parse(jsonString);
     if (parsed.encrypted && password) {
       const dec = await decryptJson(
-        { iv: parsed.iv, data: parsed.data },
+        { salt: parsed.salt, iv: parsed.iv, data: parsed.data },
         password,
       );
-      data = JSON.parse(dec);
+      // decryptJson already JSON.parses the plaintext once. New exports decrypt
+      // straight to the object; legacy pre-simplification exports were double-
+      // encoded (a string of a string) and need one more parse.
+      data = typeof dec === 'string' ? JSON.parse(dec) : dec;
     } else {
       data = parsed;
     }

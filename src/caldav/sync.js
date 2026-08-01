@@ -5,7 +5,7 @@ import { showNotification } from '../ui/modals.js';
 import { browserMessaging } from '../export-import.js';
 import {
   loadCalDAVCredentialsDecrypted,
-  getMasterPasswordHash,
+  getMasterPasswordData,
   showChangeMasterPasswordModal,
   ensureMasterPassword,
 } from './master-password.js';
@@ -215,7 +215,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
 
 export async function showCalDAVSyncSettings() {
   const existing = await loadCalDAVCredentialsDecrypted();
-  const hasMasterPassword = !!(await getMasterPasswordHash());
+  const hasMasterPassword = !!(await getMasterPasswordData());
 
   const menu = document.createElement('div');
   menu.className = 'modal-overlay';

@@ -30,8 +30,8 @@ ownspace/
 ├── eslint.config.js           # ESLint flat config
 ├── package.json               # Dependencies & scripts
 ├── background/
-│   ├── background.html        # Background service worker
-│   └── sync-worker.js         # CalDAV sync worker
+│   ├── sync-worker.js         # MV3 background service worker (CalDAV sync, tab pin/redirect)
+│   └── ics-parser.js          # iCalendar (ICS) parsing helpers (shared with tests)
 ├── src/
 │   ├── app.js                 # Init: imports + initApp (~40 строк)
 │   ├── state.js               # Reactive state + getActiveWorkspace
@@ -215,7 +215,8 @@ bash build.sh
 ## Security
 
 - **`host_permissions: ["<all_urls>"]`** — требуется для `fetchTitle` (загрузка `<title>` любой закладки) и CalDAV-синхронизации с произвольным сервером. Сужение до конкретных доменов невозможно: URL закладок и CalDAV-серверов определяются пользователем. Альтернатива `optional_host_permissions` + динамический запрос прав ломает UX (подтверждение для каждого сайта).
-- **CalDAV-учётные данные** — шифруются AES-GCM через мастер-пароль (PBKDF2 100k iterations, SHA-256). Мастер-пароль кэшируется в памяти модульной переменной 15 минут (TTL), после чего автоматически сбрасывается. Кэш не персистится на диск.
+- **CalDAV-учётные данные** — шифруются AES-GCM через мастер-пароль (PBKDF2 100k iterations, SHA-256). Хеш мастер-пароля для проверки — PBKDF2-SHA-256 со случайной солью (не сырой SHA-256); легаси-хеши автоматически мигрируют при первом успешном вводе пароля. Мастер-пароль кэшируется в памяти модульной переменной 15 минут (TTL), после чего автоматически сбрасывается. Кэш не персистится на диск.
+- **Экспорт с паролем** — файлы шифруются AES-GCM (PBKDF2 100k iterations, SHA-256) со **случайной солью на каждый файл** (соль хранится вместе с шифротекстом). Файлы, созданные до введения случайной соли, по-прежнему импортируются (фолбэк на фиксированную легаси-соль).
 - **URL-валидация** — `safeUrl()` пропускает только http/https URL в `src`/`href` атрибутах. `javascript:`, `data:` и строки с кавычками отклоняются. Защищает от XSS-инъекции через импорт закладок и favicon.
 
 ## License

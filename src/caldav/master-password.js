@@ -1,4 +1,10 @@
-import { sha256Hex, encryptJson, decryptJson } from '../crypto.js';
+import {
+  sha256Hex,
+  encryptJson,
+  decryptJson,
+  deriveMasterPasswordHash,
+  verifyMasterPassword,
+} from '../crypto.js';
 import {
   getSettings,
   saveSettings,
@@ -31,14 +37,28 @@ export function clearMasterPasswordCache() {
   }
 }
 
-export async function getMasterPasswordHash() {
+// Stored value is either a legacy plain SHA-256 hex string (auto-migrated to
+// PBKDF2 on first successful login) or a PBKDF2 record
+// { salt, hash, iterations } from deriveMasterPasswordHash().
+export async function getMasterPasswordData() {
   const s = await getSettings();
   return s.masterPasswordHash || '';
 }
 
-async function setMasterPasswordHash(hash) {
+async function setMasterPasswordData(data) {
   const s = await getSettings();
-  await saveSettings({ ...s, masterPasswordHash: hash });
+  await saveSettings({ ...s, masterPasswordHash: data });
+}
+
+// Verifies a password against the stored format. Legacy hex records verify via
+// sha256Hex and are transparently upgraded to the PBKDF2 format in storage.
+async function verifyStoredMasterPassword(pw, stored) {
+  if (typeof stored === 'string') {
+    if ((await sha256Hex(pw)) !== stored) return false;
+    await setMasterPasswordData(await deriveMasterPasswordHash(pw));
+    return true;
+  }
+  return verifyMasterPassword(pw, stored);
 }
 
 function showSetupMasterPasswordModal() {
@@ -78,7 +98,7 @@ function showSetupMasterPasswordModal() {
     modal.querySelector('#mp-save').addEventListener('click', () => {
       const pw = newInput.value;
       const confirm = confirmInput.value;
-      if (!pw || pw.length < 4) {
+      if (!pw || pw.length < 6) {
         errorEl.textContent = t('modal.mp.too_short');
         return;
       }
@@ -152,12 +172,12 @@ export async function ensureMasterPassword() {
     return cachedMasterPassword;
   }
 
-  const hash = await getMasterPasswordHash();
-  if (!hash) {
+  const stored = await getMasterPasswordData();
+  if (!stored) {
     const pw = await showSetupMasterPasswordModal();
     if (!pw) return null;
-    const newHash = await sha256Hex(pw);
-    await setMasterPasswordHash(newHash);
+    const data = await deriveMasterPasswordHash(pw);
+    await setMasterPasswordData(data);
     cacheMasterPassword(pw);
     return pw;
   }
@@ -167,8 +187,7 @@ export async function ensureMasterPassword() {
   while (attempt < 3) {
     const pw = await showPromptMasterPasswordModal(message);
     if (pw === null) return null;
-    const candidateHash = await sha256Hex(pw);
-    if (candidateHash === hash) {
+    if (await verifyStoredMasterPassword(pw, stored)) {
       cacheMasterPassword(pw);
       return pw;
     }
@@ -222,7 +241,7 @@ export function showChangeMasterPasswordModal() {
         errorEl.textContent = t('modal.caldav.fill_all');
         return;
       }
-      if (newPw.length < 4) {
+      if (newPw.length < 6) {
         errorEl.textContent = t('modal.mp.too_short');
         return;
       }
@@ -231,9 +250,11 @@ export function showChangeMasterPasswordModal() {
         return;
       }
 
-      const storedHash = await getMasterPasswordHash();
-      const oldHash = await sha256Hex(oldPw);
-      if (oldHash !== storedHash) {
+      const storedData = await getMasterPasswordData();
+      if (
+        !storedData ||
+        !(await verifyStoredMasterPassword(oldPw, storedData))
+      ) {
         errorEl.textContent = t('modal.mp.wrong_old');
         return;
       }
@@ -247,14 +268,14 @@ export function showChangeMasterPasswordModal() {
             url: stored.url,
             encryptedCreds: reEncrypted,
           });
-        } catch (e) {
+        } catch {
           errorEl.textContent = t('modal.mp.decrypt_fail');
           return;
         }
       }
 
-      const newHash = await sha256Hex(newPw);
-      await setMasterPasswordHash(newHash);
+      const newData = await deriveMasterPasswordHash(newPw);
+      await setMasterPasswordData(newData);
       cacheMasterPassword(newPw);
       cleanup(true);
     });
