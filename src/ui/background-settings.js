@@ -1,6 +1,8 @@
 import { getActiveWorkspace } from '../state.js';
 import { updateWorkspace } from '../workspaces.js';
 import { renderWidgetGrid } from '../render/grid.js';
+import { escapeHtml } from '../ui/escape.js';
+import { state } from '../state.js';
 
 async function compressImage(file) {
   return new Promise((resolve, reject) => {
@@ -76,14 +78,14 @@ export function showBackgroundSettings() {
           <input type="radio" name="bg-type" value="gradient" ${bg.type === 'gradient' ? 'checked' : ''} />
           Градиент
         </label>
-        <input type="text" id="bg-gradient" placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" value="${bg.type === 'gradient' ? bg.value : ''}" />
+        <input type="text" id="bg-gradient" placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" value="${escapeHtml(bg.type === 'gradient' ? bg.value : '')}" />
 
         <label>
           <input type="radio" name="bg-type" value="image" ${bg.type === 'image' ? 'checked' : ''} />
           Изображение
         </label>
         <input type="file" id="bg-image" accept="image/*" />
-        ${bg.type === 'image' ? `<img src="${bg.value}" style="max-width: 100px; max-height: 100px;" />` : ''}
+        ${bg.type === 'image' ? `<img src="${escapeHtml(bg.value)}" style="max-width: 100px; max-height: 100px;" />` : ''}
       </div>
       <button id="save-bg">Сохранить</button>
       <button class="modal-close" id="close-bg">Отмена</button>
@@ -104,6 +106,20 @@ export function showBackgroundSettings() {
       const fileInput = menu.querySelector('#bg-image');
       if (fileInput.files.length > 0) {
         value = await compressImage(fileInput.files[0]);
+        // ponytail: check storage budget — base64 images × N workspaces can exceed quota
+        const estBytes = new Blob([value]).size;
+        const otherBgs = state.workspaces
+          .filter((ws) => ws.id !== workspace.id && ws.background?.type === 'image')
+          .reduce((sum, ws) => sum + new Blob([ws.background.value]).size, 0);
+        const totalEst = estBytes + otherBgs;
+        const QUOTA_BYTES = 10 * 1024 * 1024;
+        if (totalEst > QUOTA_BYTES * 0.9) {
+          const usedMB = (totalEst / 1024 / 1024).toFixed(1);
+          const limitMB = (QUOTA_BYTES / 1024 / 1024).toFixed(0);
+          if (!confirm(`Фоновые изображения займут ~${usedMB} МБ из ${limitMB} МБ хранилища. При превышении квоты данные могут быть потеряны. Продолжить?`)) {
+            return;
+          }
+        }
       } else {
         value = bg.value;
       }

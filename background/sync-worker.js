@@ -183,20 +183,6 @@ class CalDAVClient {
     return events;
   }
 
-  async createEvent(calendarUrl, event) {
-    const ics = serializeICS(event);
-    const path = `${calendarUrl}${event.uid}.ics`;
-
-    await this.request(CALDAV_OPERATIONS.PUT, path, ics);
-  }
-
-  async updateEvent(calendarUrl, event) {
-    const ics = serializeICS(event);
-    const path = `${calendarUrl}${event.uid}.ics`;
-
-    await this.request(CALDAV_OPERATIONS.PUT, path, ics);
-  }
-
   async deleteEvent(calendarUrl, eventUid) {
     const path = `${calendarUrl}${eventUid}.ics`;
     await this.request(CALDAV_OPERATIONS.DELETE, path);

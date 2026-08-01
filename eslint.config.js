@@ -42,6 +42,7 @@ export default [
         Event: 'readonly',
         CustomEvent: 'readonly',
         EventTarget: 'readonly',
+        confirm: 'readonly',
       },
     },
     rules: {

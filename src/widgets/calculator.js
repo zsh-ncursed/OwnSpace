@@ -26,7 +26,7 @@ const CALC_BUTTONS = [
 ];
 
 function formatCalcNumber(n) {
-  if (typeof n !== 'number' || !isFinite(n)) return '';
+  if (typeof n !== 'number' || !isFinite(n)) return 'Ошибка';
   if (Math.abs(n) >= 1e12 || (Math.abs(n) > 0 && Math.abs(n) < 1e-9)) {
     return n.toExponential(6).replace(/\.?0+e/, 'e');
   }
@@ -148,6 +148,16 @@ function calcInput(widget, el, st, key) {
     const value = parseFloat(st.current);
     const result = calcApplyOp(st.accumulator, st.operator, value, false);
     const expr = `${formatCalcNumber(st.accumulator)} ${st.operator} ${formatCalcNumber(value)}`;
+    if (!isFinite(result)) {
+      st.current = 'Ошибка';
+      st.accumulator = null;
+      st.operator = null;
+      st.lastWasOperator = false;
+      st.lastWasEquals = true;
+      display.textContent = st.current;
+      if (historyEl) historyEl.textContent = expr;
+      return;
+    }
     const history = (widget.config.history || []).slice(-9);
     history.push({ expr, result });
     updateWidgetConfig(widget.id, { history, last: result }, true);

@@ -92,7 +92,10 @@ export function calcMonthFinance(events, now = new Date()) {
     if (!e.date || !e.date.startsWith(monthPrefix)) continue;
     const started = e.time
       ? (() => {
-          const ms = new Date(`${e.date}T${e.time}`).getTime();
+          const [y, m, d] = e.date.split('-').map(Number);
+          const [hh, mm] = e.time.split(':').map(Number);
+          if (!y || !m || !d) return false;
+          const ms = new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
           return !isNaN(ms) && ms <= nowMs;
         })()
       : e.date <= todayDateStr;
