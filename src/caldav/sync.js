@@ -201,7 +201,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
   } catch (e) {
     overlay.querySelector('.modal').innerHTML = `
       <h3>Ошибка</h3>
-      <p>${e.message}</p>
+      <p>${escapeHtml(e.message)}</p>
       <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
     `;
     overlay

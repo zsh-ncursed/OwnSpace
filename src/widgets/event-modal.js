@@ -1,4 +1,4 @@
-import { localDateStr, eventDateKey } from '../utils/date.js';
+import { eventDateKey } from '../utils/date.js';
 import { escapeHtml } from '../ui/escape.js';
 import { showConfirm } from '../ui/modals.js';
 import { state } from '../state.js';

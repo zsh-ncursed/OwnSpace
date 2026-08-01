@@ -74,12 +74,6 @@ browser.runtime.onInstalled.addListener(() => {
 
 browser.tabs.onCreated.addListener(maybeRedirectNewTab);
 
-browser.runtime.onMessage.addListener((message) => {
-  if (message?.type === 'PIN_TAB_NOW') {
-    ensurePinnedOwnSpaceTab();
-  }
-});
-
 // CalDAV Sync
 
 const CALDAV_OPERATIONS = {
@@ -337,6 +331,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       let result;
 
       switch (type) {
+        case 'PIN_TAB_NOW':
+          ensurePinnedOwnSpaceTab();
+          result = { success: true };
+          break;
+
         case 'configure':
           result = { success: true };
           break;
