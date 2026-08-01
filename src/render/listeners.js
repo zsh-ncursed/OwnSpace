@@ -9,7 +9,7 @@ import {
   widgetSortableInstances,
 } from '../sortable.js';
 import { updateWidgetConfig, removeWidget } from '../widgets/management.js';
-import { renderWidgetGrid } from './grid.js';
+import { renderWidgetGrid, renderWidget } from './grid.js';
 import { showConfirm, showRecurringDeleteChoice, showNotification } from '../ui/modals.js';
 import { addWidget } from '../widgets/management.js';
 import { fetchWeather } from '../widgets/weather.js';
@@ -18,6 +18,47 @@ import { state } from '../state.js';
 import { syncCalDAVEvents, showCalDAVCalendarPicker } from '../caldav/sync.js';
 import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.js';
 import { setupCalculatorWidget } from '../widgets/calculator.js';
+
+// ponytail: single ticker for all datetime widgets — survives re-renders,
+// skips detached nodes (querySelector finds none); replaces per-render setInterval leak.
+let _datetimeTicker = null;
+function ensureDatetimeTicker() {
+  if (_datetimeTicker) return;
+  _datetimeTicker = setInterval(() => {
+    document.querySelectorAll('.datetime-widget').forEach((el) => {
+      if (!el.isConnected) return;
+      updateDateTime(el);
+    });
+  }, 30000);
+}
+
+// ponytail: re-render only one widget card instead of the whole grid.
+// Preserves focus/scroll in all other widgets. Re-binds listeners for the card.
+function renderSingleWidget(widgetId) {
+  const oldEl = document.querySelector(`.widget[data-widget-id="${CSS.escape(widgetId)}"]`);
+  if (!oldEl || !oldEl.isConnected) {
+    renderWidgetGrid();
+    return;
+  }
+  const workspace = getActiveWorkspace();
+  const widget = workspace?.widgets.find((w) => w.id === widgetId);
+  if (!widget) {
+    renderWidgetGrid();
+    return;
+  }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderWidget(widget);
+  const newEl = tmp.firstElementChild;
+  oldEl.replaceWith(newEl);
+  // re-bind listeners for just this card
+  setupWidgetListeners(newEl);
+  const calcEl = newEl.querySelector('.calculator-widget');
+  if (calcEl) {
+    const calcWidget = workspace.widgets.find((w) => w.id === widgetId);
+    if (calcWidget) setupCalculatorWidget(calcEl, calcWidget);
+  }
+  ensureDatetimeTicker();
+}
 
 export function setupWidgetListeners(container) {
   container.querySelectorAll('.bookmarks-widget').forEach((el) => {
@@ -214,7 +255,6 @@ export function setupWidgetListeners(container) {
 
   container.querySelectorAll('.datetime-widget').forEach((el) => {
     updateDateTime(el);
-    setInterval(() => updateDateTime(el), 30000);
   });
 
   container.querySelectorAll('.todo-widget').forEach((el) => {
@@ -237,9 +277,9 @@ export function setupWidgetListeners(container) {
           ...(w.config.tasks || []),
           { id: crypto.randomUUID(), text, done: false },
         ];
-        updateWidgetConfig(widgetId, { tasks });
+        updateWidgetConfig(widgetId, { tasks }, true);
         input.value = '';
-        renderWidgetGrid();
+        renderSingleWidget(widgetId);
       });
     }
     const todoNewInput = el.querySelector('.todo-new-input');
@@ -263,8 +303,8 @@ export function setupWidgetListeners(container) {
           const tasks = (w.config.tasks || []).map((t) =>
             t.id === taskId ? { ...t, done: !t.done } : t,
           );
-          updateWidgetConfig(widgetId, { tasks });
-          renderWidgetGrid();
+          updateWidgetConfig(widgetId, { tasks }, true);
+          renderSingleWidget(widgetId);
         });
 
       item.querySelector('.todo-text').addEventListener('change', () => {
@@ -275,7 +315,7 @@ export function setupWidgetListeners(container) {
         const tasks = (w.config.tasks || []).map((t) =>
           t.id === taskId ? { ...t, text } : t,
         );
-        updateWidgetConfig(widgetId, { tasks });
+        updateWidgetConfig(widgetId, { tasks }, true);
       });
 
       item.querySelector('.todo-delete').addEventListener('click', () => {
@@ -284,8 +324,8 @@ export function setupWidgetListeners(container) {
         const tasks = (w.config.tasks || []).filter(
           (t) => t.id !== taskId,
         );
-        updateWidgetConfig(widgetId, { tasks });
-        renderWidgetGrid();
+        updateWidgetConfig(widgetId, { tasks }, true);
+        renderSingleWidget(widgetId);
       });
     });
   });
@@ -397,8 +437,8 @@ export function setupWidgetListeners(container) {
         viewYear: y,
         viewMonth: m,
         selectedDay: null,
-      });
-      renderWidgetGrid();
+      }, true);
+      renderSingleWidget(widgetId);
     });
 
     el.querySelector('.next-month')?.addEventListener('click', () => {
@@ -412,8 +452,8 @@ export function setupWidgetListeners(container) {
         viewYear: y,
         viewMonth: m,
         selectedDay: null,
-      });
-      renderWidgetGrid();
+      }, true);
+      renderSingleWidget(widgetId);
     });
 
     el.querySelectorAll('.calendar-day:not(.empty)').forEach((dayEl) => {
@@ -429,8 +469,8 @@ export function setupWidgetListeners(container) {
           return;
         }
         const day = parseInt(dayEl.dataset.day, 10);
-        updateWidgetConfig(widgetId, { selectedDay: day });
-        renderWidgetGrid();
+        updateWidgetConfig(widgetId, { selectedDay: day }, true);
+        renderSingleWidget(widgetId);
       });
     });
 
@@ -469,20 +509,20 @@ export function setupWidgetListeners(container) {
                     ev.id === parentId
                   ),
               );
-              updateWidgetConfig(widgetId, { events: updated });
+              updateWidgetConfig(widgetId, { events: updated }, true);
             } else {
               const updated = (widget.config.events || []).filter(
                 (ev) => ev.id !== eventId,
               );
-              updateWidgetConfig(widgetId, { events: updated });
+              updateWidgetConfig(widgetId, { events: updated }, true);
             }
           } else {
             const updated = (widget.config.events || []).filter(
               (ev) => ev.id !== eventId,
             );
-            updateWidgetConfig(widgetId, { events: updated });
+            updateWidgetConfig(widgetId, { events: updated }, true);
           }
-          renderWidgetGrid();
+          renderSingleWidget(widgetId);
         });
     });
 
@@ -495,7 +535,7 @@ export function setupWidgetListeners(container) {
       if (!ok && !widget.config.caldavCalendarHref) {
         showCalDAVCalendarPicker(widgetId);
       }
-      if (ok) renderWidgetGrid();
+      if (ok) renderSingleWidget(widgetId);
     });
   });
 
@@ -505,6 +545,8 @@ export function setupWidgetListeners(container) {
     const widget = workspace?.widgets.find((w) => w.id === widgetId);
     if (widget) setupCalculatorWidget(el, widget);
   });
+
+  ensureDatetimeTicker();
 }
 
 export function updateDateTime(el) {
@@ -540,7 +582,7 @@ export function toggleWidgetPin(widgetId) {
     widgets: updatedWidgets,
   };
   saveWorkspaces(state.workspaces);
-  renderWidgetGrid();
+  renderSingleWidget(widgetId);
 }
 
 export function setupWidgetColumnSortable() {
@@ -658,5 +700,5 @@ document.addEventListener('click', (e) => {
   const bookmarkExpanded = window._bookmarkExpanded || {};
   const widgetId = btn.dataset.bookmarkWidgetId;
   bookmarkExpanded[widgetId] = !bookmarkExpanded[widgetId];
-  renderWidgetGrid();
+  renderSingleWidget(widgetId);
 });

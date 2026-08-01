@@ -10,6 +10,7 @@ export default [
         browser: 'readonly',
         localStorage: 'readonly',
         crypto: 'readonly',
+        CSS: 'readonly',
         window: 'readonly',
         document: 'readonly',
         console: 'readonly',
