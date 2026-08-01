@@ -53,13 +53,11 @@ function renderSingleWidget(widgetId) {
   tmp.innerHTML = renderWidget(widget);
   const newEl = tmp.firstElementChild;
   oldEl.replaceWith(newEl);
-  // re-bind listeners for just this card
+  // Re-bind listeners for just this card. setupWidgetListeners() already wires
+  // the calculator (and every other widget type) via querySelectorAll, so we
+  // must NOT call setupCalculatorWidget() again here — that double-binds
+  // keydown/click handlers (every keystroke would fire twice).
   setupWidgetListeners(newEl);
-  const calcEl = newEl.querySelector('.calculator-widget');
-  if (calcEl) {
-    const calcWidget = workspace.widgets.find((w) => w.id === widgetId);
-    if (calcWidget) setupCalculatorWidget(calcEl, calcWidget);
-  }
   ensureDatetimeTicker();
 }
 

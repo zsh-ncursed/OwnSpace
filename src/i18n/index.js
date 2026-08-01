@@ -1,7 +1,7 @@
 import { storage } from '../storage.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
-import en from './en.json';
-import ru from './ru.json';
+import en from './en.js';
+import ru from './ru.js';
 
 const DICTS = { en, ru };
 const FALLBACK = 'en';

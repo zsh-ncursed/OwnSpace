@@ -70,7 +70,8 @@ async function initWidgetToggles(appSettings) {
     body.className = 'option-body';
     const title = document.createElement('div');
     title.className = 'option-title';
-    title.textContent = t('widget.' + type + '.title');
+    const i18nType = type === 'date' ? 'datetime' : type;
+    title.textContent = t('widget.' + i18nType + '.title');
     body.appendChild(title);
     label.appendChild(checkbox);
     label.appendChild(box);
