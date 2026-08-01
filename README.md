@@ -221,4 +221,4 @@ bash build.sh
 
 ## License
 
-GPT3
+GPL-3.0 — see [LICENSE](LICENSE).
