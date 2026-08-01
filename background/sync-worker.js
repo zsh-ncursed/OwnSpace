@@ -39,12 +39,10 @@ async function ensurePinnedOwnSpaceTab() {
           await browser.tabs.update(tab.id, { pinned: true });
         }
       }
-      console.log('[OwnSpace] pinned existing tab');
       return;
     }
 
     await browser.tabs.create({ url, pinned: true, active: false });
-    console.log('[OwnSpace] created and pinned new tab');
   } catch (e) {
     console.warn('[OwnSpace] could not pin tab', e);
   }
@@ -66,19 +64,16 @@ async function maybeRedirectNewTab(tab) {
 
     const ownUrl = getOwnSpaceUrl();
     await browser.tabs.update(tab.id, { url: ownUrl });
-    console.log(`[OwnSpace] redirected new tab ${targetUrl} -> ${ownUrl}`);
   } catch (e) {
     console.warn('[OwnSpace] could not redirect tab', e);
   }
 }
 
 browser.runtime.onStartup.addListener(() => {
-  console.log('[OwnSpace] onStartup');
   ensurePinnedOwnSpaceTab();
 });
 
 browser.runtime.onInstalled.addListener(() => {
-  console.log('[OwnSpace] onInstalled');
   ensurePinnedOwnSpaceTab();
 });
 
@@ -95,6 +90,9 @@ const CALDAV_OPERATIONS = {
 
 class CalDAVClient {
   constructor(baseUrl, username, password) {
+    if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
+      throw new Error('CalDAV URL must be http(s)');
+    }
     this.baseUrl = baseUrl;
     this.username = username;
     this.password = password;
@@ -247,25 +245,30 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break;
         }
 
-        case 'fetchTitle':
-          console.log('[BG] fetchTitle received, url:', payload?.url);
+        case 'fetchTitle': {
+          const fetchUrl = payload?.url;
+          // Defence-in-depth: only http/https URLs. The caller already validates
+          // via new URL() + http(s) prefix, but the SW is a trust boundary —
+          // never fetch an arbitrary string sent over a message.
+          if (!fetchUrl || !/^https?:\/\//.test(fetchUrl)) {
+            result = { title: null, error: 'invalid url' };
+            break;
+          }
           try {
-            // Background page can fetch without CORS restrictions
-            const response = await fetch(payload.url);
-            console.log('[BG] fetch status:', response.status);
+            // Background SW fetches without CORS restrictions
+            const response = await fetch(fetchUrl);
             if (response.ok) {
               const html = await response.text();
               const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-              console.log('[BG] title match:', match ? match[1] : null);
               result = { title: match ? match[1].trim() : null };
             } else {
               result = { title: null, error: 'HTTP ' + response.status };
             }
           } catch (e) {
-            console.log('[BG] fetch error:', e.message);
             result = { title: null, error: e.message };
           }
           break;
+        }
 
         default:
           throw new Error(`Unknown message type: ${type}`);
@@ -280,4 +283,3 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Keep channel open for async response
 });
 
-console.log('OwnSpace background script loaded');

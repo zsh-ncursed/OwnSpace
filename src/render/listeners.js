@@ -122,7 +122,6 @@ export function setupWidgetListeners(container) {
         const bookmarks = widget.config.bookmarks || [];
 
         let title = fullUrl;
-        let titleSource = 'hostname';
 
         try {
           const response = await browserMessaging.sendMessage({
@@ -131,26 +130,9 @@ export function setupWidgetListeners(container) {
           });
           if (response.success && response.result?.title) {
             title = response.result.title;
-            titleSource = 'fetched';
           }
         } catch {
-          /* browserMessaging not available */
-        }
-
-        if (titleSource !== 'fetched') {
-          try {
-            const resp = await fetch(fullUrl, { mode: 'cors' });
-            if (resp.ok) {
-              const html = await resp.text();
-              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-              if (match) {
-                title = match[1].trim();
-                titleSource = 'fetched';
-              }
-            }
-          } catch {
-            /* fetch failed */
-          }
+          /* browserMessaging not available — fall back to hostname as title */
         }
 
         const newBookmark = {
