@@ -29,6 +29,7 @@ export default [
         location: 'readonly',
         TextEncoder: 'readonly',
         TextDecoder: 'readonly',
+        structuredClone: 'readonly',
         requestAnimationFrame: 'readonly',
         Headers: 'readonly',
         atob: 'readonly',

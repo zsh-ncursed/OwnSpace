@@ -143,6 +143,22 @@ export function generateRecurringEvents(baseEvent, recurringConfig) {
   return instances;
 }
 
+export function upsertEventWithRecurring(events, newEvent) {
+  const updated = (events || []).filter(
+    (e) => e.recurringParentId !== newEvent.id,
+  );
+  const idx = updated.findIndex((e) => e.id === newEvent.id);
+  if (idx !== -1) {
+    updated[idx] = newEvent;
+  } else {
+    updated.push(newEvent);
+  }
+  if (newEvent.recurring && newEvent.recurring.type !== 'none') {
+    updated.push(...generateRecurringEvents(newEvent, newEvent.recurring));
+  }
+  return updated;
+}
+
 export function renderCalendarWidget(widget) {
   const now = new Date();
   const viewYear = widget.config.viewYear ?? now.getFullYear();

@@ -5,6 +5,7 @@ import {
   advanceDate,
   isCustomRecurring,
   generateRecurringEvents,
+  upsertEventWithRecurring,
   calcMonthFinance,
 } from '../src/widgets/calendar.js';
 
@@ -213,6 +214,97 @@ describe('migrateEvent — money fields', () => {
       moneyType: 'invalid', money: 100,
     });
     expect(result.moneyType).toBeUndefined();
+  });
+});
+
+describe('upsertEventWithRecurring', () => {
+  it('adds a new simple event', () => {
+    const ev = { id: 'a', title: 'A', date: '2026-07-05' };
+    const r = upsertEventWithRecurring([], ev);
+    expect(r).toHaveLength(1);
+    expect(r[0].id).toBe('a');
+  });
+
+  it('replaces an existing event by id', () => {
+    const events = [{ id: 'a', title: 'Old', date: '2026-07-05' }];
+    const ev = { id: 'a', title: 'New', date: '2026-07-06' };
+    const r = upsertEventWithRecurring(events, ev);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toEqual(ev);
+  });
+
+  it('does not mutate the input array', () => {
+    const events = [{ id: 'a', title: 'A', date: '2026-07-05' }];
+    upsertEventWithRecurring(events, {
+      id: 'b',
+      title: 'B',
+      date: '2026-07-06',
+    });
+    expect(events).toHaveLength(1);
+  });
+
+  it('regenerates instances and drops stale ones on edit', () => {
+    const base = {
+      id: 'base',
+      title: 'T',
+      date: '2026-07-01',
+      time: '09:00',
+      recurring: { type: 'daily', interval: 1 },
+    };
+    const first = upsertEventWithRecurring([], base);
+    const before = first.length;
+
+    const edited = { ...base, title: 'Edited' };
+    const second = upsertEventWithRecurring(first, edited);
+
+    expect(second.filter((e) => e.title === 'T')).toHaveLength(0);
+    expect(second.filter((e) => e.title === 'Edited')).toHaveLength(before);
+    expect(second).toHaveLength(before);
+  });
+
+  it('removes instances when recurrence is cancelled', () => {
+    const base = {
+      id: 'base',
+      title: 'T',
+      date: '2026-07-01',
+      time: '09:00',
+      recurring: { type: 'daily', interval: 1 },
+    };
+    const first = upsertEventWithRecurring([], base);
+
+    const nonRecurring = {
+      id: 'base',
+      title: 'T',
+      date: '2026-07-01',
+      time: '09:00',
+    };
+    const second = upsertEventWithRecurring(first, nonRecurring);
+    expect(second).toHaveLength(1);
+    expect(second[0].recurring).toBeUndefined();
+  });
+
+  it('does not drop instances of other series', () => {
+    const baseA = {
+      id: 'a',
+      title: 'A',
+      date: '2026-07-01',
+      time: '09:00',
+      recurring: { type: 'daily', interval: 1 },
+    };
+    const baseB = {
+      id: 'b',
+      title: 'B',
+      date: '2026-07-01',
+      time: '10:00',
+      recurring: { type: 'daily', interval: 1 },
+    };
+    const first = upsertEventWithRecurring(
+      upsertEventWithRecurring([], baseA),
+      baseB,
+    );
+    const editedA = { ...baseA, title: 'A2' };
+    const second = upsertEventWithRecurring(first, editedA);
+    expect(second.filter((e) => e.recurringParentId === 'b').length).toBeGreaterThan(0);
   });
 });
 
