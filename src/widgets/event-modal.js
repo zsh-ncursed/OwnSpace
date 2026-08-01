@@ -3,7 +3,7 @@ import { escapeHtml } from '../ui/escape.js';
 import { showConfirm } from '../ui/modals.js';
 import { state } from '../state.js';
 import { updateWidgetConfig } from './management.js';
-import { generateRecurringEvents } from './calendar.js';
+import { upsertEventWithRecurring } from './calendar.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { deleteWorkspace } from '../workspaces.js';
 
@@ -227,21 +227,10 @@ export function showEventModal(widget, existingEvent) {
       money: hasMoney ? moneyAmount : null,
     };
 
-    let events = widget.config.events || [];
-    const idx = events.findIndex((e) => e.id === event.id);
-    if (idx !== -1) {
-      events[idx] = newEvent;
-    } else {
-      events.push(newEvent);
-    }
-
-    if (newEvent.recurring && newEvent.recurring.type !== 'none') {
-      const recurringInstances = generateRecurringEvents(
-        newEvent,
-        newEvent.recurring,
-      );
-      events.push(...recurringInstances);
-    }
+    const events = upsertEventWithRecurring(
+      widget.config.events || [],
+      newEvent,
+    );
 
     updateWidgetConfig(widget.id, { events });
     overlay.remove();

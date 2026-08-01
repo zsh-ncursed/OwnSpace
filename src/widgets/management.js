@@ -12,7 +12,8 @@ export function getDefaultTitle(type) {
 
 export function getDefaultWidgetConfig(type) {
   const plugin = widgetRegistry.get(type);
-  return plugin ? { ...plugin.defaultConfig } : {};
+  if (!plugin) return {};
+  return structuredClone(plugin.defaultConfig);
 }
 
 export function widgetBgStyle(widget) {
