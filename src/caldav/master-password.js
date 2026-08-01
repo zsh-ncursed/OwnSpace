@@ -7,6 +7,7 @@ import {
 } from '../storage.js';
 import { escapeHtml } from '../ui/escape.js';
 import { showNotification } from '../ui/modals.js';
+import { t } from '../i18n/index.js';
 
 let cachedMasterPassword = null;
 let masterPasswordTimer = null;
@@ -46,22 +47,21 @@ function showSetupMasterPasswordModal() {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal">
-        <h3>Создание мастер-пароля</h3>
+        <h3>${t('modal.mp.create_title')}</h3>
         <p style="margin: 8px 0 16px; opacity: 0.8; font-size: 14px;">
-          Мастер-пароль защищает учётные данные CalDAV. Если вы его забудете —
-          восстановить пароль будет невозможно.
+          ${t('modal.mp.create_hint')}
         </p>
         <div class="caldav-form">
-          <label>Новый пароль:</label>
+          <label>${t('modal.mp.new')}</label>
           <input type="password" id="mp-new" autocomplete="new-password" />
 
-          <label>Повторите пароль:</label>
+          <label>${t('modal.mp.confirm')}</label>
           <input type="password" id="mp-confirm" autocomplete="new-password" />
 
           <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;"></div>
         </div>
-        <button id="mp-save">Создать</button>
-        <button class="modal-close" id="mp-cancel">Отмена</button>
+        <button id="mp-save">${t('modal.mp.save')}</button>
+        <button class="modal-close" id="mp-cancel">${t('common.cancel')}</button>
       </div>
     `;
     document.body.appendChild(modal);
@@ -79,11 +79,11 @@ function showSetupMasterPasswordModal() {
       const pw = newInput.value;
       const confirm = confirmInput.value;
       if (!pw || pw.length < 4) {
-        errorEl.textContent = 'Минимум 4 символа';
+        errorEl.textContent = t('modal.mp.too_short');
         return;
       }
       if (pw !== confirm) {
-        errorEl.textContent = 'Пароли не совпадают';
+        errorEl.textContent = t('modal.mp.empty');
         return;
       }
       cleanup(pw);
@@ -105,16 +105,16 @@ function showPromptMasterPasswordModal(initialMessage = '') {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal">
-        <h3>Введите мастер-пароль</h3>
+        <h3>${t('modal.mp.prompt_title')}</h3>
         <p style="margin: 8px 0 16px; opacity: 0.8; font-size: 14px;">
-          Требуется для доступа к зашифрованным учётным данным CalDAV.
+          ${t('modal.mp.prompt_hint')}
         </p>
         <div class="caldav-form">
           <input type="password" id="mp-prompt" autocomplete="current-password" />
           <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;">${escapeHtml(initialMessage)}</div>
         </div>
-        <button id="mp-ok">Подтвердить</button>
-        <button class="modal-close" id="mp-cancel">Отмена</button>
+        <button id="mp-ok">${t('modal.mp.confirm_btn')}</button>
+        <button class="modal-close" id="mp-cancel">${t('common.cancel')}</button>
       </div>
     `;
     document.body.appendChild(modal);
@@ -173,7 +173,7 @@ export async function ensureMasterPassword() {
       return pw;
     }
     attempt++;
-    message = `Неверный пароль (попытка ${attempt}/3)`;
+    message = t('modal.mp.wrong_attempt', { n: attempt });
   }
   return null;
 }
@@ -184,21 +184,21 @@ export function showChangeMasterPasswordModal() {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal">
-        <h3>Сменить мастер-пароль</h3>
+        <h3>${t('modal.mp.change_title')}</h3>
         <div class="caldav-form">
-          <label>Текущий пароль:</label>
+          <label>${t('modal.mp.old')}</label>
           <input type="password" id="mp-old" autocomplete="current-password" />
 
-          <label>Новый пароль:</label>
+          <label>${t('modal.mp.new')}</label>
           <input type="password" id="mp-new" autocomplete="new-password" />
 
-          <label>Повторите новый пароль:</label>
+          <label>${t('modal.mp.confirm')}</label>
           <input type="password" id="mp-confirm" autocomplete="new-password" />
 
           <div id="mp-error" style="color: var(--accent); min-height: 1em; font-size: 13px;"></div>
         </div>
-        <button id="mp-change">Сменить</button>
-        <button class="modal-close" id="mp-cancel">Отмена</button>
+        <button id="mp-change">${t('modal.mp.change_btn')}</button>
+        <button class="modal-close" id="mp-cancel">${t('common.cancel')}</button>
       </div>
     `;
     document.body.appendChild(modal);
@@ -219,22 +219,22 @@ export function showChangeMasterPasswordModal() {
       const confirm = confirmInput.value;
 
       if (!oldPw || !newPw) {
-        errorEl.textContent = 'Заполните все поля';
+        errorEl.textContent = t('modal.caldav.fill_all');
         return;
       }
       if (newPw.length < 4) {
-        errorEl.textContent = 'Новый пароль: минимум 4 символа';
+        errorEl.textContent = t('modal.mp.too_short');
         return;
       }
       if (newPw !== confirm) {
-        errorEl.textContent = 'Новые пароли не совпадают';
+        errorEl.textContent = t('modal.mp.empty');
         return;
       }
 
       const storedHash = await getMasterPasswordHash();
       const oldHash = await sha256Hex(oldPw);
       if (oldHash !== storedHash) {
-        errorEl.textContent = 'Неверный текущий пароль';
+        errorEl.textContent = t('modal.mp.wrong_old');
         return;
       }
 
@@ -248,8 +248,7 @@ export function showChangeMasterPasswordModal() {
             encryptedCreds: reEncrypted,
           });
         } catch (e) {
-          errorEl.textContent =
-            'Не удалось перешифровать данные: ' + e.message;
+          errorEl.textContent = t('modal.mp.decrypt_fail');
           return;
         }
       }
@@ -287,7 +286,7 @@ export async function loadCalDAVCredentialsDecrypted() {
     } catch (e) {
       console.error('[CalDAV] Decryption failed:', e);
       showNotification(
-        'Не удалось расшифровать CalDAV. Возможно, данные повреждены.',
+        t('modal.mp.decrypt_fail'),
       );
       return null;
     }

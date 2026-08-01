@@ -1,17 +1,16 @@
-// OwnSpace — Options page
+import { initLocale, t, getLang } from '../src/i18n/index.js';
 
 const STORAGE_KEY = 'extensionSettings';
 const APP_SETTINGS_KEY = 'settings';
 
-// Keep in sync with registry.js registered plugins
-const BUILTIN_WIDGETS = [
-  { type: 'bookmarks', title: 'Закладки' },
-  { type: 'notes', title: 'Заметки' },
-  { type: 'date', title: 'Дата и время' },
-  { type: 'weather', title: 'Погода' },
-  { type: 'calendar', title: 'Календарь' },
-  { type: 'todo', title: 'Список задач' },
-  { type: 'calculator', title: 'Калькулятор' },
+const BUILTIN_WIDGET_TYPES = [
+  'bookmarks',
+  'notes',
+  'date',
+  'weather',
+  'calendar',
+  'todo',
+  'calculator',
 ];
 
 const DEFAULTS = {
@@ -41,23 +40,29 @@ let saveTimer = null;
 
 function showSaved() {
   const el = document.getElementById('saveStatus');
-  el.textContent = '✓ Сохранено';
+  el.textContent = t('options.saved');
   el.classList.add('visible');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => el.classList.remove('visible'), 1500);
 }
 
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+}
+
 async function initWidgetToggles(appSettings) {
   const container = document.getElementById('widgetToggles');
-  const enabled = appSettings.enabledWidgets || BUILTIN_WIDGETS.map((w) => w.type);
+  const enabled = appSettings.enabledWidgets || BUILTIN_WIDGET_TYPES;
 
-  BUILTIN_WIDGETS.forEach((w) => {
+  for (const type of BUILTIN_WIDGET_TYPES) {
     const label = document.createElement('label');
     label.className = 'option';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.dataset.widgetType = w.type;
-    if (enabled.includes(w.type)) checkbox.checked = true;
+    checkbox.dataset.widgetType = type;
+    if (enabled.includes(type)) checkbox.checked = true;
     const box = document.createElement('span');
     box.className = 'check-box';
     box.setAttribute('aria-hidden', 'true');
@@ -65,27 +70,30 @@ async function initWidgetToggles(appSettings) {
     body.className = 'option-body';
     const title = document.createElement('div');
     title.className = 'option-title';
-    title.textContent = w.title;
+    title.textContent = t('widget.' + type + '.title');
     body.appendChild(title);
     label.appendChild(checkbox);
     label.appendChild(box);
     label.appendChild(body);
     checkbox.addEventListener('change', async () => {
-      let list = appSettings.enabledWidgets || BUILTIN_WIDGETS.map((x) => x.type);
+      let list = appSettings.enabledWidgets || [...BUILTIN_WIDGET_TYPES];
       if (checkbox.checked) {
-        if (!list.includes(w.type)) list.push(w.type);
+        if (!list.includes(type)) list.push(type);
       } else {
-        list = list.filter((t) => t !== w.type);
+        list = list.filter((t) => t !== type);
       }
       appSettings.enabledWidgets = list;
       await saveAppSettings(appSettings);
       showSaved();
     });
     container.appendChild(label);
-  });
+  }
 }
 
 async function init() {
+  await initLocale();
+  applyI18n();
+
   const settings = await loadSettings();
   const appSettings = await loadAppSettings();
 
@@ -112,6 +120,14 @@ async function init() {
         console.warn('OwnSpace: could not send PIN_TAB_NOW', e);
       }
     }
+  });
+
+  const langSelect = document.getElementById('languageSelect');
+  langSelect.value = getLang();
+  langSelect.addEventListener('change', async () => {
+    appSettings.language = langSelect.value;
+    await saveAppSettings(appSettings);
+    showSaved();
   });
 
   initWidgetToggles(appSettings);

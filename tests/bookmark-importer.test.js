@@ -56,6 +56,6 @@ Extra line">
     const result = parseStartMeHtml(html);
     expect(result.bookmarks).toHaveLength(1);
     expect(result.bookmarks[0].url).toBe('https://fallback.com');
-    expect(result.widgetGroups[0].name).toBe('Импорт закладок');
+    expect(result.widgetGroups[0].name).toBe('Import bookmarks');
   });
 });

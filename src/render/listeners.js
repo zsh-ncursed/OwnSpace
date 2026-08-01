@@ -20,6 +20,7 @@ import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.
 import { setupCalculatorWidget } from '../widgets/calculator.js';
 import { addTask, toggleTask, renameTask, deleteTask } from '../widgets/todo.js';
 import { shiftMonth, deleteEvent } from '../widgets/calendar.js';
+import { t } from '../i18n/index.js';
 
 // ponytail: single ticker for all datetime widgets — survives re-renders,
 // skips detached nodes (querySelector finds none); replaces per-render setInterval leak.
@@ -111,7 +112,7 @@ export function setupWidgetListeners(container) {
         try {
           new URL(fullUrl);
         } catch {
-          showNotification('Неверный URL');
+          showNotification(t('widget.bookmarks.invalid_url'));
           return;
         }
 
@@ -378,7 +379,7 @@ export function setupWidgetListeners(container) {
         const key = parseKey(input.value);
         if (!key) {
           if (status) {
-            status.textContent = 'Введите ключ';
+            status.textContent = t('widget.weather.enter_key_short');
             status.dataset.state = 'error';
           }
           return;
@@ -389,7 +390,7 @@ export function setupWidgetListeners(container) {
         updateWidgetConfig(widgetId, { apiKey: key, city });
         if (input.value.trim() !== key) input.value = key;
         if (status) {
-          status.textContent = '✓ Сохранено';
+          status.textContent = '✓ ' + t('common.save');
           status.dataset.state = 'ok';
           clearTimeout(saveKey._t);
           saveKey._t = setTimeout(() => {
@@ -613,13 +614,13 @@ document.addEventListener('click', (e) => {
     const widgetId = widgetEl.dataset.widgetId;
     const workspace = getActiveWorkspace();
     const widget = workspace?.widgets.find((w) => w.id === widgetId);
-    const widgetTitle = widget?.config?.title || 'этот виджет';
+    const widgetTitle = widget?.config?.title || t('modal.caldav.empty');
 
     (async () => {
       const ok = await showConfirm({
-        title: 'Удалить виджет?',
-        message: `Виджет "${widgetTitle}" будет удалён. Это действие нельзя отменить.`,
-        confirmText: 'Удалить',
+        title: t('widget.delete_confirm_title'),
+        message: t('widget.delete_confirm_message', { name: widgetTitle }),
+        confirmText: t('widget.remove'),
         danger: true,
       });
       if (ok) removeWidget(widgetId);

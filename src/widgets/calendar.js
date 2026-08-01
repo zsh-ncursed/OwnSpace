@@ -1,5 +1,6 @@
 import { escapeHtml } from '../ui/escape.js';
 import { pad2, timeAgo, eventDateKey } from '../utils/date.js';
+import { t, getLang } from '../i18n/index.js';
 
 export const WIDGET_TYPE = 'calendar';
 
@@ -200,7 +201,7 @@ export function renderCalendarWidget(widget) {
   const now = new Date();
   const viewYear = widget.config.viewYear ?? now.getFullYear();
   const viewMonth = widget.config.viewMonth ?? now.getMonth();
-  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString('ru', {
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString(getLang(), {
     month: 'long',
   });
   const firstDayRaw = new Date(viewYear, viewMonth, 1).getDay();
@@ -279,12 +280,12 @@ export function renderCalendarWidget(widget) {
   return `
     <div class="calendar-widget" data-widget-id="${widget.id}">
       <div class="calendar-nav">
-        <button class="prev-month icon-btn" title="Предыдущий месяц">${ICONS.action('chevron-left')}</button>
+        <button class="prev-month icon-btn" title="${t('widget.calendar.prev_month')}">${ICONS.action('chevron-left')}</button>
         <span class="calendar-title">${monthName} ${viewYear}</span>
-        <button class="next-month icon-btn" title="Следующий месяц">${ICONS.action('chevron-right')}</button>
+        <button class="next-month icon-btn" title="${t('widget.calendar.next_month')}">${ICONS.action('chevron-right')}</button>
       </div>
       <div class="calendar-grid">
-        ${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+        ${t('widget.calendar.day_headers').split(',')
           .map((d) => `<div class="calendar-header">${d}</div>`)
           .join('')}
         ${days
@@ -330,7 +331,7 @@ export function renderCalendarWidget(widget) {
                 return `<div class="event-bar ${isRecurring ? 'event-bar-recurring' : ''}"
                             data-event-id="${e.id}"
                             style="background:${eventColor(e.id, colorIdx, e.color)}"
-                            title="${escapeHtml(e.title)} · ${e.time}${isRecurring ? ' (повторяющееся)' : ''}"></div>`;
+                            title="${escapeHtml(e.title)} · ${e.time}${isRecurring ? t('calendar.recurring_hint') : ''}"></div>`;
               })
               .join('');
             const overflowHtml =
@@ -348,8 +349,8 @@ export function renderCalendarWidget(widget) {
           .join('')}
       </div>
       <div class="caldav-sync-row">
-        <button class="caldav-sync-btn icon-btn" title="Синхронизировать CalDAV" aria-label="Синхронизировать">${ICONS.action('rotate-cw')}</button>
-        <span class="caldav-sync-status">${widget.config.caldavCalendarName ? (widget.config.caldavLastSync ? timeAgo(widget.config.caldavLastSync) : 'CalDAV: нажмите для синхронизации') : ''}</span>
+        <button class="caldav-sync-btn icon-btn" title="${t('widget.calendar.caldav_sync')}" aria-label="${t('widget.calendar.caldav_sync')}">${ICONS.action('rotate-cw')}</button>
+        <span class="caldav-sync-status">${widget.config.caldavCalendarName ? (widget.config.caldavLastSync ? timeAgo(widget.config.caldavLastSync) : t('widget.calendar.caldav_sync_prompt')) : ''}</span>
       </div>
       ${
         selectedDay
@@ -357,7 +358,7 @@ export function renderCalendarWidget(widget) {
         <div class="selected-day-panel">
           <div class="selected-day-header">
             <span>${selectedDay} ${monthName}</span>
-            <button class="add-event-btn icon-btn" title="Добавить событие">${ICONS.btn('plus')}</button>
+            <button class="add-event-btn icon-btn" title="${t('widget.calendar.add_event')}">${ICONS.btn('plus')}</button>
           </div>
           ${
             selectedDate.length > 0
@@ -366,30 +367,30 @@ export function renderCalendarWidget(widget) {
               ${selectedDate
                 .map(
                   (e) => `
-                <li data-event-id="${e.id}" class="event-item ${e.source === 'caldav' ? 'event-item-caldav' : ''}" title="${e.source === 'caldav' ? 'CalDAV (только чтение)' : 'Кликните для редактирования'}">
-                  ${e.time ? `<span class="event-time">${e.time}</span>` : '<span class="event-time event-time-allday">весь день</span>'}
-                  ${e.source === 'caldav' ? '<span class="caldav-badge">CalDAV</span>' : ''}
-                  ${(e.recurring && e.recurring.type && e.recurring.type !== 'none') || e.isRecurringInstance ? '<span class="event-recurring-badge" title="Повторяющееся событие">↻</span>' : ''}
+                <li data-event-id="${e.id}" class="event-item ${e.source === 'caldav' ? 'event-item-caldav' : ''}" title="${e.source === 'caldav' ? t('widget.calendar.event_caldav_readonly') : t('widget.calendar.event_click_to_edit')}">
+                  ${e.time ? `<span class="event-time">${e.time}</span>` : `<span class="event-time event-time-allday">${t('widget.calendar.all_day')}</span>`}
+                  ${e.source === 'caldav' ? `<span class="caldav-badge">${t('widget.calendar.caldav_badge')}</span>` : ''}
+                  ${(e.recurring && e.recurring.type && e.recurring.type !== 'none') || e.isRecurringInstance ? `<span class="event-recurring-badge" title="${t('widget.calendar.recurring_badge')}">↻</span>` : ''}
                   <span class="event-title">${escapeHtml(e.title)}</span>
                   <span class="event-color-dot" style="background:${eventColor(e.id, colorIndexByEventId.get(e.id) ?? 0, e.color)}"></span>
-                  ${e.source !== 'caldav' ? `<button class="event-delete-btn icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>` : ''}
+                  ${e.source !== 'caldav' ? `<button class="event-delete-btn icon-btn" title="${t('common.delete')}">${ICONS.action('trash-2')}</button>` : ''}
                 </li>
               `,
                 )
                 .join('')}
             </ul>
           `
-              : '<p class="empty-day-text">Нет событий</p>'
+              : `<p class="empty-day-text">${t('widget.calendar.no_events')}</p>`
           }
         </div>
       `
           : `
-        <p class="calendar-hint">${ICONS.action('calendar')} Выберите дату для просмотра событий</p>
+        <p class="calendar-hint">${ICONS.action('calendar')} ${t('widget.calendar.select_date')}</p>
       `
       }
       ${hasAnyMoney ? `
         <div class="calendar-money-result" data-net="${monthNet >= 0 ? 'positive' : 'negative'}">
-          <span class="calendar-money-label">Финансовый результат</span>
+          <span class="calendar-money-label">${t('widget.calendar.finance_label')}</span>
           <span class="calendar-money-net">${fmtMoney(monthNet)}</span>
           <span class="calendar-money-breakdown">
             <span class="calendar-money-income">+ ${fmtMoney(monthIncome)}</span>
@@ -403,8 +404,8 @@ export function renderCalendarWidget(widget) {
 
 export default {
   type: WIDGET_TYPE,
-  title: 'Календарь',
+  title: 'widget.calendar.title',
   icon: 'calendar',
-  defaultConfig: { events: [], title: 'Календарь' },
+  defaultConfig: { events: [], title: '' },
   render: renderCalendarWidget,
 };

@@ -4,6 +4,7 @@ import { getWorkspaces, saveWorkspaces, saveActiveWorkspaceId, getActiveWorkspac
 import { migrateEvent } from './widgets/calendar.js';
 import { renderWorkspaceTabs } from './render/tabs.js';
 import { renderWidgetGrid } from './render/grid.js';
+import { t } from './i18n/index.js';
 
 export async function loadWorkspaces() {
   let ws = await getWorkspaces();
@@ -12,7 +13,7 @@ export async function loadWorkspaces() {
     ws = [
       {
         id: crypto.randomUUID(),
-        name: 'Добро пожаловать',
+        name: t('app.welcome_workspace'),
         background: { type: 'color', value: '#1a1a2e' },
         widgets: [],
       },
@@ -45,7 +46,7 @@ export async function loadWorkspaces() {
     }
     if (!workspace.name) {
       namelessCount++;
-      workspace.name = `Без названия ${namelessCount > 1 ? namelessCount : ''}`.trim();
+      workspace.name = namelessCount > 1 ? t('app.untitled_n', { n: namelessCount }) : t('app.untitled');
       changed = true;
     }
     workspace.widgets.forEach((w, idx) => {
@@ -118,7 +119,7 @@ export async function addWorkspace() {
   if (state.workspaces.length >= 10) return;
   const newWs = {
     id: crypto.randomUUID(),
-    name: 'Новое пространство',
+    name: t('app.new_workspace'),
     background: { type: 'color', value: '#1a1a2e' },
     widgets: [],
   };

@@ -12,6 +12,7 @@ import {
 import { encryptJson } from '../crypto.js';
 import { saveCalDAVCredentials } from '../storage.js';
 import { updateWidgetConfig } from '../widgets/management.js';
+import { t } from '../i18n/index.js';
 
 export async function syncCalDAVEvents(widgetId) {
   const workspace = getActiveWorkspace();
@@ -34,7 +35,7 @@ export async function syncCalDAVEvents(widgetId) {
 
     if (!response || !response.success) {
       showNotification(
-        'CalDAV: ' + (response?.error || 'Ошибка синхронизации'),
+        t('modal.caldav.sync_error', { message: response?.error || t('modal.caldav.sync_generic_error') }),
       );
       return false;
     }
@@ -83,7 +84,7 @@ export async function syncCalDAVEvents(widgetId) {
     await saveWorkspaces(state.workspaces);
     return true;
   } catch (e) {
-    showNotification('CalDAV: ' + e.message);
+    showNotification(t('modal.caldav.sync_error', { message: e.message }));
     return false;
   }
 }
@@ -92,7 +93,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
   const creds = await loadCalDAVCredentialsDecrypted();
   if (!creds) {
     showNotification(
-      'Сначала настройте CalDAV (Экспорт/Импорт → Настроить CalDAV)',
+      t('modal.caldav.configure_first'),
     );
     return;
   }
@@ -101,8 +102,8 @@ export async function showCalDAVCalendarPicker(widgetId) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal caldav-picker-modal">
-      <h3>Выберите календарь</h3>
-      <p style="margin: 0 0 12px; opacity: 0.7; font-size: 13px;">Поиск календарей...</p>
+      <h3>${t('modal.caldav.title')}</h3>
+      <p style="margin: 0 0 12px; opacity: 0.7; font-size: 13px;">${t('modal.caldav.searching')}</p>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -124,10 +125,9 @@ export async function showCalDAVCalendarPicker(widgetId) {
 
     if (!calendars || calendars.length === 0) {
       overlay.querySelector('.modal').innerHTML = `
-        <h3>Введите URL календаря</h3>
+        <h3>${t('modal.caldav.manual_url_title')}</h3>
         <p style="margin:0 0 8px;opacity:0.7;font-size:13px;">
-          Сервер не поддерживает автоопределение календарей.
-          Введите URL календаря вручную:
+          ${t('modal.caldav.manual_url_hint')}
         </p>
         <input type="text" id="manual-calendar-url"
                placeholder="https://apidata.googleusercontent.com/caldav/v2/primary/events/"
@@ -135,8 +135,8 @@ export async function showCalDAVCalendarPicker(widgetId) {
                style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);
                       color:var(--text);border-radius:var(--radius-sm);font:inherit;font-size:13px;" />
         <div style="display:flex;gap:8px;margin-top:12px;">
-          <button id="save-manual-calendar" style="flex:1;">Подключить</button>
-          <button class="modal-close" style="flex:1;background:transparent;border:1px solid var(--border);">Отмена</button>
+          <button id="save-manual-calendar" style="flex:1;">${t('modal.caldav.connect')}</button>
+          <button class="modal-close" style="flex:1;background:transparent;border:1px solid var(--border);">${t('common.cancel')}</button>
         </div>
       `;
       overlay
@@ -147,13 +147,13 @@ export async function showCalDAVCalendarPicker(widgetId) {
             .value.trim();
           if (!href) return;
           const name =
-            href.split('/').filter(Boolean).pop() || 'Календарь';
+            href.split('/').filter(Boolean).pop() || t('modal.caldav.empty');
           updateWidgetConfig(widgetId, {
             caldavCalendarHref: href,
             caldavCalendarName: name,
           }, true);
           overlay.remove();
-          showNotification(`CalDAV: подключен «${name}»`);
+          showNotification(t('modal.caldav.connected', { name }));
           await syncCalDAVEvents(widgetId);
         });
       overlay
@@ -166,7 +166,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
     }
 
     overlay.querySelector('.modal').innerHTML = `
-      <h3>Выберите календарь</h3>
+      <h3>${t('modal.caldav.title')}</h3>
       <div class="caldav-calendar-list">
         ${calendars
           .map(
@@ -179,7 +179,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
           )
           .join('')}
       </div>
-      <button class="modal-close" style="margin-top:12px;width:100%;background:transparent;border:1px solid var(--border);">Отмена</button>
+      <button class="modal-close" style="margin-top:12px;width:100%;background:transparent;border:1px solid var(--border);">${t('common.cancel')}</button>
     `;
 
     overlay.querySelectorAll('.caldav-calendar-item').forEach((btn) => {
@@ -191,7 +191,7 @@ export async function showCalDAVCalendarPicker(widgetId) {
           caldavCalendarName: name,
         });
         overlay.remove();
-        showNotification(`CalDAV: подключен «${name}»`);
+        showNotification(t('modal.caldav.connected', { name }));
         await syncCalDAVEvents(widgetId);
       });
     });
@@ -200,9 +200,9 @@ export async function showCalDAVCalendarPicker(widgetId) {
       ?.addEventListener('click', () => overlay.remove());
   } catch (e) {
     overlay.querySelector('.modal').innerHTML = `
-      <h3>Ошибка</h3>
+      <h3>${t('common.error')}</h3>
       <p>${escapeHtml(e.message)}</p>
-      <button class="modal-close" style="margin-top:12px;width:100%;">Закрыть</button>
+      <button class="modal-close" style="margin-top:12px;width:100%;">${t('common.close')}</button>
     `;
     overlay
       .querySelector('.modal-close')
@@ -221,33 +221,33 @@ export async function showCalDAVSyncSettings() {
   menu.className = 'modal-overlay';
   menu.innerHTML = `
     <div class="modal">
-      <h3>Настройка CalDAV</h3>
+      <h3>${t('modal.caldav.settings_title')}</h3>
       <p style="margin: 0 0 12px; opacity: 0.7; font-size: 13px;">
-        🔒 Учётные данные шифруются мастер-паролем (AES-GCM).
+        ${t('modal.caldav.encrypted_hint')}
       </p>
       <div class="caldav-form">
-        <label>URL сервера:</label>
+        <label>${t('modal.caldav.url')}</label>
         <input type="text" id="caldav-url" placeholder="https://caldav.example.com" value="${escapeHtml(existing?.url || '')}" />
 
-        <label>Имя пользователя:</label>
+        <label>${t('modal.caldav.username')}</label>
         <input type="text" id="caldav-username" value="${escapeHtml(existing?.username || '')}" />
 
-        <label>Пароль:</label>
+        <label>${t('modal.caldav.password')}</label>
         <input type="password" id="caldav-password" autocomplete="new-password" value="${escapeHtml(existing?.password || '')}" />
 
-        <button id="caldav-test">Проверить подключение</button>
+        <button id="caldav-test">${t('modal.caldav.test')}</button>
         <div id="caldav-status" style="min-height: 1em; font-size: 13px;"></div>
       </div>
       <div style="display: flex; gap: 8px; margin-top: 12px;">
-        <button id="save-caldav" style="flex: 1;">Сохранить</button>
-        <button class="modal-close" id="close-caldav" style="flex: 1;">Отмена</button>
+        <button id="save-caldav" style="flex: 1;">${t('modal.caldav.save')}</button>
+        <button class="modal-close" id="close-caldav" style="flex: 1;">${t('common.cancel')}</button>
       </div>
       ${
         hasMasterPassword
           ? `
         <hr style="margin: 16px 0; border-color: var(--primary);" />
         <button id="change-master" style="width: 100%; background: transparent; border: 1px solid var(--primary);">
-          🔑 Сменить мастер-пароль
+          ${t('modal.caldav.change_master')}
         </button>
       `
           : ''
@@ -264,12 +264,12 @@ export async function showCalDAVSyncSettings() {
     const statusEl = menu.querySelector('#caldav-status');
 
     if (!url || !username || !password) {
-      statusEl.textContent = 'Заполните все поля';
+      statusEl.textContent = t('modal.caldav.fill_all');
       statusEl.style.color = '';
       return;
     }
 
-    statusEl.textContent = 'Проверка...';
+    statusEl.textContent = t('modal.caldav.checking');
     statusEl.style.color = '';
 
     try {
@@ -279,15 +279,14 @@ export async function showCalDAVSyncSettings() {
       });
 
       if (response && response.success) {
-        statusEl.textContent = 'Подключение успешно!';
+        statusEl.textContent = t('modal.caldav.test_success');
         statusEl.style.color = '#4caf50';
       } else {
-        statusEl.textContent =
-          'Ошибка: ' + (response?.error || 'Unknown');
+        statusEl.textContent = t('modal.caldav.test_fail', { error: response?.error || 'Unknown' });
         statusEl.style.color = 'var(--accent)';
       }
     } catch (err) {
-      statusEl.textContent = 'Ошибка: ' + err.message;
+      statusEl.textContent = t('modal.caldav.test_fail', { error: err.message });
       statusEl.style.color = 'var(--accent)';
     }
   });
@@ -299,15 +298,14 @@ export async function showCalDAVSyncSettings() {
     const statusEl = menu.querySelector('#caldav-status');
 
     if (!url || !username || !password) {
-      statusEl.textContent = 'Заполните все поля';
+      statusEl.textContent = t('modal.caldav.fill_all');
       statusEl.style.color = 'var(--accent)';
       return;
     }
 
     const pw = await ensureMasterPassword();
     if (!pw) {
-      statusEl.textContent =
-        'Сохранение отменено: требуется мастер-пароль';
+      statusEl.textContent = t('modal.caldav.save_cancelled');
       statusEl.style.color = 'var(--accent)';
       return;
     }
@@ -319,9 +317,9 @@ export async function showCalDAVSyncSettings() {
       );
       await saveCalDAVCredentials({ url, encryptedCreds });
       menu.remove();
-      showNotification('CalDAV сохранён (зашифровано)');
+      showNotification(t('modal.caldav.saved'));
     } catch (e) {
-      statusEl.textContent = 'Ошибка шифрования: ' + e.message;
+      statusEl.textContent = t('modal.caldav.encrypt_error', { message: e.message });
       statusEl.style.color = 'var(--accent)';
     }
   });
@@ -330,7 +328,7 @@ export async function showCalDAVSyncSettings() {
   if (changeBtn) {
     changeBtn.addEventListener('click', async () => {
       const ok = await showChangeMasterPasswordModal();
-      if (ok) showNotification('Мастер-пароль изменён');
+      if (ok) showNotification(t('modal.caldav.master_changed'));
     });
   }
 

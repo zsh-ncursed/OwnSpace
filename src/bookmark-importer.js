@@ -3,6 +3,7 @@ import { getTargetColumn } from './sortable.js';
 import { saveWorkspaces } from './storage.js';
 import { showNotification } from './ui/modals.js';
 import { escapeHtml } from './ui/escape.js';
+import { t } from './i18n/index.js';
 
 export function parseStartMeHtml(html) {
   let bookmarks = [];
@@ -18,7 +19,7 @@ export function parseStartMeHtml(html) {
       const widgetTitleEl = widget.querySelector('.widget-header__text');
       const widgetTitle = widgetTitleEl
         ? widgetTitleEl.textContent.trim()
-        : 'Импорт';
+        : t('import.startme.empty');
 
       const widgetBookmarksList = [];
       const bookmarkLinks = widget.querySelectorAll('a.bookmark-item__link');
@@ -100,7 +101,7 @@ export function parseStartMeHtml(html) {
       });
     }
     if (bookmarks.length > 0) {
-      widgetGroups.push({ name: 'Импорт закладок', bookmarks: bookmarks });
+      widgetGroups.push({ name: t('import.startme.title'), bookmarks: bookmarks });
     }
   }
 
@@ -118,25 +119,25 @@ export function showBookmarkImportModal() {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal import-modal-content">
-      <h3>Импорт закладок</h3>
+      <h3>${t('import.startme.title')}</h3>
       <p style="margin: 8px 0 16px; color: var(--text); opacity: 0.7;">
-        Загрузите HTML файл, экспортированный из start.me
+        ${t('import.startme.hint')}
       </p>
       <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
       <button id="select-file-btn" class="btn btn-primary" style="width: 100%; margin: 0;">
-        📂 Выбрать HTML файл
+        ${t('import.startme.select_file')}
       </button>
       <div id="import-preview" style="display: none; margin-top: 16px;">
-        <h4>Найдено:</h4>
+        <h4>${t('import.startme.found')}</h4>
         <div id="import-stats"></div>
         <div id="import-widget-list" style="margin: 12px 0;"></div>
         <div id="import-error" style="color: var(--accent); margin: 8px 0; display: none;"></div>
         <div style="display: flex; gap: 8px; margin-top: 16px;">
-          <button id="import-confirm-btn" class="btn btn-primary" style="flex: 1; margin: 0;">Импортировать</button>
-          <button id="import-cancel-btn" class="modal-close" style="margin: 0;">Отмена</button>
+          <button id="import-confirm-btn" class="btn btn-primary" style="flex: 1; margin: 0;">${t('import.startme.import_btn')}</button>
+          <button id="import-cancel-btn" class="modal-close" style="margin: 0;">${t('common.cancel')}</button>
         </div>
       </div>
-      <button class="modal-close" style="width: 100%; margin-top: 12px;">Закрыть</button>
+      <button class="modal-close" style="width: 100%; margin-top: 12px;">${t('common.close')}</button>
     </div>
   `;
 
@@ -161,7 +162,7 @@ export function showBookmarkImportModal() {
 
       if (result.bookmarks.length === 0) {
         document.getElementById('import-error').textContent =
-          'Не удалось найти закладки в файле.';
+          t('import.startme.no_bookmarks');
         document.getElementById('import-error').style.display = 'block';
         return;
       }
@@ -171,11 +172,11 @@ export function showBookmarkImportModal() {
       const stats = document.getElementById('import-stats');
       const widgetList = document.getElementById('import-widget-list');
 
-      stats.innerHTML = `<strong>${result.bookmarks.length}</strong> закладок, <strong>${result.widgetGroups.length}</strong> виджет(ов)`;
+      stats.innerHTML = `<strong>${t('import.startme.bookmarks_count', { count: result.bookmarks.length, groups: result.widgetGroups.length })}</strong>`;
 
       if (result.widgetGroups.length > 1) {
         widgetList.innerHTML = `<ul style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;">
-          ${result.widgetGroups.map((wg) => `<li style="padding: 4px 0; border-bottom: 1px solid var(--primary);">📁 ${escapeHtml(wg.name)} — ${wg.bookmarks.length} закладок</li>`).join('')}
+          ${result.widgetGroups.map((wg) => `<li style="padding: 4px 0; border-bottom: 1px solid var(--primary);">📁 ${escapeHtml(wg.name)} — ${wg.bookmarks.length}</li>`).join('')}
         </ul>`;
       } else {
         widgetList.innerHTML = '';
@@ -185,7 +186,7 @@ export function showBookmarkImportModal() {
     };
     reader.onerror = () => {
       document.getElementById('import-error').textContent =
-        'Ошибка чтения файла.';
+        t('import.startme.read_error');
       document.getElementById('import-error').style.display = 'block';
     };
     reader.readAsText(file);
@@ -199,7 +200,7 @@ export function showBookmarkImportModal() {
     );
     if (!workspace) {
       document.getElementById('import-error').textContent =
-        'Не удалось найти активное пространство.';
+        t('import.startme.no_active_workspace');
       document.getElementById('import-error').style.display = 'block';
       return;
     }
@@ -221,7 +222,7 @@ export function showBookmarkImportModal() {
         type: 'bookmarks',
         column: targetCol,
         order: existingInCol + idx,
-        config: { title: wg.name || 'Импорт', bookmarks: wg.bookmarks },
+        config: { title: wg.name || t('import.startme.title'), bookmarks: wg.bookmarks },
       };
       widgetsToAdd.push(newWidget);
     });
@@ -238,7 +239,7 @@ export function showBookmarkImportModal() {
       await saveWorkspaces(updatedWorkspaces);
       modal.remove();
       showNotification(
-        `Импортировано ${currentImportData.bookmarks.length} закладок`,
+        t('import.startme.imported', { count: currentImportData.bookmarks.length }),
       );
       if (typeof window._renderApp === 'function') window._renderApp();
     })();

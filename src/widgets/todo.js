@@ -1,4 +1,5 @@
 import { escapeHtml } from '../ui/escape.js';
+import { t } from '../i18n/index.js';
 
 export const WIDGET_TYPE = 'todo';
 
@@ -28,7 +29,7 @@ export function renderTodoWidget(widget) {
 
   return `
     <div class="todo-widget" data-widget-id="${widget.id}">
-      <div class="todo-stats">Осталось: ${pending}</div>
+      <div class="todo-stats">${t('widget.todo.remaining', { count: pending })}</div>
       <div class="todo-list">
         ${tasks
           .map(
@@ -36,15 +37,15 @@ export function renderTodoWidget(widget) {
           <div class="todo-item ${t.done ? 'todo-done' : ''}" data-task-id="${t.id}">
             <input type="checkbox" class="todo-checkbox" ${t.done ? 'checked' : ''} />
             <input type="text" class="todo-text" value="${escapeHtml(t.text)}" ${t.done ? 'readonly' : ''} />
-            <button class="todo-delete icon-btn" title="Удалить">${ICONS.action('trash-2')}</button>
+            <button class="todo-delete icon-btn" title="${t('common.delete')}">${ICONS.action('trash-2')}</button>
           </div>
         `,
           )
           .join('')}
       </div>
       <div class="todo-add-row">
-        <input type="text" class="todo-new-input" placeholder="Новая задача..." />
-        <button class="todo-add-btn icon-btn" title="Добавить задачу" aria-label="Добавить задачу">${ICONS.btn('plus')}</button>
+        <input type="text" class="todo-new-input" placeholder="${t('widget.todo.add_placeholder')}" />
+        <button class="todo-add-btn icon-btn" title="${t('widget.todo.add_btn')}" aria-label="${t('widget.todo.add_btn')}">${ICONS.btn('plus')}</button>
       </div>
     </div>
   `;
@@ -52,8 +53,8 @@ export function renderTodoWidget(widget) {
 
 export default {
   type: WIDGET_TYPE,
-  title: 'Список задач',
+  title: 'widget.todo.title',
   icon: 'list-checks',
-  defaultConfig: { tasks: [], title: 'Список задач' },
+  defaultConfig: { tasks: [], title: '' },
   render: renderTodoWidget,
 };

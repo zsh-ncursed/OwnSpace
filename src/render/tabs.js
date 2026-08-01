@@ -6,6 +6,7 @@ import { renderWidgetGrid } from './grid.js';
 import { addWorkspace, updateWorkspace } from '../workspaces.js';
 import { showExportImportMenu } from '../ui/export-import-menu.js';
 import { showBackgroundSettings } from '../ui/background-settings.js';
+import { t } from '../i18n/index.js';
 
 // Rendering
 function renderApp() {
@@ -46,25 +47,25 @@ function renderWorkspaceTabs() {
           <div
             class="workspace-tab ${ws.id === state.activeWorkspaceId ? 'is-active' : ''}"
             data-workspace-id="${ws.id}"
-            title="Двойной клик для переименования"
+            title="${t('tab.double_click_rename')}"
           >
             <span class="workspace-tab-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
             <span class="workspace-tab-name" data-role="display">${escapeHtml(ws.name)}</span>
             <input type="text" class="workspace-tab-name-input" data-role="input" value="${escapeHtml(ws.name)}" maxlength="40" style="display: none;" />
             <div class="workspace-tab-actions">
-              <button type="button" class="workspace-tab-delete icon-btn" title="Удалить" aria-label="Удалить">${ICONS.action('x')}</button>
+              <button type="button" class="workspace-tab-delete icon-btn" title="${t('common.delete')}" aria-label="${t('common.delete')}">${ICONS.action('x')}</button>
             </div>
           </div>
         `,
           )
           .join('')}
-        ${state.workspaces.length < 10 ? `<button type="button" class="workspace-tab workspace-tab-add icon-btn" id="add-workspace" title="Новая вкладка" aria-label="Новая вкладка">${ICONS.btn('plus')}</button>` : ''}
+        ${state.workspaces.length < 10 ? `<button type="button" class="workspace-tab workspace-tab-add icon-btn" id="add-workspace" title="${t('tab.new_tab')}" aria-label="${t('tab.new_tab')}">${ICONS.btn('plus')}</button>` : ''}
       </div>
       <div class="workspace-tabs-toolbar">
-        <button type="button" class="icon-btn" id="add-widget" title="Добавить виджет" aria-label="Добавить виджет">${ICONS.btn('plus')}</button>
-        <button type="button" class="icon-btn" id="bg-settings" title="Настройка фона">${ICONS.btn('palette')}</button>
-        <button type="button" class="icon-btn" id="theme-toggle" title="Переключить тему">${ICONS.btn(state.theme === 'dark' ? 'sun' : 'moon')}</button>
-        <button type="button" class="icon-btn" id="export-import" title="Экспорт/Импорт">${ICONS.btn('arrow-down-up')}</button>
+        <button type="button" class="icon-btn" id="add-widget" title="${t('tab.add_widget')}" aria-label="${t('tab.add_widget')}">${ICONS.btn('plus')}</button>
+        <button type="button" class="icon-btn" id="bg-settings" title="${t('tab.bg_settings')}">${ICONS.btn('palette')}</button>
+        <button type="button" class="icon-btn" id="theme-toggle" title="${t('tab.theme_toggle')}">${ICONS.btn(state.theme === 'dark' ? 'sun' : 'moon')}</button>
+        <button type="button" class="icon-btn" id="export-import" title="${t('tab.export_import')}">${ICONS.btn('arrow-down-up')}</button>
       </div>
     </div>
   `;

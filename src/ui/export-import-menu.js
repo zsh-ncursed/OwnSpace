@@ -3,30 +3,31 @@ import { downloadFile } from '../utils/download.js';
 import { showPrompt, showNotification } from './modals.js';
 import { showBookmarkImportModal } from '../bookmark-importer.js';
 import { showCalDAVSyncSettings } from '../caldav/sync.js';
+import { t } from '../i18n/index.js';
 
 export function showExportImportMenu() {
   const menu = document.createElement('div');
   menu.className = 'modal-overlay';
   menu.innerHTML = `
     <div class="modal">
-      <h3>Экспорт / Импорт</h3>
+      <h3>${t('menu.export_import.title')}</h3>
       <div class="export-options">
-        <button id="export-plain">Экспорт (JSON)</button>
-        <button id="export-encrypted">Экспорт с паролем</button>
-        <button id="import-btn">Импорт</button>
+        <button id="export-plain">${t('menu.export_import.export_plain')}</button>
+        <button id="export-encrypted">${t('menu.export_import.export_encrypted')}</button>
+        <button id="import-btn">${t('menu.export_import.import')}</button>
         <input type="file" id="import-file" accept=".json" style="display: none;" />
       </div>
       <hr style="margin: 16px 0; border-color: var(--primary);" />
-      <h4>Импорт из start.me</h4>
+      <h4>${t('menu.export_import.startme_title')}</h4>
       <div class="export-options">
-        <button id="import-bookmarks">📂 Импорт закладок (HTML)</button>
+        <button id="import-bookmarks">${t('menu.export_import.import_bookmarks')}</button>
       </div>
       <hr style="margin: 16px 0; border-color: var(--primary);" />
-      <h4>CalDAV Синхронизация</h4>
+      <h4>${t('menu.export_import.caldav_title')}</h4>
       <div class="caldav-options">
-        <button id="caldav-settings">Настроить CalDAV</button>
+        <button id="caldav-settings">${t('menu.export_import.caldav_settings')}</button>
       </div>
-      <button class="modal-close" id="close-export">Закрыть</button>
+      <button class="modal-close" id="close-export">${t('common.close')}</button>
     </div>
   `;
 
@@ -42,10 +43,10 @@ export function showExportImportMenu() {
     .querySelector('#export-encrypted')
     .addEventListener('click', async () => {
       const password = await showPrompt({
-        title: 'Пароль для экспорта',
-        message: 'Укажите пароль для шифрования файла',
+        title: t('menu.export_import.export_password_title'),
+        message: t('menu.export_import.export_password_hint'),
         inputType: 'password',
-        placeholder: 'Пароль',
+        placeholder: t('menu.export_import.password_placeholder'),
         required: true,
       });
       if (!password) return;
@@ -68,11 +69,11 @@ export function showExportImportMenu() {
         const parsed = JSON.parse(event.target.result);
         if (parsed.encrypted) {
           password = await showPrompt({
-            title: 'Пароль',
-            message: 'Введите пароль для расшифровки',
+            title: t('menu.export_import.import_password_title'),
+            message: t('menu.export_import.import_password_hint'),
             inputType: 'password',
-            placeholder: 'Пароль',
-            confirmText: 'Расшифровать',
+            placeholder: t('menu.export_import.password_placeholder'),
+            confirmText: t('menu.export_import.decrypt_btn'),
             required: true,
           });
           if (password === null) return;
@@ -80,7 +81,7 @@ export function showExportImportMenu() {
         await importData(event.target.result, password);
         location.reload();
       } catch (err) {
-        showNotification('Ошибка импорта: ' + err.message);
+        showNotification(t('menu.export_import.import_error', { message: err.message }));
       }
     };
     reader.readAsText(file);

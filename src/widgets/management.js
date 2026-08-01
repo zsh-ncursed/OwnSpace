@@ -4,10 +4,12 @@ import { getTargetColumn, sortableInstances } from '../sortable.js';
 import { updateWorkspace } from '../workspaces.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { widgetRegistry } from './registry.js';
+import { t } from '../i18n/index.js';
 
 export function getDefaultTitle(type) {
   const plugin = widgetRegistry.get(type);
-  return plugin ? plugin.title : 'Widget';
+  if (!plugin) return 'Widget';
+  return plugin.title.startsWith('widget.') ? t(plugin.title) : plugin.title;
 }
 
 export function getDefaultWidgetConfig(type) {

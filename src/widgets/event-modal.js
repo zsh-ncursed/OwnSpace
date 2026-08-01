@@ -6,6 +6,7 @@ import { updateWidgetConfig } from './management.js';
 import { upsertEventWithRecurring } from './calendar.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { deleteWorkspace } from '../workspaces.js';
+import { t } from '../i18n/index.js';
 
 export function showWidgetSettingsModal(widget) {
   const config = widget.config || {};
@@ -13,24 +14,24 @@ export function showWidgetSettingsModal(widget) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3 class="modal-title">Настройки виджета</h3>
+      <h3 class="modal-title">${t('modal.widget.settings')}</h3>
       <form class="widget-settings-form">
         <label class="event-field">
-          <span>Название:</span>
+          <span>${t('modal.widget.name')}</span>
           <input type="text" id="widget-title" value="${escapeHtml(config.title || '')}" />
         </label>
         <label class="event-field">
-          <span>Цвет фона:</span>
+          <span>${t('modal.widget.bg_color')}</span>
           <input type="color" id="widget-bgcolor" value="${config.bgColor || '#000000'}" />
         </label>
         <label class="event-field">
-          <span>Прозрачность:</span>
+          <span>${t('modal.widget.opacity')}</span>
           <input type="range" id="widget-opacity" min="0" max="100" value="${config.opacity != null ? config.opacity : 100}" />
         </label>
       </form>
       <div style="display: flex; gap: 8px; margin-top: 16px;">
-        <button id="save-widget-settings" class="btn btn-primary" style="flex: 1;">Сохранить</button>
-        <button id="cancel-widget-settings" class="btn btn-secondary" style="flex: 1;">Отмена</button>
+        <button id="save-widget-settings" class="btn btn-primary" style="flex: 1;">${t('common.save')}</button>
+        <button id="cancel-widget-settings" class="btn btn-secondary" style="flex: 1;">${t('common.cancel')}</button>
       </div>
     </div>
   `;
@@ -87,61 +88,61 @@ export function showEventModal(widget, existingEvent) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3>${isEdit ? 'Редактировать событие' : 'Новое событие'}</h3>
+      <h3>${isEdit ? t('modal.event.edit') : t('modal.event.new')}</h3>
       <form class="event-form">
         <div class="event-field">
-          <label>Название:</label>
+          <label>${t('modal.event.title')}</label>
           <input type="text" id="event-title" value="${escapeHtml(event.title)}" />
         </div>
         <div class="event-field event-checkbox-field">
           <label class="event-checkbox-label">
             <input type="checkbox" id="event-allday" ${isAllDay ? 'checked' : ''} />
-            <span>Весь день</span>
+            <span>${t('modal.event.all_day')}</span>
           </label>
         </div>
         <div class="event-field">
-          <label>Начало:</label>
+          <label>${t('modal.event.start')}</label>
           <div class="event-datetime-row">
             <input type="date" id="event-date" value="${event.date}" />
             <input type="time" id="event-time" value="${event.time || ''}" class="event-time-input" ${isAllDay ? 'style="display:none"' : ''} />
           </div>
         </div>
         <div class="event-field event-end-field" ${isAllDay ? 'style="display:none"' : ''}>
-          <label>Окончание:</label>
+          <label>${t('modal.event.end')}</label>
           <div class="event-datetime-row">
             <input type="date" id="event-enddate" value="${event.endDate || event.date}" />
             <input type="time" id="event-endtime" value="${event.endTime || ''}" class="event-time-input" />
           </div>
         </div>
         <div class="event-field">
-          <label>Цвет:</label>
+          <label>${t('modal.event.color')}</label>
           <input type="color" id="event-color" value="${event.color || '#5b6cff'}" />
         </div>
         <div class="event-field">
-          <label>Повтор:</label>
+          <label>${t('modal.event.recurring')}</label>
           <select id="event-recurring-toggle">
-            <option value="none" ${!event.recurring || event.recurring?.type === 'none' ? 'selected' : ''}>Не повторять</option>
-            <option value="interval" ${event.recurring && event.recurring?.type !== 'none' ? 'selected' : ''}>Интервал (каждые N)</option>
+            <option value="none" ${!event.recurring || event.recurring?.type === 'none' ? 'selected' : ''}>${t('modal.event.recurring.none')}</option>
+            <option value="interval" ${event.recurring && event.recurring?.type !== 'none' ? 'selected' : ''}>${t('modal.event.recurring.interval')}</option>
           </select>
         </div>
         <div class="event-recurring-config" id="recurring-config" style="display:${event.recurring && event.recurring?.type !== 'none' ? 'block' : 'none'};">
           <div class="event-field event-recurring-interval-row">
-            <label>Период:</label>
+            <label>${t('modal.event.recurring.period')}</label>
             <div class="event-recurring-interval-controls">
               <input type="number" id="event-recurring-interval" min="1" value="${event.recurring?.interval || 1}" />
               <select id="event-recurring-unit">
-                <option value="seconds" ${event.recurring?.type === 'seconds' ? 'selected' : ''}>секунд</option>
-                <option value="minutes" ${event.recurring?.type === 'minutes' ? 'selected' : ''}>минут</option>
-                <option value="hours" ${event.recurring?.type === 'hours' ? 'selected' : ''}>часов</option>
-                <option value="daily" ${event.recurring?.type === 'daily' ? 'selected' : ''}>дней</option>
-                <option value="weekly" ${event.recurring?.type === 'weekly' ? 'selected' : ''}>недель</option>
-                <option value="monthly" ${event.recurring?.type === 'monthly' ? 'selected' : ''}>месяцев</option>
-                <option value="yearly" ${event.recurring?.type === 'yearly' ? 'selected' : ''}>лет</option>
+                <option value="seconds" ${event.recurring?.type === 'seconds' ? 'selected' : ''}>${t('modal.event.recurring.seconds')}</option>
+                <option value="minutes" ${event.recurring?.type === 'minutes' ? 'selected' : ''}>${t('modal.event.recurring.minutes')}</option>
+                <option value="hours" ${event.recurring?.type === 'hours' ? 'selected' : ''}>${t('modal.event.recurring.hours')}</option>
+                <option value="daily" ${event.recurring?.type === 'daily' ? 'selected' : ''}>${t('modal.event.recurring.days')}</option>
+                <option value="weekly" ${event.recurring?.type === 'weekly' ? 'selected' : ''}>${t('modal.event.recurring.weeks')}</option>
+                <option value="monthly" ${event.recurring?.type === 'monthly' ? 'selected' : ''}>${t('modal.event.recurring.months')}</option>
+                <option value="yearly" ${event.recurring?.type === 'yearly' ? 'selected' : ''}>${t('modal.event.recurring.years')}</option>
               </select>
             </div>
           </div>
           <div class="event-field">
-            <label>Окончание:</label>
+            <label>${t('modal.event.recurring.end')}</label>
             <div class="event-recurring-end-row">
               <input type="date" id="event-recurring-enddate" value="${event.recurring?.endDate || ''}" />
               <input type="time" id="event-recurring-endtime" value="${event.recurring?.endTime || ''}" />
@@ -149,19 +150,19 @@ export function showEventModal(widget, existingEvent) {
           </div>
         </div>
         <div class="event-money">
-          <label>Деньги:</label>
+          <label>${t('modal.event.money')}</label>
           <div class="event-money-row">
             <select id="event-moneytype" class="event-money-type">
-              <option value="expense" ${event.moneyType === 'expense' ? 'selected' : ''}>− Расход</option>
-              <option value="income" ${event.moneyType === 'income' ? 'selected' : ''}>+ Доход</option>
+              <option value="expense" ${event.moneyType === 'expense' ? 'selected' : ''}>${t('modal.event.money.expense')}</option>
+              <option value="income" ${event.moneyType === 'income' ? 'selected' : ''}>${t('modal.event.money.income')}</option>
             </select>
             <input type="number" id="event-money" class="event-money-amount" min="0" step="0.01" placeholder="0" value="${(typeof event.money === 'number' && isFinite(event.money)) ? event.money : ''}" />
           </div>
         </div>
       </form>
       <div style="display: flex; gap: 8px; margin-top: 16px;">
-        <button id="save-event" class="btn btn-primary" style="flex: 1;">${isEdit ? 'Сохранить' : 'Добавить'}</button>
-        <button id="cancel-event" class="btn btn-secondary" style="flex: 1;">Отмена</button>
+        <button id="save-event" class="btn btn-primary" style="flex: 1;">${isEdit ? t('modal.event.save') : t('modal.event.add')}</button>
+        <button id="cancel-event" class="btn btn-secondary" style="flex: 1;">${t('common.cancel')}</button>
       </div>
     </div>
   `;
@@ -273,9 +274,9 @@ document.addEventListener('click', async (e) => {
   const ws = state.workspaces.find((w) => w.id === wsId);
   if (!ws) return;
   const ok = await showConfirm({
-    title: 'Удалить пространство?',
-    message: `Пространство «${ws.name}» будет безвозвратно удалено.`,
-    confirmText: 'Удалить',
+    title: t('modal.workspace.delete_title'),
+    message: t('modal.workspace.delete_message', { name: ws.name }),
+    confirmText: t('common.delete'),
     danger: true,
   });
   if (ok) deleteWorkspace(wsId);

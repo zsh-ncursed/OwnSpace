@@ -3,6 +3,7 @@
   "name": "OwnSpace",
   "version": "1.2.1",
   "description": "Local start page replacement with customizable widgets",
+  "default_locale": "en",
   "icons": {
     "48": "icons/icon48.png",
     "96": "icons/icon96.png"

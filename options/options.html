@@ -3,31 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OwnSpace — Настройки</title>
+  <title>OwnSpace — Settings</title>
   <link rel="stylesheet" href="../src/styles/main.css">
   <link rel="stylesheet" href="options.css">
   <script src="../lib/browser-polyfill.min.js"></script>
-  <script src="options.js"></script>
 </head>
 <body>
   <main class="options-page">
     <header class="options-header">
       <div>
-        <h1>OwnSpace</h1>
-        <p class="subtitle">Настройки расширения</p>
+        <h1 data-i18n="options.title">OwnSpace</h1>
+        <p class="subtitle" data-i18n="options.subtitle">Extension settings</p>
       </div>
-      <a href="../newtab.html" target="_blank" class="open-link">Открыть OwnSpace →</a>
+      <a href="../newtab.html" target="_blank" class="open-link" data-i18n="options.open_link">Open OwnSpace →</a>
     </header>
 
     <section class="options-section">
-      <h2>Поведение</h2>
+      <h2 data-i18n="options.behavior">Behavior</h2>
 
       <label class="option">
         <input type="checkbox" id="openInNewTabs">
         <span class="check-box" aria-hidden="true"></span>
         <div class="option-body">
-          <div class="option-title">Открывать OwnSpace в новых вкладках</div>
-          <div class="option-desc">Каждая новая вкладка будет открывать OwnSpace вместо стандартной страницы браузера.</div>
+          <div class="option-title" data-i18n="options.open_in_new_tabs">Open OwnSpace in new tabs</div>
+          <div class="option-desc" data-i18n="options.open_in_new_tabs_desc">Each new tab will open OwnSpace instead of the browser's default page.</div>
         </div>
       </label>
 
@@ -35,19 +34,29 @@
         <input type="checkbox" id="pinOwnSpaceTab">
         <span class="check-box" aria-hidden="true"></span>
         <div class="option-body">
-          <div class="option-title">Закрепить страницу OwnSpace во вкладке</div>
-          <div class="option-desc">При запуске браузера автоматически открывается закреплённая вкладка с OwnSpace.</div>
+          <div class="option-title" data-i18n="options.pin_tab">Pin OwnSpace tab</div>
+          <div class="option-desc" data-i18n="options.pin_tab_desc">A pinned OwnSpace tab opens automatically on browser startup.</div>
         </div>
       </label>
     </section>
 
     <section class="options-section">
-      <h2>Виджеты</h2>
-      <p class="section-desc">Включайте и отключайте виджеты. Отключённые виджеты не будут доступны при добавлении.</p>
+      <h2 data-i18n="options.widgets">Widgets</h2>
+      <p class="section-desc" data-i18n="options.widgets_desc">Enable and disable widgets. Disabled widgets won't be available when adding.</p>
       <div id="widgetToggles"></div>
+    </section>
+
+    <section class="options-section">
+      <h2 data-i18n="options.language">Language</h2>
+      <p class="section-desc" data-i18n="options.language_desc">Reload the new tab page after changing language.</p>
+      <select id="languageSelect">
+        <option value="en">English</option>
+        <option value="ru">Русский</option>
+      </select>
     </section>
 
     <div class="save-status" id="saveStatus" role="status" aria-live="polite"></div>
   </main>
+  <script type="module" src="options.js"></script>
 </body>
 </html>

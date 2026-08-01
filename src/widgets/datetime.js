@@ -6,8 +6,8 @@ export function renderDateTimeWidget(_widget) {
 
 export default {
   type: WIDGET_TYPE,
-  title: 'Дата и время',
+  title: 'widget.datetime.title',
   icon: 'clock',
-  defaultConfig: { title: 'Дата и время' },
+  defaultConfig: { title: '' },
   render: renderDateTimeWidget,
 };

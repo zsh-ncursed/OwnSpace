@@ -3,13 +3,14 @@ import { escapeHtml } from '../ui/escape.js';
 import { getDefaultTitle, widgetBgStyle } from '../widgets/management.js';
 import { widgetRegistry } from '../widgets/registry.js';
 import { setupWidgetColumnSortable, setupAddWidgetListeners, setupWidgetListeners } from './listeners.js';
+import { t } from '../i18n/index.js';
 
 export function renderWidgetGrid() {
   const container = document.getElementById('widget-grid');
   if (!container) return;
   const workspace = getActiveWorkspace();
   if (!workspace) {
-    container.innerHTML = '<div class="workspace"><p>Загрузка...</p></div>';
+    container.innerHTML = '<div class="workspace"><p>' + t('empty.loading') + '</p></div>';
     return;
   }
 
@@ -24,7 +25,7 @@ export function renderWidgetGrid() {
 
   const enabledPlugins = widgetRegistry.getEnabled();
   const menuButtons = enabledPlugins
-    .map((p) => `<button data-type="${p.type}">${p.title}</button>`)
+    .map((p) => `<button data-type="${p.type}">${t(p.title)}</button>`)
     .join('');
 
   container.className = 'widget-grid widget-grid-layout';
@@ -38,15 +39,15 @@ export function renderWidgetGrid() {
       ${emptyCols}
       <div class="empty-state-hint" id="add-widget-empty-hint">
         ${ICONS.btn('plus')}
-        <span>Используйте <kbd>+</kbd> в верхней панели, чтобы добавить виджет</span>
+        <span><kbd>+</kbd> ${t('empty.hint_add_widget')}</span>
       </div>
       <div id="add-widget-menu" class="modal-overlay" style="display: none;">
         <div class="modal">
-          <h3>Добавить виджет</h3>
+          <h3>${t('empty.add_widget_title')}</h3>
           <div class="widget-options">
             ${menuButtons}
           </div>
-          <button class="modal-close" id="close-menu">Отмена</button>
+          <button class="modal-close" id="close-menu">${t('common.cancel')}</button>
         </div>
       </div>
     `;
@@ -76,11 +77,11 @@ export function renderWidgetGrid() {
     ${columnsHTML}
     <div id="add-widget-menu" class="modal-overlay" style="display: none;">
       <div class="modal">
-        <h3>Добавить виджет</h3>
+        <h3>${t('empty.add_widget_title')}</h3>
         <div class="widget-options">
           ${menuButtons}
         </div>
-        <button class="modal-close" id="close-menu">Отмена</button>
+        <button class="modal-close" id="close-menu">${t('common.cancel')}</button>
       </div>
     </div>
   `;
@@ -97,14 +98,14 @@ export function renderWidget(widget) {
 
   return `
     <div class="widget ${pinned ? 'widget-pinned' : ''}" data-widget-id="${widgetId}" ${widgetBgStyle(widget)}>
-      <div class="widget-header ${pinned ? '' : 'widget-drag-handle'}" title="${pinned ? 'Виджет закреплён' : 'Перетащить виджет'}">
+      <div class="widget-header ${pinned ? '' : 'widget-drag-handle'}" title="${pinned ? t('widget.pinned') : t('widget.drag')}">
         <span class="widget-drag-grip" aria-hidden="true">${ICONS.action('grip-vertical')}</span>
         <span class="widget-title" data-default-title="${escapeHtml(title)}">${escapeHtml(title)}</span>
         <input type="text" class="widget-title-input" value="${escapeHtml(title)}" hidden />
         <div class="widget-actions">
-          <button class="pin-widget-btn icon-btn" title="${pinned ? 'Открепить' : 'Закрепить'}" data-pinned="${pinned}">${ICONS.action(pinned ? 'pin' : 'pin-off')}</button>
-          <button class="edit-title-btn icon-btn" title="Редактировать">${ICONS.action('pencil')}</button>
-          <button class="remove-widget-btn icon-btn" title="Удалить" data-widget-id="${widgetId}">${ICONS.action('x')}</button>
+          <button class="pin-widget-btn icon-btn" title="${pinned ? t('widget.unpin') : t('widget.pin')}" data-pinned="${pinned}">${ICONS.action(pinned ? 'pin' : 'pin-off')}</button>
+          <button class="edit-title-btn icon-btn" title="${t('widget.edit_title')}">${ICONS.action('pencil')}</button>
+          <button class="remove-widget-btn icon-btn" title="${t('widget.remove')}" data-widget-id="${widgetId}">${ICONS.action('x')}</button>
         </div>
       </div>
       <div class="widget-content">${renderWidgetContent(widget)}</div>
@@ -117,5 +118,5 @@ export function renderWidgetContent(widget) {
   if (plugin && plugin.render) {
     return plugin.render(widget);
   }
-  return '<p>Unknown widget type</p>';
+  return '<p>' + t('empty.no_widget_type') + '</p>';
 }

@@ -1,5 +1,6 @@
 import { escapeHtml } from '../ui/escape.js';
 import { updateWidgetConfig } from './management.js';
+import { t } from '../i18n/index.js';
 
 export const WIDGET_TYPE = 'calculator';
 
@@ -26,7 +27,7 @@ const CALC_BUTTONS = [
 ];
 
 function formatCalcNumber(n) {
-  if (typeof n !== 'number' || !isFinite(n)) return 'Ошибка';
+  if (typeof n !== 'number' || !isFinite(n)) return t('calc.error');
   if (Math.abs(n) >= 1e12 || (Math.abs(n) > 0 && Math.abs(n) < 1e-9)) {
     return n.toExponential(6).replace(/\.?0+e/, 'e');
   }
@@ -46,7 +47,7 @@ export function renderCalculatorWidget(widget) {
       <div class="calc-display">
         <div class="calc-history">${escapeHtml(lastExpr)}</div>
         <div class="calc-current" data-calc-current>0</div>
-        ${last ? `<div class="calc-last" title="Последний результат">= ${escapeHtml(last)}</div>` : ''}
+        ${last ? `<div class="calc-last" title="${t('widget.calculator.last_result')}">= ${escapeHtml(last)}</div>` : ''}
       </div>
       <div class="calc-keys">
         ${CALC_BUTTONS.map(([label, action, cls]) => {
@@ -149,7 +150,7 @@ function calcInput(widget, el, st, key) {
     const result = calcApplyOp(st.accumulator, st.operator, value, false);
     const expr = `${formatCalcNumber(st.accumulator)} ${st.operator} ${formatCalcNumber(value)}`;
     if (!isFinite(result)) {
-      st.current = 'Ошибка';
+      st.current = t('calc.error');
       st.accumulator = null;
       st.operator = null;
       st.lastWasOperator = false;
@@ -233,9 +234,9 @@ export function setupCalculatorWidget(el, widget) {
 
 export default {
   type: WIDGET_TYPE,
-  title: 'Калькулятор',
+  title: 'widget.calculator.title',
   icon: 'calculator',
-  defaultConfig: { history: [], last: null, title: 'Калькулятор' },
+  defaultConfig: { history: [], last: null, title: '' },
   render: renderCalculatorWidget,
   setup: setupCalculatorWidget,
 };
