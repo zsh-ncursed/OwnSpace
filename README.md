@@ -1,4 +1,4 @@
-# OwnSpace Browser Extension
+Ош# OwnSpace Browser Extension
 
 Local start page replacement with customizable widgets — аналог start.me без облачного бэкенда.
 
@@ -214,4 +214,4 @@ bash build.sh
 
 ## License
 
-MIT
+GPT3
