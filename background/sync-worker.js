@@ -1,15 +1,19 @@
-// OwnSpace Background Service Worker (MV3)
+// OwnSpace Background Script (MV3)
 // Handles CalDAV sync + extension-level behaviors (pin tab, new-tab override)
 //
-// Loaded as "background.service_worker" so it works in both Chrome and
-// Firefox (121+). Classic script (no "type": "module") — Firefox does not
-// support module background workers yet, so helpers are loaded via importScripts.
+// Loaded as background.scripts in Firefox (no service_worker support) and
+// background.service_worker in Chrome. In Firefox, polyfill + ics-parser are
+// loaded via manifest "scripts" array (shared global scope). In Chrome SW,
+// they are loaded via importScripts below.
 
-// webextension-polyfill: no-op in Firefox (native browser.*), wraps chrome.*
-// into promise-based browser.* for Chrome.
-importScripts('../lib/browser-polyfill.min.js');
-// Shared iCalendar parsing helpers (also unit-tested in vitest).
-importScripts('ics-parser.js');
+if (typeof importScripts === 'function') {
+  // Chrome service worker context — polyfill + ics-parser not in manifest scripts.
+  importScripts('../lib/browser-polyfill.min.js');
+  importScripts('ics-parser.js');
+}
+// In Firefox background page, browser-polyfill.min.js and ics-parser.js are
+// loaded before this file via manifest background.scripts — OwnSpaceICS and
+// browser are already defined on the global scope.
 
 const EXTENSION_DEFAULTS = {
   openInNewTabs: true,

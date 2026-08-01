@@ -9,9 +9,6 @@
   },
   "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
-  "chrome_settings_overrides": {
-    "newtab_page": "newtab.html"
-  },
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
@@ -27,10 +24,8 @@
       "strict_min_version": "128.0"
     }
   },
-  "browser_url_overrides": {
-    "newtab": "newtab.html"
-  },
   "background": {
+    "scripts": ["lib/browser-polyfill.min.js", "background/ics-parser.js", "background/sync-worker.js"],
     "service_worker": "background/sync-worker.js"
   },
   "action": {
