@@ -12,6 +12,9 @@
   "chrome_settings_overrides": {
     "newtab_page": "newtab.html"
   },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "ownspace@zsh-ncursed.github.io",
