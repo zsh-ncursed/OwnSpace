@@ -1,5 +1,15 @@
-// OwnSpace Background Script
+// OwnSpace Background Service Worker (MV3)
 // Handles CalDAV sync + extension-level behaviors (pin tab, new-tab override)
+//
+// Loaded as "background.service_worker" so it works in both Chrome and
+// Firefox (121+). Classic script (no "type": "module") — Firefox does not
+// support module background workers yet, so helpers are loaded via importScripts.
+
+// webextension-polyfill: no-op in Firefox (native browser.*), wraps chrome.*
+// into promise-based browser.* for Chrome.
+importScripts('../lib/browser-polyfill.min.js');
+// Shared iCalendar parsing helpers (also unit-tested in vitest).
+importScripts('ics-parser.js');
 
 const EXTENSION_DEFAULTS = {
   openInNewTabs: true,
@@ -190,123 +200,11 @@ class CalDAVClient {
 }
 
 // ============================================
-// iCalendar (ICS) helpers
+// iCalendar (ICS) helpers — extracted to ics-parser.js
+// (loaded via importScripts above; shared with unit tests)
 // ============================================
 
-function unfoldICS(lines) {
-  const unfolded = [];
-  for (const raw of lines) {
-    const line = raw.replace(/\r$/, '');
-    if (line.length > 0 && (line[0] === ' ' || line[0] === '\t')) {
-      if (unfolded.length > 0) unfolded[unfolded.length - 1] += line.slice(1);
-    } else {
-      unfolded.push(line);
-    }
-  }
-  return unfolded;
-}
-
-function parseICSProps(componentBlock) {
-  const props = {};
-  for (const line of componentBlock) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx < 1) continue;
-    const propName = line.slice(0, colonIdx);
-    const propValue = line.slice(colonIdx + 1);
-    props[propName] = propValue;
-  }
-  return props;
-}
-
-function splitICSComponents(unfoldedLines) {
-  const components = [];
-  let current = null;
-  for (const line of unfoldedLines) {
-    if (line === 'BEGIN:VEVENT') {
-      current = [];
-    } else if (line === 'END:VEVENT' && current !== null) {
-      components.push(current);
-      current = null;
-    } else if (current !== null) {
-      current.push(line);
-    }
-  }
-  return components;
-}
-
-function icsDateToAppFormat(raw) {
-  // raw examples:
-  //   "20240101"           (all-day DATE)
-  //   "20240101T120000"    (local datetime)
-  //   "20240101T120000Z"   (UTC datetime)
-  //   "20240101T120000" with params like DTSTART;VALUE=DATE -> "20240101"
-
-  // Strip timezone suffix if present
-  const dateStr = raw.replace(/Z$/, '');
-  if (dateStr.length === 8) {
-    // All-day: YYYYMMDD
-    const year = dateStr.slice(0, 4);
-    const month = dateStr.slice(4, 6);
-    const day = dateStr.slice(6, 8);
-    return { date: `${year}-${month}-${day}` };
-  }
-  if (dateStr.length === 15) {
-    // Datetime: YYYYMMDDTHHMMSS
-    // Strip timezone offset like +0300
-    const cleaned = dateStr.replace(/[+-]\d{4}$/, '');
-    const year = cleaned.slice(0, 4);
-    const month = cleaned.slice(4, 6);
-    const day = cleaned.slice(6, 8);
-    const hour = cleaned.slice(9, 11);
-    const min = cleaned.slice(11, 13);
-    return { date: `${year}-${month}-${day}`, time: `${hour}:${min}` };
-  }
-  return { date: '1970-01-01' };
-}
-
-function icsDtValue(raw) {
-  // "DTSTART;VALUE=DATE:20240101" -> propName = "DTSTART;VALUE=DATE", value = "20240101"
-  const semicolonIdx = raw.indexOf(';');
-  return semicolonIdx > 0 ? raw.slice(0, semicolonIdx) : raw;
-}
-
-function parseCalDAVEvents(icsData) {
-  const unfolded = unfoldICS(icsData.split('\n'));
-  const vevents = splitICSComponents(unfolded);
-  const events = [];
-
-  for (const block of vevents) {
-    const props = parseICSProps(block);
-    const uid = props.UID || '';
-    const summary = props.SUMMARY || 'Без названия';
-
-    // Find DTSTART and DTEND (might have params like "DTSTART;VALUE=DATE")
-    let dtstartRaw = '', dtendRaw = '';
-    let isAllDay = false;
-    for (const key of Object.keys(props)) {
-      const base = key.split(';')[0];
-      if (base === 'DTSTART') { dtstartRaw = props[key]; if (key.includes('VALUE=DATE')) isAllDay = true; }
-      if (base === 'DTEND') { dtendRaw = props[key]; }
-    }
-
-    if (!dtstartRaw) continue; // invalid event
-
-    const start = icsDateToAppFormat(dtstartRaw);
-    const end = dtendRaw ? icsDateToAppFormat(dtendRaw) : start;
-
-    events.push({
-      uid,
-      title: summary,
-      date: start.date,
-      time: isAllDay ? undefined : (start.time || '00:00'),
-      endDate: end.date,
-      isAllDay,
-      source: 'caldav'
-    });
-  }
-
-  return events;
-}
+const { parseCalDAVEvents } = OwnSpaceICS;
 
 // Message handler from content script
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -326,7 +224,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           result = { success: true };
           break;
 
-        case 'sync':
+        case 'sync': {
           const { url, username, password, calendarUrl } = payload;
           const client = new CalDAVClient(url, username, password);
 
@@ -339,13 +237,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const events = await client.getEvents(calendarUrl, startDate, endDate);
           result = { events };
           break;
+        }
 
-        case 'test':
+        case 'test': {
           const { url: testUrl, username: testUser, password: testPass } = payload;
           const testClient = new CalDAVClient(testUrl, testUser, testPass);
           const calendars = await testClient.getCalendars();
           result = { calendars };
           break;
+        }
 
         case 'fetchTitle':
           console.log('[BG] fetchTitle received, url:', payload?.url);

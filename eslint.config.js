@@ -43,11 +43,30 @@ export default [
         CustomEvent: 'readonly',
         EventTarget: 'readonly',
         confirm: 'readonly',
+        importScripts: 'readonly',
+        OwnSpaceICS: 'readonly',
       },
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-undef': 'error',
+    },
+  },
+  // Vitest test files — enable vitest globals (vitest.config.js sets globals: true)
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        vi: 'readonly',
+      },
     },
   },
 ];

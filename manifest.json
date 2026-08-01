@@ -3,7 +3,6 @@
   "name": "OwnSpace",
   "version": "1.2.1",
   "description": "Local start page replacement with customizable widgets",
-  "default_locale": "en",
   "icons": {
     "48": "icons/icon48.png",
     "96": "icons/icon96.png"
@@ -32,7 +31,7 @@
     "newtab": "newtab.html"
   },
   "background": {
-    "page": "background/background.html"
+    "service_worker": "background/sync-worker.js"
   },
   "action": {
     "default_title": "OwnSpace",
