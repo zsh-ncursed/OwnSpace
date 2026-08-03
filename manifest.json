@@ -17,7 +17,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "ownspace@zsh-ncursed.github.io",
+      "id": "ownspace@extension.local",
       "strict_min_version": "128.0"
     },
     "gecko_android": {
