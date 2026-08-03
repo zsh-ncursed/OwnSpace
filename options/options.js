@@ -134,4 +134,8 @@ async function init() {
   initWidgetToggles(appSettings);
 }
 
-init();
+init().catch((e) => {
+  console.error('OwnSpace options init failed:', e);
+  document.body.insertAdjacentHTML('beforeend',
+    `<pre style="color:#c00;padding:1em">Init error: ${e.message}\n${e.stack}</pre>`);
+});
