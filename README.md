@@ -165,38 +165,66 @@ container.querySelectorAll('.my-widget').forEach((el) => {
 - События из CalDAV не учитываются (синхронизируются только для просмотра)
 - Блок отображается только если есть хотя бы одно событие с заполненной суммой
 
+## Build Instructions (for AMO Reviewers)
+
+### Requirements
+
+- OS: Linux / macOS / Windows (any POSIX-compatible with `zip`)
+- No Node.js or npm required to build the extension itself
+- Node.js 20+ and npm required only for linting and tests (optional)
+
+### Build Steps
+
+The extension ships as-is — no bundler, no transpilation, no minification of own source code. `build.sh` is a plain `zip` of the source tree into `ownspace.xpi`.
+
+```bash
+git clone https://github.com/zsh-ncursed/OwnSpace.git
+cd OwnSpace
+bash build.sh
+# Output: ownspace.xpi
+```
+
+### Lint and Tests (optional)
+
+```bash
+npm install          # dev dependencies only (eslint, vitest)
+npm run lint         # ESLint
+npm test             # Vitest + jsdom, 172 tests
+```
+
+### Verifying Build Matches Uploaded XPI
+
+```bash
+# Build locally, then compare:
+bash build.sh
+diff <(unzip -l ownspace.xpi | sort) <(unzip -l uploaded.xpi | sort)
+# File lists should match
+```
+
+### Third-Party Libraries (vendored, not modified)
+
+- `lib/browser-polyfill.min.js` — Mozilla browser-polyfill (Apache-2.0), https://github.com/mozilla/webextension-polyfill
+- `lib/sortable.min.js` — SortableJS (MIT), https://github.com/SortableJS/Sortable
+- `lib/fonts/Inter-Variable.woff2` — Inter font (OFL-1.1), https://github.com/rsms/inter
+
+All own source files are unminified, readable, and shipped as written.
+
 ## Installation
 
 ### Firefox
 
-1. Открыть `about:debugging#/runtime/this-firefox`
-2. «Загрузить временное дополнение»
-3. Выбрать `manifest.json`
-4. Открыть новую вкладку
+1. Open `about:debugging#/runtime/this-firefox`
+2. «Load Temporary Add-on»
+3. Select `manifest.json`
+4. Open a new tab
 
 ### Chrome
 
-1. Открыть `chrome://extensions`
-2. Включить «Режим разработчика»
-3. «Загрузить распакованное расширение»
-4. Выбрать директорию проекта
-5. Открыть новую вкладку
-
-## Development
-
-```bash
-# Install dependencies
-npm install -g
-
-# Lint
-npm run lint
-
-# Run tests
-npm test
-
-# Build .xpi
-bash build.sh
-```
+1. Open `chrome://extensions`
+2. Enable «Developer mode»
+3. «Load unpacked»
+4. Select the project directory
+5. Open a new tab
 
 ## Tech Stack
 
@@ -209,7 +237,7 @@ bash build.sh
 
 ## Browser Support
 
-- Firefox 109+
+- Firefox 128+ (gecko + gecko_android)
 - Chrome (Manifest V3)
 
 ## Security
