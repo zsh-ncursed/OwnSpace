@@ -212,5 +212,13 @@ export default {
   "calc.error": "Ошибка",
   "weather.wind_unit": "{n} м/с",
   "calendar.recurring_hint": " (повторяющееся)",
-  "caldav.untitled_event": "Без названия"
+  "caldav.untitled_event": "Без названия",
+  "search.placeholder": "Поиск...",
+  "search.engine_label": "Поисковый движок",
+  "search.engine.google": "Google",
+  "search.engine.duckduckgo": "DuckDuckGo",
+  "search.engine.bing": "Bing",
+  "search.engine.brave": "Brave",
+  "search.engine.ecosia": "Ecosia",
+  "search.engine.startpage": "Startpage"
 };

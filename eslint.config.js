@@ -45,6 +45,7 @@ export default [
         confirm: 'readonly',
         importScripts: 'readonly',
         OwnSpaceICS: 'readonly',
+        AbortController: 'readonly',
       },
     },
     rules: {

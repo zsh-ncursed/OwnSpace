@@ -4,6 +4,7 @@ import { loadWorkspaces } from './workspaces.js';
 import { renderApp } from './render/tabs.js';
 import { getSettings } from './storage.js';
 import { initLocale } from './i18n/index.js';
+import { getSearchEngine } from './search/search.js';
 
 import './render/listeners.js';
 import './widgets/event-modal.js';
@@ -30,6 +31,7 @@ async function initApp() {
   await loadTheme();
   await loadWorkspaces();
   window._pluginSettings = await getSettings();
+  state._searchEngine = await getSearchEngine();
   console.log('Workspaces:', state.workspaces.length);
 
   syncStateToWindow();

@@ -3,6 +3,7 @@ export let state = {
   activeWorkspaceId: null,
   theme: 'dark',
   loading: true,
+  _searchEngine: 'google',
 };
 
 export function getActiveWorkspace() {
