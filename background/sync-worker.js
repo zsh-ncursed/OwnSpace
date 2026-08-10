@@ -1,5 +1,14 @@
 // OwnSpace Background Script (MV3)
-// Handles CalDAV sync + extension-level behaviors (pin tab, new-tab override)
+// Handles CalDAV sync + extension-level behaviors (pin tab, new-tab redirect)
+//
+// The extension deliberately does NOT use chrome_url_overrides.newtab: a page
+// loaded via the override cannot navigate back to the browser's built-in
+// new-tab page (about:home / about:newtab) — Firefox/Floorp deny
+// `window.location.replace('about:...')` and `tabs.update({url:'about:...'})`
+// rejects with "Illegal URL". That made the "Open OwnSpace in new tabs" option
+// impossible to turn off. Instead, new tabs land on the browser's native
+// new-tab page and maybeRedirectNewTab() redirects them to OwnSpace only when
+// the option is enabled, so unchecking it leaves the browser default page.
 //
 // Loaded as background.scripts in Firefox (no service_worker support) and
 // background.service_worker in Chrome. In Firefox, polyfill + ics-parser are
@@ -52,6 +61,11 @@ async function ensurePinnedOwnSpaceTab() {
   }
 }
 
+// New tabs open on the browser's native new-tab page (about:newtab / about:home
+// / floorp:// / chrome://newtab). When openInNewTabs is enabled, redirect the
+// freshly created tab to OwnSpace. When disabled, do nothing and leave the
+// browser's default page — this is the only way the toggle can actually turn
+// the feature off (see file header for why chrome_url_overrides was removed).
 async function maybeRedirectNewTab(tab) {
   try {
     const targetUrl = tab.pendingUrl || tab.url || '';
