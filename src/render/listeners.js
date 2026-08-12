@@ -20,6 +20,13 @@ import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.
 import { setupCalculatorWidget } from '../widgets/calculator.js';
 import { addTask, toggleTask, renameTask, deleteTask } from '../widgets/todo.js';
 import { shiftMonth, deleteEvent } from '../widgets/calendar.js';
+import {
+  addCurrencyPair,
+  removeCurrencyPair,
+  renderRatesInto,
+  fetchExchangeRates,
+  REFRESH_INTERVAL,
+} from '../widgets/currency.js';
 import { t } from '../i18n/index.js';
 
 // ponytail: single ticker for all datetime widgets — survives re-renders,
@@ -484,7 +491,98 @@ export function setupWidgetListeners(container) {
     if (widget) setupCalculatorWidget(el, widget);
   });
 
+  container.querySelectorAll('.currency-widget').forEach((el) => {
+    const widgetId = el.dataset.widgetId;
+    const workspace = getActiveWorkspace();
+    const widget = workspace?.widgets.find((w) => w.id === widgetId);
+    if (!widget) return;
+
+    refreshCurrencyWidget(widget, el);
+
+    const showPairError = (key) => {
+      const status = el.querySelector('[data-currency-status]');
+      if (status) status.textContent = t(`widget.currency.${key}`);
+    };
+
+    el.querySelector('.currency-add-btn')?.addEventListener('click', () => {
+      const base = el.querySelector('[data-currency-base]').value;
+      const quote = el.querySelector('[data-currency-quote]').value;
+      const res = addCurrencyPair(widget.config.pairs || [], base, quote);
+      if (res.error) {
+        showPairError(res.error);
+        return;
+      }
+      const pairs = [...(widget.config.pairs || []), res.pair];
+      updateWidgetConfig(widgetId, { pairs }, true);
+      renderSingleWidget(widgetId);
+    });
+
+    el.querySelectorAll('.currency-remove-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const pairId = btn.dataset.pairId;
+        const pairs = removeCurrencyPair(widget.config.pairs || [], pairId);
+        const rates = { ...(widget.config.rates || {}) };
+        delete rates[pairId];
+        updateWidgetConfig(widgetId, { pairs, rates }, true);
+        renderSingleWidget(widgetId);
+      });
+    });
+
+    el.querySelector('.currency-refresh-btn')?.addEventListener('click', () => {
+      refreshCurrencyWidget(widget, el, { force: true });
+    });
+  });
+
+  ensureCurrencyTicker();
   ensureDatetimeTicker();
+}
+
+export async function refreshCurrencyWidget(widget, el, { force = false } = {}) {
+  const pairs = widget.config.pairs || [];
+  const status = el.querySelector('[data-currency-status]');
+  if (!pairs.length) {
+    if (status) status.textContent = '';
+    return;
+  }
+  const now = Date.now();
+  const last = widget.config.lastUpdated || 0;
+  if (!force && now - last < REFRESH_INTERVAL) {
+    renderRatesInto(el, pairs, widget.config.rates || {}, last);
+    return;
+  }
+  if (status) status.textContent = t('common.loading');
+  delete status?.dataset.state;
+  try {
+    const newRates = await fetchExchangeRates(pairs);
+    const merged = { ...(widget.config.rates || {}), ...newRates };
+    const updatedAt = Date.now();
+    updateWidgetConfig(widget.id, { rates: merged, lastUpdated: updatedAt }, true);
+    renderRatesInto(el, pairs, merged, updatedAt);
+    if (status) status.textContent = '';
+  } catch (e) {
+    if (status) {
+      status.textContent = t('widget.currency.error_prefix', { message: e.message });
+      status.dataset.state = 'error';
+    }
+  }
+}
+
+// single ticker: refreshes all connected currency widgets periodically
+// without full grid re-renders.
+let _currencyTicker = null;
+function ensureCurrencyTicker() {
+  if (_currencyTicker) return;
+  _currencyTicker = setInterval(() => {
+    document.querySelectorAll('.currency-widget').forEach((el) => {
+      if (!el.isConnected) return;
+      const widgetId = el.dataset.widgetId;
+      const workspace = getActiveWorkspace();
+      const widget = workspace?.widgets.find((w) => w.id === widgetId);
+      if (widget && (widget.config.pairs || []).length) {
+        refreshCurrencyWidget(widget, el);
+      }
+    });
+  }, REFRESH_INTERVAL);
 }
 
 export function updateDateTime(el) {

@@ -5,6 +5,7 @@ import weatherPlugin from './weather.js';
 import calendarPlugin from './calendar.js';
 import todoPlugin from './todo.js';
 import calculatorPlugin from './calculator.js';
+import currencyPlugin from './currency.js';
 
 const plugins = new Map();
 
@@ -20,6 +21,7 @@ register(weatherPlugin);
 register(calendarPlugin);
 register(todoPlugin);
 register(calculatorPlugin);
+register(currencyPlugin);
 
 export const widgetRegistry = {
   register,
