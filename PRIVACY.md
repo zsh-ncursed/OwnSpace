@@ -20,6 +20,7 @@ OwnSpace makes network requests only when you configure a feature that requires 
 
 - **CalDAV sync** — connects to the calendar server URL you provide, with your credentials. We do not proxy or log these requests.
 - **Weather widget** — fetches weather data from `api.openweathermap.org` using the API key you provide.
+- **Currency widget** — fetches daily exchange rates from `open.er-api.com` (ExchangeRate-API free endpoint, no API key). No identifiers are sent.
 - **Bookmark title fetch** — when you add a bookmark, the extension may fetch the page `<title>` to pre-fill the bookmark name.
 
 No telemetry, no analytics, no tracking. The `data_collection_permissions` field in the manifest is set to `"none"`.
@@ -30,7 +31,7 @@ No telemetry, no analytics, no tracking. The `data_collection_permissions` field
 |---|---|
 | `storage` | Save your widgets, notes, bookmarks, settings locally |
 | `tabs` | Pin the OwnSpace tab; open new tabs when configured |
-| `<all_urls>` (host) | Fetch CalDAV calendars, weather data, and bookmark titles from URLs you provide |
+| `<all_urls>` (host) | Fetch CalDAV calendars, weather/currency data, and bookmark titles from URLs you provide |
 
 Host permissions are broad because the extension fetches user-specified URLs (CalDAV servers, weather API, bookmark pages). We do not read or inject content into arbitrary pages.
 

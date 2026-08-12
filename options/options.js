@@ -11,6 +11,7 @@ const BUILTIN_WIDGET_TYPES = [
   'calendar',
   'todo',
   'calculator',
+  'currency',
 ];
 
 const DEFAULTS = {

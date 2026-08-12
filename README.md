@@ -14,6 +14,7 @@ Local start page replacement with customizable widgets — аналог start.me
   - Календарь — локальные события + опциональная CalDAV-синхронизация
   - Список задач — todo с чекбоксами
   - Калькулятор — арифметика с %-семантикой, история результатов, клавиатурный ввод
+  - Курс валют — до 5 пар валют, базовая валюта выбирается из списка (ExchangeRate-API)
 - **Включение/отключение виджетов** — через страницу настроек расширения
 - **Темы:** Dark / Light
 - **Фон workspace:** цвет, градиент, изображение (со сжатием через Canvas)
@@ -54,8 +55,9 @@ ownspace/
 │   │   ├── datetime.js        # Plugin: Дата и время
 │   │   ├── weather.js         # Plugin: Погода
   │   │   ├── calendar.js        # Plugin: Календарь (события + доход/расход)
-  │   │   └── todo.js            # Plugin: Список задач
-  │   │   └── calculator.js      # Plugin: Калькулятор
+  │   │   ├── todo.js            # Plugin: Список задач
+  │   │   ├── calculator.js      # Plugin: Калькулятор
+  │   │   └── currency.js        # Plugin: Курс валют
 │   ├── ui/
 │   │   ├── theme.js           # Dark/Light theme toggle
 │   │   ├── modals.js          # Notification/confirm/prompt modals

@@ -3101,3 +3101,175 @@ body {
   background: var(--bg-elevated, var(--bg));
   color: var(--primary);
 }
+
+/* Currency widget */
+.currency-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.currency-pair {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.currency-pair:hover {
+  border-color: var(--primary);
+}
+
+.currency-pair-code {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.currency-pair-value {
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.currency-pair-num {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-pair-unit {
+  margin-left: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-remove-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text-subtle);
+  transition: color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out);
+}
+
+.currency-remove-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.currency-remove-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.currency-empty {
+  padding: var(--space-4) var(--space-2);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+.currency-max-hint {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}
+
+.currency-add-row select:disabled,
+.currency-add-row .currency-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.currency-add-row .currency-add-btn:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+
+.currency-add-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.currency-add-row select {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.currency-add-row select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+}
+
+.currency-slash {
+  color: var(--text-subtle);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.currency-add-row .currency-add-btn {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.currency-add-row .currency-add-btn:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.currency-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.currency-updated {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-status {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.currency-status[data-state="error"] {
+  color: var(--accent);
+}
+
+.currency-refresh-btn {
+  flex-shrink: 0;
+}
