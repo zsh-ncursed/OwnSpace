@@ -156,3 +156,38 @@ export function findWeatherConfig(workspace) {
   if (!w) return null;
   return { apiKey: w.config.apiKey, city: w.config.city || 'Moscow' };
 }
+
+/**
+ * Update weather cells in-place inside a rendered calendar DOM element.
+ * Does NOT trigger a full widget re-render — avoids listener re-binding loops.
+ */
+export function updateCalendarWeather(el) {
+  const now = new Date();
+  el.querySelectorAll('.calendar-day:not(.empty)').forEach((dayEl) => {
+    const day = parseInt(dayEl.dataset.day, 10);
+    if (!day) return;
+    const existing = dayEl.querySelector('.cal-weather');
+    const wDate = new Date(now.getFullYear(), now.getMonth(), day);
+    const wd = weatherForDay(wDate);
+    if (!wd) {
+      if (existing) existing.remove();
+      return;
+    }
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    let html;
+    if (thisKey === todayKey && wd.temp != null) {
+      html = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-temp">${wd.temp}°</span></span>`;
+    } else if (wd.min != null && wd.max != null) {
+      html = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
+    } else {
+      return;
+    }
+    if (existing) {
+      existing.outerHTML = html;
+    } else {
+      const numEl = dayEl.querySelector('.calendar-day-num');
+      if (numEl) numEl.insertAdjacentHTML('afterend', html);
+    }
+  });
+}
