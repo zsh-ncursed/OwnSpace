@@ -144,8 +144,10 @@ function renderForecast(el, forecastData) {
 
     const code = (best.weather[0].icon || '').slice(0, 2);
     const iconName = WEATHER_ICON_MAP[code] || 'cloud';
-    dayEl.querySelector('.forecast-icon').replaceChildren(...[]);
-    dayEl.querySelector('.forecast-icon').insertAdjacentHTML('beforeend', ICONS.btn(iconName));
+    const fiEl = dayEl.querySelector('.forecast-icon');
+    fiEl.replaceChildren(...[]);
+    fiEl.insertAdjacentHTML('beforeend', ICONS.btn(iconName));
+    fiEl.dataset.icon = iconName;
     dayEl.querySelector('.forecast-temp').textContent = `${Math.round(best.main.temp)}°`;
     dayIdx++;
   }

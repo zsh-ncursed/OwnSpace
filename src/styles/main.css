@@ -1384,6 +1384,16 @@ body {
   opacity: 0.8;
 }
 
+.forecast-icon[data-icon="sun"]            { color: #f59e0b; }
+.forecast-icon[data-icon="moon"]           { color: #818cf8; }
+.forecast-icon[data-icon="cloud_sun"]      { color: #f59e0b; }
+.forecast-icon[data-icon="cloud"]          { color: #94a3b8; }
+.forecast-icon[data-icon="cloud_rain"]     { color: #3b82f6; }
+.forecast-icon[data-icon="cloud_lightning"] { color: #fbbf24; }
+.forecast-icon[data-icon="cloud_snow"]     { color: #7dd3fc; }
+.forecast-icon[data-icon="wind"]           { color: #94a3b8; }
+.forecast-icon[data-icon="mist"]           { color: #94a3b8; }
+
 .forecast-temp {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
