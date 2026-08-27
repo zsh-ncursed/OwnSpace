@@ -1,6 +1,7 @@
 import { escapeHtml } from '../ui/escape.js';
 import { pad2, timeAgo, eventDateKey } from '../utils/date.js';
 import { t, getLang } from '../i18n/index.js';
+import { weatherForDay } from './calendar-weather.js';
 
 export const WIDGET_TYPE = 'calendar';
 
@@ -211,6 +212,7 @@ export function renderCalendarWidget(widget) {
     viewYear === now.getFullYear() && viewMonth === now.getMonth();
   const todayDay = isViewingCurrentMonth ? now.getDate() : null;
   const monthPrefix = `${viewYear}-${pad2(viewMonth + 1)}`;
+  const showWeather = !!widget.config.showWeather;
 
   const days = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
@@ -339,9 +341,25 @@ export function renderCalendarWidget(widget) {
                 ? `<span class="event-overflow">+${overflow}</span>`
                 : '';
 
+            let weatherHtml = '';
+            if (day && showWeather && viewYear === now.getFullYear() && viewMonth === now.getMonth()) {
+              const wDate = new Date(viewYear, viewMonth, day);
+              const wd = weatherForDay(wDate);
+              if (wd) {
+                const todayKey = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+                const thisKey = `${viewYear}-${pad2(viewMonth + 1)}-${pad2(day)}`;
+                if (thisKey === todayKey && wd.temp != null) {
+                  weatherHtml = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-temp">${wd.temp}°</span></span>`;
+                } else if (wd.min != null && wd.max != null) {
+                  weatherHtml = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
+                }
+              }
+            }
+
             return `
               <div class="${classes.join(' ')}" data-day="${day || ''}" ${cellStyle}>
                 <span class="calendar-day-num">${day || ''}</span>
+                ${weatherHtml}
                 ${timedEvents.length > 0 ? `<div class="event-bars">${bars}${overflowHtml}</div>` : ''}
               </div>
             `;
@@ -406,6 +424,6 @@ export default {
   type: WIDGET_TYPE,
   title: 'widget.calendar.title',
   icon: 'calendar',
-  defaultConfig: { events: [], title: '' },
+  defaultConfig: { events: [], title: '', showWeather: false },
   render: renderCalendarWidget,
 };

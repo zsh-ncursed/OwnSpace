@@ -1,15 +1,29 @@
 import { eventDateKey } from '../utils/date.js';
 import { escapeHtml } from '../ui/escape.js';
 import { showConfirm } from '../ui/modals.js';
-import { state } from '../state.js';
+import { state, getActiveWorkspace } from '../state.js';
 import { updateWidgetConfig } from './management.js';
 import { upsertEventWithRecurring } from './calendar.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { deleteWorkspace } from '../workspaces.js';
+import { findWeatherConfig } from './calendar-weather.js';
 import { t } from '../i18n/index.js';
 
 export function showWidgetSettingsModal(widget) {
   const config = widget.config || {};
+  const isCalendar = widget.type === 'calendar';
+  const ws = getActiveWorkspace();
+  const weatherCfg = isCalendar ? findWeatherConfig(ws) : null;
+
+  const weatherSection = isCalendar && weatherCfg
+    ? `<label class="event-field event-checkbox-field">
+        <label class="event-checkbox-label">
+          <input type="checkbox" id="widget-show-weather" ${config.showWeather ? 'checked' : ''} />
+          <span>${t('widget.calendar.show_weather')}</span>
+        </label>
+      </label>`
+    : '';
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -28,6 +42,7 @@ export function showWidgetSettingsModal(widget) {
           <span>${t('modal.widget.opacity')}</span>
           <input type="range" id="widget-opacity" min="0" max="100" value="${config.opacity != null ? config.opacity : 100}" />
         </label>
+        ${weatherSection}
       </form>
       <div style="display: flex; gap: 8px; margin-top: 16px;">
         <button id="save-widget-settings" class="btn btn-primary" style="flex: 1;">${t('common.save')}</button>
@@ -46,11 +61,16 @@ export function showWidgetSettingsModal(widget) {
         overlay.querySelector('#widget-opacity').value,
         10,
       );
-      updateWidgetConfig(widget.id, {
+      const updates = {
         title: title || config.title,
         bgColor,
         opacity,
-      });
+      };
+      const weatherCb = overlay.querySelector('#widget-show-weather');
+      if (weatherCb) {
+        updates.showWeather = weatherCb.checked;
+      }
+      updateWidgetConfig(widget.id, updates);
       overlay.remove();
       renderWidgetGrid();
     });

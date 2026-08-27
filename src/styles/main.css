@@ -1653,6 +1653,60 @@ body {
   justify-content: center;
 }
 
+/* Calendar weather in day cells */
+.cal-weather {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px;
+  margin-top: 1px;
+  pointer-events: none;
+}
+
+.cal-weather-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cal-weather-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.cal-weather-icon[data-icon="sun"]           { color: #f59e0b; }
+.cal-weather-icon[data-icon="cloud_sun"]     { color: #f59e0b; }
+.cal-weather-icon[data-icon="cloud"]         { color: #94a3b8; }
+.cal-weather-icon[data-icon="cloud_rain"]    { color: #3b82f6; }
+.cal-weather-icon[data-icon="cloud_lightning"]{ color: #fbbf24; }
+.cal-weather-icon[data-icon="cloud_snow"]    { color: #7dd3fc; }
+.cal-weather-icon[data-icon="mist"]          { color: #94a3b8; }
+
+.cal-weather-temp {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cal-weather-range {
+  font-size: 9px;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.calendar-day.selected .cal-weather-temp,
+.calendar-day.selected .cal-weather-range {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.calendar-day.selected .cal-weather-icon {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .selected-day-panel {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
