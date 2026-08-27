@@ -20,6 +20,7 @@ import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.
 import { setupCalculatorWidget } from '../widgets/calculator.js';
 import { addTask, toggleTask, renameTask, deleteTask } from '../widgets/todo.js';
 import { shiftMonth, deleteEvent } from '../widgets/calendar.js';
+import { refreshWeather, findWeatherConfig } from '../widgets/calendar-weather.js';
 import {
   addCurrencyPair,
   removeCurrencyPair,
@@ -482,6 +483,16 @@ export function setupWidgetListeners(container) {
       }
       if (ok) renderSingleWidget(widgetId);
     });
+
+    // Fetch weather data for calendar cells when enabled
+    if (widget.config.showWeather) {
+      const wCfg = findWeatherConfig(workspace);
+      if (wCfg) {
+        refreshWeather(wCfg.apiKey, wCfg.city).then(() => {
+          renderSingleWidget(widgetId);
+        }).catch(() => {});
+      }
+    }
   });
 
   container.querySelectorAll('.calculator-widget').forEach((el) => {
