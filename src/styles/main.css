@@ -3194,12 +3194,6 @@ body {
   cursor: not-allowed;
 }
 
-.currency-add-row .currency-add-btn:hover {
-  color: var(--primary);
-  background: var(--primary-soft);
-}
-
-
 .currency-add-row {
   display: flex;
   align-items: center;
