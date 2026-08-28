@@ -175,6 +175,7 @@ export default {
   "modal.confirm.default_title": "Confirm",
   "modal.prompt.default_title": "Enter value",
   "modal.prompt.required": "Field cannot be empty",
+  "modal.prompt.toggle_password": "Show password",
   "modal.recurring.title": "Recurring event",
   "modal.recurring.message": "Delete all occurrences or just this one?",
   "modal.recurring.all": "All",

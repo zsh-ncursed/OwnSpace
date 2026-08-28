@@ -91,7 +91,17 @@ export function showPrompt({
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-title" id="modal-title">${escapeHtml(title || t('modal.prompt.default_title'))}</div>
         ${message ? `<div class="modal-message">${escapeHtml(message)}</div>` : ''}
-        <input type="${inputType}" class="modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+        ${inputType === 'password' ? `
+          <div class="modal-input-wrap">
+            <input type="password" class="modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+            <button type="button" class="modal-pw-toggle" aria-label="${t('modal.prompt.toggle_password')}">
+              <span class="modal-pw-toggle-on">${window.ICONS.eye}</span>
+              <span class="modal-pw-toggle-off">${window.ICONS['eye-off']}</span>
+            </button>
+          </div>
+        ` : `
+          <input type="${inputType}" class="modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+        `}
         <div class="modal-error" hidden></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary modal-cancel">${escapeHtml(cancelText || t('common.cancel'))}</button>
@@ -102,6 +112,14 @@ export function showPrompt({
     document.body.appendChild(backdrop);
     const input = backdrop.querySelector('.modal-input');
     const errorEl = backdrop.querySelector('.modal-error');
+    if (inputType === 'password') {
+      const toggle = backdrop.querySelector('.modal-pw-toggle');
+      toggle.addEventListener('click', () => {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        toggle.classList.toggle('active', !isPassword);
+      });
+    }
     input.focus();
     input.select();
     const close = (val) => {

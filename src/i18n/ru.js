@@ -175,6 +175,7 @@ export default {
   "modal.confirm.default_title": "Подтверждение",
   "modal.prompt.default_title": "Введите значение",
   "modal.prompt.required": "Поле не может быть пустым",
+  "modal.prompt.toggle_password": "Показать пароль",
   "modal.recurring.title": "Повторяющееся событие",
   "modal.recurring.message": "Удалить все повторения или только это?",
   "modal.recurring.all": "Все",

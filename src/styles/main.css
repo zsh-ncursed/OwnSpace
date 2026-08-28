@@ -746,6 +746,54 @@ body {
   box-shadow: var(--shadow-glow);
 }
 
+.modal-input-wrap {
+  position: relative;
+  margin-bottom: var(--space-4);
+}
+
+.modal-input-wrap .modal-input {
+  margin-bottom: 0;
+  padding-right: var(--space-8);
+}
+
+.modal-pw-toggle {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.modal-pw-toggle:hover {
+  color: var(--text);
+}
+
+.modal-pw-toggle svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.modal-pw-toggle .modal-pw-toggle-off {
+  display: none;
+}
+
+.modal-pw-toggle.active .modal-pw-toggle-on {
+  display: none;
+}
+
+.modal-pw-toggle.active .modal-pw-toggle-off {
+  display: block;
+}
+
 .modal-error {
   color: var(--danger);
   font-size: var(--text-xs);
