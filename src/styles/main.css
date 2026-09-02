@@ -3,7 +3,7 @@
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
-  src: url('../lib/fonts/Inter-Variable.woff2') format('woff2-variations');
+  src: url('../../lib/fonts/Inter-Variable.woff2') format('woff2-variations');
 }
 
 :root {
