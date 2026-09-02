@@ -20,6 +20,7 @@ import { showEventModal, showWidgetSettingsModal } from '../widgets/event-modal.
 import { setupCalculatorWidget } from '../widgets/calculator.js';
 import { addTask, toggleTask, renameTask, deleteTask } from '../widgets/todo.js';
 import { shiftMonth, deleteEvent } from '../widgets/calendar.js';
+import { getCalendarView, setCalendarView } from '../widgets/calendar-view.js';
 import { refreshWeather, findWeatherConfig, updateCalendarWeather } from '../widgets/calendar-weather.js';
 import {
   addCurrencyPair,
@@ -402,19 +403,15 @@ export function setupWidgetListeners(container) {
     const widgetId = el.dataset.widgetId;
     const workspace = getActiveWorkspace();
     const widget = workspace.widgets.find((w) => w.id === widgetId);
-    const now = new Date();
-    const viewYear = widget.config.viewYear ?? now.getFullYear();
-    const viewMonth = widget.config.viewMonth ?? now.getMonth();
+    const { viewYear, viewMonth } = getCalendarView(widgetId);
 
     el.querySelector('.prev-month')?.addEventListener('click', () => {
-      const nv = shiftMonth(viewYear, viewMonth, -1);
-      updateWidgetConfig(widgetId, nv, true);
+      setCalendarView(widgetId, shiftMonth(viewYear, viewMonth, -1));
       renderSingleWidget(widgetId);
     });
 
     el.querySelector('.next-month')?.addEventListener('click', () => {
-      const nv = shiftMonth(viewYear, viewMonth, 1);
-      updateWidgetConfig(widgetId, nv, true);
+      setCalendarView(widgetId, shiftMonth(viewYear, viewMonth, 1));
       renderSingleWidget(widgetId);
     });
 
@@ -431,7 +428,7 @@ export function setupWidgetListeners(container) {
           return;
         }
         const day = parseInt(dayEl.dataset.day, 10);
-        updateWidgetConfig(widgetId, { selectedDay: day }, true);
+        setCalendarView(widgetId, { selectedDay: day });
         renderSingleWidget(widgetId);
       });
     });

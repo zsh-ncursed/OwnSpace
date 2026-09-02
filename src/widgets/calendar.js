@@ -2,6 +2,7 @@ import { escapeHtml } from '../ui/escape.js';
 import { pad2, timeAgo, eventDateKey } from '../utils/date.js';
 import { t, getLang } from '../i18n/index.js';
 import { weatherForDay } from './calendar-weather.js';
+import { getCalendarView } from './calendar-view.js';
 
 export const WIDGET_TYPE = 'calendar';
 
@@ -200,8 +201,9 @@ export function upsertEventWithRecurring(events, newEvent) {
 
 export function renderCalendarWidget(widget) {
   const now = new Date();
-  const viewYear = widget.config.viewYear ?? now.getFullYear();
-  const viewMonth = widget.config.viewMonth ?? now.getMonth();
+  // View state is ephemeral (per-tab), never read from persisted config — a
+  // fresh tab always opens on the current month.
+  const { viewYear, viewMonth, selectedDay } = getCalendarView(widget.id, now);
   const monthName = new Date(viewYear, viewMonth, 1).toLocaleString(getLang(), {
     month: 'long',
   });
@@ -221,7 +223,6 @@ export function renderCalendarWidget(widget) {
   const events = (widget.config.events || [])
     .map(migrateEvent)
     .filter(Boolean);
-  const selectedDay = widget.config.selectedDay ?? null;
   const selectedDateKey = selectedDay
     ? eventDateKey(viewYear, viewMonth, selectedDay)
     : null;

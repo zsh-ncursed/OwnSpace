@@ -84,6 +84,24 @@ export async function loadWorkspaces() {
     }
   }
 
+  // Strip legacy persisted calendar view state. Older versions saved the
+  // navigated month into widget.config, so every new tab reopened on that
+  // stale month instead of the current one. View state is now per-tab only.
+  for (const workspace of ws) {
+    for (const widget of workspace.widgets || []) {
+      if (widget.type !== WIDGET_TYPES.CALENDAR) continue;
+      if (!widget.config) continue;
+      let stripped = false;
+      for (const key of ['viewYear', 'viewMonth', 'selectedDay']) {
+        if (key in widget.config) {
+          delete widget.config[key];
+          stripped = true;
+        }
+      }
+      if (stripped) changed = true;
+    }
+  }
+
   for (const workspace of ws) {
     for (const widget of workspace.widgets || []) {
       if (widget.type !== WIDGET_TYPES.WEATHER) continue;

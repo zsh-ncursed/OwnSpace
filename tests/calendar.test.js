@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   migrateEvent,
   eventColor,
@@ -9,7 +9,14 @@ import {
   calcMonthFinance,
   shiftMonth,
   deleteEvent,
+  renderCalendarWidget,
 } from '../src/widgets/calendar.js';
+import {
+  getCalendarView,
+  setCalendarView,
+  clearCalendarView,
+  clearAllCalendarViews,
+} from '../src/widgets/calendar-view.js';
 
 describe('migrateEvent', () => {
   it('returns null for falsy input', () => {
@@ -582,3 +589,105 @@ describe('deleteEvent', () => {
     expect(result).toHaveLength(1);
   });
 });
+
+describe('calendar view state (ephemeral, per-tab)', () => {
+  beforeEach(() => {
+    clearAllCalendarViews();
+  });
+
+  it('defaults to the current month for an untouched widget', () => {
+    const now = new Date(2026, 8, 17);
+    expect(getCalendarView('w1', now)).toEqual({
+      viewYear: 2026,
+      viewMonth: 8,
+      selectedDay: null,
+    });
+  });
+
+  it('recomputes "current" on every call, so a long-lived tab rolls over', () => {
+    expect(getCalendarView('w1', new Date(2026, 11, 31)).viewMonth).toBe(11);
+    expect(getCalendarView('w1', new Date(2027, 0, 1))).toEqual({
+      viewYear: 2027,
+      viewMonth: 0,
+      selectedDay: null,
+    });
+  });
+
+  it('remembers navigation within the tab', () => {
+    const now = new Date(2026, 8, 17);
+    setCalendarView('w1', shiftMonth(2026, 8, -1));
+    expect(getCalendarView('w1', now)).toEqual({
+      viewYear: 2026,
+      viewMonth: 7,
+      selectedDay: null,
+    });
+  });
+
+  it('keeps views of separate widgets independent', () => {
+    const now = new Date(2026, 8, 17);
+    setCalendarView('w1', { viewYear: 2020, viewMonth: 0 });
+    expect(getCalendarView('w2', now).viewMonth).toBe(8);
+  });
+
+  it('merges partial updates instead of replacing the view', () => {
+    const now = new Date(2026, 8, 17);
+    setCalendarView('w1', { selectedDay: 5 });
+    expect(getCalendarView('w1', now)).toEqual({
+      viewYear: 2026,
+      viewMonth: 8,
+      selectedDay: 5,
+    });
+  });
+
+  it('returns copies so callers cannot mutate stored state', () => {
+    setCalendarView('w1', { selectedDay: 5 });
+    const view = getCalendarView('w1');
+    view.selectedDay = 99;
+    expect(getCalendarView('w1').selectedDay).toBe(5);
+  });
+
+  it('clearCalendarView resets that widget back to the current month', () => {
+    const now = new Date(2026, 8, 17);
+    setCalendarView('w1', { viewYear: 2020, viewMonth: 0, selectedDay: 3 });
+    clearCalendarView('w1');
+    expect(getCalendarView('w1', now)).toEqual({
+      viewYear: 2026,
+      viewMonth: 8,
+      selectedDay: null,
+    });
+  });
+});
+
+describe('renderCalendarWidget month header', () => {
+  beforeEach(() => {
+    clearAllCalendarViews();
+    vi.stubGlobal('ICONS', {
+      action: (name) => `<svg data-icon="${name}"></svg>`,
+      btn: (name) => `<svg data-icon="${name}"></svg>`,
+    });
+  });
+
+  const title = (html) => html.match(/class="calendar-title">([^<]*)</)[1].trim();
+
+  it('renders the current month even when config carries stale legacy view keys', () => {
+    const now = new Date();
+    const expected = `${new Date(now.getFullYear(), now.getMonth(), 1)
+      .toLocaleString('en', { month: 'long' })} ${now.getFullYear()}`;
+    // Legacy persisted state — must be ignored by the renderer.
+    const html = renderCalendarWidget({
+      id: 'cal-legacy',
+      config: { events: [], viewYear: 2020, viewMonth: 3, selectedDay: 11 },
+    });
+    expect(title(html)).toBe(expected);
+    expect((html.match(/calendar-day today/g) || []).length).toBe(1);
+  });
+
+  it('follows in-tab navigation', () => {
+    setCalendarView('cal-nav', { viewYear: 2026, viewMonth: 0 });
+    const html = renderCalendarWidget({ id: 'cal-nav', config: { events: [] } });
+    expect(title(html)).toBe('January 2026');
+    // Not the current month → no "today" cell highlighted.
+    expect(html).not.toContain('calendar-day today');
+  });
+});
+

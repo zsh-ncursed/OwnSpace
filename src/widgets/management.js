@@ -4,6 +4,7 @@ import { getTargetColumn, sortableInstances } from '../sortable.js';
 import { updateWorkspace } from '../workspaces.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { widgetRegistry } from './registry.js';
+import { clearCalendarView } from './calendar-view.js';
 import { t } from '../i18n/index.js';
 
 export function getDefaultTitle(type) {
@@ -73,6 +74,7 @@ export function removeWidget(widgetId) {
     delete sortableInstances[widgetId];
   }
   const updated = workspace.widgets.filter((w) => w.id !== widgetId);
+  clearCalendarView(widgetId);
   updateWorkspace(workspace.id, { widgets: updated });
 }
 

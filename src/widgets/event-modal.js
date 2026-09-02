@@ -7,6 +7,7 @@ import { upsertEventWithRecurring } from './calendar.js';
 import { renderWidgetGrid } from '../render/grid.js';
 import { deleteWorkspace } from '../workspaces.js';
 import { findWeatherConfig } from './calendar-weather.js';
+import { getCalendarView } from './calendar-view.js';
 import { t } from '../i18n/index.js';
 
 export function showWidgetSettingsModal(widget) {
@@ -85,9 +86,10 @@ export function showWidgetSettingsModal(widget) {
 export function showEventModal(widget, existingEvent) {
   const isEdit = !!existingEvent;
   const now = new Date();
-  const viewYear = widget.config.viewYear ?? now.getFullYear();
-  const viewMonth = widget.config.viewMonth ?? now.getMonth();
-  const selectedDay = widget.config.selectedDay ?? now.getDate();
+  const view = getCalendarView(widget.id, now);
+  const viewYear = view.viewYear;
+  const viewMonth = view.viewMonth;
+  const selectedDay = view.selectedDay ?? now.getDate();
   const initialDate = existingEvent?.date
     || eventDateKey(viewYear, viewMonth, selectedDay);
   const event = existingEvent || {
