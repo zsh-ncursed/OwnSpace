@@ -197,10 +197,12 @@ export function setupWidgetListeners(container) {
           if (editForm.style.display === 'none') {
             editForm.style.display = 'flex';
             link.style.display = 'none';
+            item.classList.add('editing');
             editForm.querySelector('.title-input').focus();
             editForm.querySelector('.title-input').select();
           } else {
             saveBookmark();
+            item.classList.remove('editing');
           }
         });
       }

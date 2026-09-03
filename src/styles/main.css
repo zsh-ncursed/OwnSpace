@@ -919,7 +919,6 @@ body {
 }
 
 .bookmark-edit {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -992,14 +991,29 @@ body {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   min-width: 0;
-  overflow: hidden;
   transition: background var(--duration-fast) var(--ease-out),
               border-color var(--duration-fast) var(--ease-out);
+}
+
+.bookmark-item.editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.bookmark-item.editing .bookmark-drag-handle,
+.bookmark-item.editing .edit-btn,
+.bookmark-item.editing .delete-btn {
+  display: none;
 }
 
 .bookmark-item:hover {
   background: var(--surface-2);
   border-color: var(--border);
+}
+
+.bookmark-item.editing:hover {
+  background: var(--surface-2);
+  border-color: var(--primary);
 }
 
 .bookmark-item:active {
