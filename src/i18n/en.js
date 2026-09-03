@@ -26,6 +26,8 @@ export default {
   "widget.bookmarks.name_placeholder": "Name",
   "widget.bookmarks.url_placeholder": "URL",
   "widget.bookmarks.invalid_url": "Invalid URL",
+  "widget.bookmarks.save": "Save",
+  "widget.bookmarks.cancel": "Cancel",
   "widget.bookmarks.show_all": "Show all ({count})",
   "widget.bookmarks.collapse": "Collapse",
   "widget.notes.title": "Notes",

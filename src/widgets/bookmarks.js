@@ -27,6 +27,10 @@ export function renderBookmarksWidget(widget) {
             <div class="bookmark-edit" style="display: none;">
               <input type="text" class="title-input" value="${escapeHtml(bm.title)}" placeholder="${t('widget.bookmarks.name_placeholder')}" />
               <input type="text" class="url-input" value="${escapeHtml(bm.url)}" placeholder="${t('widget.bookmarks.url_placeholder')}" />
+              <div class="bookmark-edit-actions">
+                <button class="save-bookmark-btn icon-btn" title="${t('widget.bookmarks.save')}" aria-label="${t('widget.bookmarks.save')}">${ICONS.action('check')}</button>
+                <button class="cancel-bookmark-btn icon-btn" title="${t('widget.bookmarks.cancel')}" aria-label="${t('widget.bookmarks.cancel')}">${ICONS.action('x')}</button>
+              </div>
             </div>
             <a href="${safeUrl(bm.url) || '#'}" target="_blank" class="bookmark-title">${escapeHtml(bm.title)}</a>
             <button class="edit-btn icon-btn" title="${t('widget.bookmarks.edit')}" aria-label="${t('widget.bookmarks.edit')}">${ICONS.action('pencil')}</button>

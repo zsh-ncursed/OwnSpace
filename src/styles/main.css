@@ -925,6 +925,18 @@ body {
   min-width: 0;
 }
 
+.bookmark-edit-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.bookmark-edit-actions .icon-btn {
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+}
+
 .bookmark-edit input {
   width: 100%;
   padding: 4px 8px;
@@ -998,12 +1010,17 @@ body {
 .bookmark-item.editing {
   flex-direction: column;
   align-items: stretch;
+  padding-bottom: var(--space-3);
 }
 
 .bookmark-item.editing .bookmark-drag-handle,
 .bookmark-item.editing .edit-btn,
 .bookmark-item.editing .delete-btn {
   display: none;
+}
+
+.bookmark-item.editing .bookmark-edit {
+  display: flex;
 }
 
 .bookmark-item:hover {

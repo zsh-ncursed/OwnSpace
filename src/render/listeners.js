@@ -207,6 +207,21 @@ export function setupWidgetListeners(container) {
         });
       }
 
+      const saveBtn = item.querySelector('.save-bookmark-btn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          saveBookmark();
+          item.classList.remove('editing');
+        });
+      }
+
+      const cancelBtn = item.querySelector('.cancel-bookmark-btn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          cancelEdit();
+        });
+      }
+
       const bookmarkEdit = item.querySelector('.bookmark-edit');
       if (bookmarkEdit) {
         bookmarkEdit.addEventListener('keydown', (e) => {
