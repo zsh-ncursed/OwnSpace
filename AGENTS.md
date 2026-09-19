@@ -37,7 +37,7 @@ Do NOT declare "ready", "done", or "built" without passing this smoke test.
 ```bash
 bash build.sh      # produces ownspace.xpi
 npm run lint       # eslint src/ background/ tests/ options/
-npm test           # vitest, 224 tests
+npm test           # vitest, 255 tests
 ```
 
 ## Tech notes

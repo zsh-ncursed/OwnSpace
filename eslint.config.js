@@ -46,6 +46,13 @@ export default [
         importScripts: 'readonly',
         OwnSpaceICS: 'readonly',
         AbortController: 'readonly',
+        RTCPeerConnection: 'readonly',
+        RTCSessionDescription: 'readonly',
+        CompressionStream: 'readonly',
+        DecompressionStream: 'readonly',
+        ReadableStream: 'readonly',
+        Response: 'readonly',
+        navigator: 'readonly',
       },
     },
     rules: {

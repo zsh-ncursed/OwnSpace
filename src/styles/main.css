@@ -3410,3 +3410,97 @@ body {
 .currency-refresh-btn {
   flex-shrink: 0;
 }
+
+/* ── Device sync ─────────────────────────────────────────────────────────── */
+
+.sync-intro {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.sync-code-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.sync-blob {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  resize: vertical;
+  word-break: break-all;
+}
+
+.sync-blob[readonly] {
+  background: var(--bg-elevated);
+  color: var(--text-subtle);
+}
+
+.sync-hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.sync-status {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.sync-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.sync-pairing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.sync-pairing-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-pairing-name {
+  font-size: var(--text-sm);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-pairing-role {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+.sync-empty {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  margin: 4px 0 0;
+}

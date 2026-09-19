@@ -5,6 +5,7 @@ import { toggleTheme } from '../ui/theme.js';
 import { renderWidgetGrid } from './grid.js';
 import { addWorkspace, updateWorkspace } from '../workspaces.js';
 import { showExportImportMenu } from '../ui/export-import-menu.js';
+import { showPairWizard, showAcceptWizard } from '../sync/ui.js';
 import { showBackgroundSettings } from '../ui/background-settings.js';
 import {
   ENGINES,
@@ -96,6 +97,7 @@ function renderWorkspaceTabs() {
         <button type="button" class="icon-btn" id="add-widget" title="${t('tab.add_widget')}" aria-label="${t('tab.add_widget')}">${ICONS.btn('plus')}</button>
         <button type="button" class="icon-btn" id="bg-settings" title="${t('tab.bg_settings')}">${ICONS.btn('palette')}</button>
         <button type="button" class="icon-btn" id="theme-toggle" title="${t('tab.theme_toggle')}">${ICONS.btn(state.theme === 'dark' ? 'sun' : 'moon')}</button>
+        <button type="button" class="icon-btn" id="sync-link" title="${t('sync.link_button')}" aria-label="${t('sync.link_button')}">${ICONS.btn('rotate-cw')}</button>
         <button type="button" class="icon-btn" id="export-import" title="${t('tab.export_import')}">${ICONS.btn('arrow-down-up')}</button>
       </div>
     </div>
@@ -196,6 +198,12 @@ function setupToolbarButtons() {
     'click',
     showExportImportMenu,
   );
+  document.getElementById('sync-link')?.addEventListener('click', () => {
+    showPairWizard();
+  });
+  document.getElementById('sync-accept')?.addEventListener('click', () => {
+    showAcceptWizard();
+  });
   document.getElementById('bg-settings')?.addEventListener(
     'click',
     showBackgroundSettings,

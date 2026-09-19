@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   CALDAV: 'caldav',
   ACTIVE_WORKSPACE: 'activeWorkspaceId',
   SEARCH_SETTINGS: 'searchSettings',
+  SYNC_PAIRINGS: 'syncPairings',
 };
 
 export const WIDGET_TYPES = {

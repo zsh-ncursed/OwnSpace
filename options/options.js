@@ -1,4 +1,5 @@
 import { initLocale, t, getLang } from '../src/i18n/index.js';
+import { showPairWizard, showAcceptWizard, renderPairedDevices } from '../src/sync/ui.js';
 
 const STORAGE_KEY = 'extensionSettings';
 const APP_SETTINGS_KEY = 'settings';
@@ -133,6 +134,17 @@ async function init() {
   });
 
   initWidgetToggles(appSettings);
+
+  const syncPairings = document.getElementById('syncPairings');
+  if (syncPairings) {
+    renderPairedDevices(syncPairings);
+    document.getElementById('syncLink')?.addEventListener('click', () => {
+      showPairWizard();
+    });
+    document.getElementById('syncAccept')?.addEventListener('click', () => {
+      showAcceptWizard();
+    });
+  }
 }
 
 init().catch((e) => {

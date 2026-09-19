@@ -55,6 +55,16 @@
       </select>
     </section>
 
+    <section class="options-section">
+      <h2 data-i18n="sync.devices_title">Linked devices</h2>
+      <p class="section-desc" data-i18n="sync.intro_slave">This device will receive data from the other PC. Whoever sends the first pairing request becomes the receiver.</p>
+      <div class="sync-actions">
+        <button type="button" class="btn btn-primary" id="syncLink" data-i18n="sync.link_button">Link with another PC</button>
+        <button type="button" class="btn btn-secondary" id="syncAccept" data-i18n="sync.accept_button">I have a pairing code</button>
+      </div>
+      <div id="syncPairings"></div>
+    </section>
+
     <div class="save-status" id="saveStatus" role="status" aria-live="polite"></div>
   </main>
   <script type="module" src="options.js"></script>
