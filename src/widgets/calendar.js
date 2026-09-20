@@ -2,7 +2,21 @@ import { escapeHtml } from '../ui/escape.js';
 import { pad2, timeAgo, eventDateKey } from '../utils/date.js';
 import { t, getLang } from '../i18n/index.js';
 import { weatherForDay } from './calendar-weather.js';
-import { getCalendarView } from './calendar-view.js';
+import { getCalendarView, setCalendarView } from './calendar-view.js';
+import { getActiveWorkspace } from '../state.js';
+import { updateWidgetConfig } from './management.js';
+import { renderSingleWidget } from '../render/listeners.js';
+import { showEventModal } from './event-modal.js';
+import { showRecurringDeleteChoice } from '../ui/modals.js';
+import {
+  syncCalDAVEvents,
+  showCalDAVCalendarPicker,
+} from '../caldav/sync.js';
+import {
+  refreshWeather,
+  findWeatherConfig,
+  updateCalendarWeather,
+} from './calendar-weather.js';
 
 export const WIDGET_TYPE = 'calendar';
 
@@ -421,10 +435,106 @@ export function renderCalendarWidget(widget) {
   `;
 }
 
+export function mountCalendarWidget(el, widget) {
+  const widgetId = widget.id;
+  const workspace = getActiveWorkspace();
+  const w = workspace.widgets.find((x) => x.id === widgetId);
+  const { viewYear, viewMonth } = getCalendarView(widgetId);
+
+  el.querySelector('.prev-month')?.addEventListener('click', () => {
+    setCalendarView(widgetId, shiftMonth(viewYear, viewMonth, -1));
+    renderSingleWidget(widgetId);
+  });
+
+  el.querySelector('.next-month')?.addEventListener('click', () => {
+    setCalendarView(widgetId, shiftMonth(viewYear, viewMonth, 1));
+    renderSingleWidget(widgetId);
+  });
+
+  el.querySelectorAll('.calendar-day:not(.empty)').forEach((dayEl) => {
+    dayEl.addEventListener('click', (e) => {
+      const bar = e.target.closest('.event-bar');
+      if (bar) {
+        e.stopPropagation();
+        const eventId = bar.dataset.eventId;
+        const event = (w.config.events || []).find((ev) => ev.id === eventId);
+        if (event) showEventModal(w, event);
+        return;
+      }
+      const day = parseInt(dayEl.dataset.day, 10);
+      setCalendarView(widgetId, { selectedDay: day });
+      renderSingleWidget(widgetId);
+    });
+  });
+
+  el.querySelector('.add-event-btn')?.addEventListener('click', () => {
+    showEventModal(w, null);
+  });
+
+  el.querySelectorAll('.event-item').forEach((item) => {
+    const eventId = item.dataset.eventId;
+    const event = (w.config.events || []).find((ev) => ev.id === eventId);
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.event-delete-btn')) return;
+      showEventModal(w, event);
+    });
+
+    item
+      .querySelector('.event-delete-btn')
+      ?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (event?.source === 'caldav') return;
+        const isRecurring =
+          !!(event?.recurring?.type && event.recurring.type !== 'none') ||
+          !!event?.isRecurringInstance;
+        if (isRecurring) {
+          const choice = await showRecurringDeleteChoice();
+          if (!choice) return;
+          const updated = deleteEvent(
+            w.config.events || [],
+            eventId,
+            true,
+            choice,
+          );
+          updateWidgetConfig(widgetId, { events: updated }, true);
+        } else {
+          const updated = deleteEvent(w.config.events || [], eventId, false);
+          updateWidgetConfig(widgetId, { events: updated }, true);
+        }
+        renderSingleWidget(widgetId);
+      });
+  });
+
+  el.querySelector('.caldav-sync-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    btn.classList.add('caldav-syncing');
+    const ok = await syncCalDAVEvents(widgetId);
+    btn.classList.remove('caldav-syncing');
+    if (!ok && !w.config.caldavCalendarHref) {
+      showCalDAVCalendarPicker(widgetId);
+    }
+    if (ok) renderSingleWidget(widgetId);
+  });
+
+  // Fetch weather data for calendar cells when enabled
+  if (w.config.showWeather) {
+    const wCfg = findWeatherConfig(workspace);
+    if (wCfg) {
+      refreshWeather(wCfg.apiKey, wCfg.city)
+        .then(() => {
+          updateCalendarWeather(el);
+        })
+        .catch(() => {});
+    }
+  }
+}
+
 export default {
   type: WIDGET_TYPE,
   title: 'widget.calendar.title',
   icon: 'calendar',
   defaultConfig: { events: [], title: '', showWeather: false },
   render: renderCalendarWidget,
+  mount: mountCalendarWidget,
 };

@@ -303,6 +303,32 @@ export async function showCalDAVSyncSettings() {
       return;
     }
 
+    // Mirror the SW rule: https only, except localhost. Catch it early so the
+    // user gets a clear message instead of a failed background roundtrip.
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      statusEl.textContent = t('modal.caldav.invalid_url');
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
+    const isLocalhost =
+      parsedUrl.hostname === 'localhost' ||
+      parsedUrl.hostname === '127.0.0.1' ||
+      parsedUrl.hostname === '::1' ||
+      parsedUrl.hostname === '[::1]';
+    if (parsedUrl.protocol === 'http:' && !isLocalhost) {
+      statusEl.textContent = t('modal.caldav.https_required');
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      statusEl.textContent = t('modal.caldav.invalid_url');
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
+
     const pw = await ensureMasterPassword();
     if (!pw) {
       statusEl.textContent = t('modal.caldav.save_cancelled');

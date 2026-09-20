@@ -1,4 +1,4 @@
-import { state, syncStateToWindow } from './state.js';
+import { state } from './state.js';
 import { loadTheme } from './ui/theme.js';
 import { loadWorkspaces } from './workspaces.js';
 import { renderApp } from './render/tabs.js';
@@ -34,7 +34,6 @@ async function initApp() {
   state._searchEngine = await getSearchEngine();
   console.log('Workspaces:', state.workspaces.length);
 
-  syncStateToWindow();
   state.loading = false;
 
   renderApp();

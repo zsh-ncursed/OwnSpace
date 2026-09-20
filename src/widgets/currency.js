@@ -1,4 +1,7 @@
 import { t } from '../i18n/index.js';
+import { updateWidgetConfig } from './management.js';
+import { renderSingleWidget } from '../render/listeners.js';
+import { refreshCurrencyWidget } from '../render/listeners.js';
 
 export const WIDGET_TYPE = 'currency';
 
@@ -195,10 +198,45 @@ export function renderRatesInto(el, pairs, rates, lastUpdated) {
   }
 }
 
+export function mountCurrencyWidget(el, widget) {
+  const widgetId = widget.id;
+  const w = widget;
+
+  el.querySelector('.currency-add-btn')?.addEventListener('click', () => {
+    const base = el.querySelector('[data-currency-base]').value;
+    const quote = el.querySelector('[data-currency-quote]').value;
+    const res = addCurrencyPair(w.config.pairs || [], base, quote);
+    if (res.error) {
+      const status = el.querySelector('[data-currency-status]');
+      if (status) status.textContent = t(`widget.currency.${res.error}`);
+      return;
+    }
+    const pairs = [...(w.config.pairs || []), res.pair];
+    updateWidgetConfig(widgetId, { pairs }, true);
+    renderSingleWidget(widgetId);
+  });
+
+  el.querySelectorAll('.currency-remove-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const pairId = btn.dataset.pairId;
+      const pairs = removeCurrencyPair(w.config.pairs || [], pairId);
+      const rates = { ...(w.config.rates || {}) };
+      delete rates[pairId];
+      updateWidgetConfig(widgetId, { pairs, rates }, true);
+      renderSingleWidget(widgetId);
+    });
+  });
+
+  el.querySelector('.currency-refresh-btn')?.addEventListener('click', () => {
+    refreshCurrencyWidget(w, el, { force: true });
+  });
+}
+
 export default {
   type: WIDGET_TYPE,
   title: 'widget.currency.title',
   icon: 'arrow-down-up',
   defaultConfig: { pairs: [], rates: {}, lastUpdated: null, title: '' },
   render: renderCurrencyWidget,
+  mount: mountCurrencyWidget,
 };

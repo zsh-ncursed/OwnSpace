@@ -1,4 +1,10 @@
-export let state = {
+// Single source of truth. `state` is a const object — never reassigned, only
+// mutated in place (state.workspaces = ..., Object.assign(state, ...)). This
+// guarantees `window.state` (set once in app.js as `window.state = state`) and
+// the module export always reference the same object. The old syncStateToWindow
+// / syncStateFromWindow two-way copy functions were removed: they could diverge
+// and create two competing sources of truth.
+export const state = {
   workspaces: [],
   activeWorkspaceId: null,
   theme: 'dark',
@@ -12,16 +18,4 @@ export function getActiveWorkspace() {
 
 export function setState(updates) {
   Object.assign(state, updates);
-}
-
-export function syncStateToWindow() {
-  window.state.workspaces = state.workspaces;
-  window.state.activeWorkspaceId = state.activeWorkspaceId;
-  window.state.theme = state.theme;
-}
-
-export function syncStateFromWindow() {
-  state.workspaces = window.state.workspaces || state.workspaces;
-  state.activeWorkspaceId = window.state.activeWorkspaceId || state.activeWorkspaceId;
-  state.theme = window.state.theme || state.theme;
 }

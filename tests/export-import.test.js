@@ -16,7 +16,9 @@ describe('encrypted export/import', () => {
     expect(parsed.iv).toBeDefined();
 
     await importData(json, 'pass123');
-    expect(await getWorkspaces()).toEqual(ws);
+    expect(await getWorkspaces()).toEqual([
+      { id: 'ws-1', name: 'Test', widgets: [], background: { type: 'color', value: '#1a1a2e' } },
+    ]);
   });
 
   it('encrypts the payload a single time (decrypts straight to the object)', async () => {
@@ -81,7 +83,7 @@ describe('encrypted export/import', () => {
 
     await importData(legacyJson, 'legacy-pass');
     expect(await getWorkspaces()).toEqual([
-      { id: 'old-1', name: 'Legacy', widgets: [] },
+      { id: 'old-1', name: 'Legacy', widgets: [], background: { type: 'color', value: '#1a1a2e' } },
     ]);
   });
 });

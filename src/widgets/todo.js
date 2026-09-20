@@ -1,5 +1,8 @@
 import { escapeHtml } from '../ui/escape.js';
 import { t } from '../i18n/index.js';
+import { getActiveWorkspace } from '../state.js';
+import { updateWidgetConfig } from './management.js';
+import { renderSingleWidget } from '../render/listeners.js';
 
 export const WIDGET_TYPE = 'todo';
 
@@ -51,10 +54,73 @@ export function renderTodoWidget(widget) {
   `;
 }
 
+function getTodoWidget(widgetId) {
+  const ws = getActiveWorkspace();
+  return ws?.widgets.find((w) => w.id === widgetId);
+}
+
+export function mountTodoWidget(el, widget) {
+  const widgetId = widget.id;
+
+  const todoAddBtn = el.querySelector('.todo-add-btn');
+  if (todoAddBtn) {
+    todoAddBtn.addEventListener('click', () => {
+      const input = el.querySelector('.todo-new-input');
+      const w = getTodoWidget(widgetId);
+      if (!w) return;
+      const tasks = addTask(w.config.tasks || [], input.value);
+      if (tasks === w.config.tasks) return;
+      updateWidgetConfig(widgetId, { tasks }, true);
+      input.value = '';
+      renderSingleWidget(widgetId);
+    });
+  }
+  const todoNewInput = el.querySelector('.todo-new-input');
+  if (todoNewInput) {
+    todoNewInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        todoAddBtn?.click();
+      }
+    });
+  }
+
+  el.querySelectorAll('.todo-item').forEach((item) => {
+    const taskId = item.dataset.taskId;
+
+    item
+      .querySelector('.todo-checkbox')
+      .addEventListener('change', () => {
+        const w = getTodoWidget(widgetId);
+        if (!w) return;
+        const tasks = toggleTask(w.config.tasks || [], taskId);
+        updateWidgetConfig(widgetId, { tasks }, true);
+        renderSingleWidget(widgetId);
+      });
+
+    item.querySelector('.todo-text').addEventListener('change', () => {
+      const text = item.querySelector('.todo-text').value;
+      const w = getTodoWidget(widgetId);
+      if (!w) return;
+      const tasks = renameTask(w.config.tasks || [], taskId, text);
+      updateWidgetConfig(widgetId, { tasks }, true);
+    });
+
+    item.querySelector('.todo-delete').addEventListener('click', () => {
+      const w = getTodoWidget(widgetId);
+      if (!w) return;
+      const tasks = deleteTask(w.config.tasks || [], taskId);
+      updateWidgetConfig(widgetId, { tasks }, true);
+      renderSingleWidget(widgetId);
+    });
+  });
+}
+
 export default {
   type: WIDGET_TYPE,
   title: 'widget.todo.title',
   icon: 'list-checks',
   defaultConfig: { tasks: [], title: '' },
   render: renderTodoWidget,
+  mount: mountTodoWidget,
 };

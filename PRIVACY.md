@@ -23,7 +23,7 @@ OwnSpace makes network requests only when you configure a feature that requires 
 - **Currency widget** — fetches daily exchange rates from `open.er-api.com` (ExchangeRate-API free endpoint, no API key). No identifiers are sent.
 - **Bookmark title fetch** — when you add a bookmark, the extension may fetch the page `<title>` to pre-fill the bookmark name.
 
-No telemetry, no analytics, no tracking. The `data_collection_permissions` field in the manifest is set to `"none"`.
+No telemetry, no analytics, no tracking. The `data_collection_permissions` field in the manifest declares that no user data is collected (see `manifest.json`).
 
 ## Permissions
 

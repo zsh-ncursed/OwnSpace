@@ -18,6 +18,9 @@ import { t } from '../i18n/index.js';
 let cachedMasterPassword = null;
 let masterPasswordTimer = null;
 const MASTER_PASSWORD_TTL_MS = 15 * 60 * 1000;
+// Minimum length. PBKDF2 at 100k iterations is brute-forceable for short
+// passwords; require at least 10 chars (and encourage a passphrase).
+const MASTER_PASSWORD_MIN_LENGTH = 10;
 
 function cacheMasterPassword(pw) {
   cachedMasterPassword = pw;
@@ -98,7 +101,7 @@ function showSetupMasterPasswordModal() {
     modal.querySelector('#mp-save').addEventListener('click', () => {
       const pw = newInput.value;
       const confirm = confirmInput.value;
-      if (!pw || pw.length < 6) {
+      if (!pw || pw.length < MASTER_PASSWORD_MIN_LENGTH) {
         errorEl.textContent = t('modal.mp.too_short');
         return;
       }
@@ -241,7 +244,7 @@ export function showChangeMasterPasswordModal() {
         errorEl.textContent = t('modal.caldav.fill_all');
         return;
       }
-      if (newPw.length < 6) {
+      if (newPw.length < MASTER_PASSWORD_MIN_LENGTH) {
         errorEl.textContent = t('modal.mp.too_short');
         return;
       }

@@ -1,5 +1,15 @@
 import { escapeHtml, safeUrl } from '../ui/escape.js';
 import { t } from '../i18n/index.js';
+import { getActiveWorkspace } from '../state.js';
+import { updateWidgetConfig } from './management.js';
+import { renderSingleWidget } from '../render/listeners.js';
+import {
+  sortableInstances,
+  persistBookmarkOrder,
+  setColumnSortablesDisabled,
+} from '../sortable.js';
+import { browserMessaging } from '../export-import.js';
+import { showNotification } from '../ui/modals.js';
 
 export const WIDGET_TYPE = 'bookmarks';
 
@@ -45,10 +55,189 @@ export function renderBookmarksWidget(widget) {
   `;
 }
 
+// Bind all interactive behaviour for one bookmarks widget instance.
+// Called by setupWidgetListeners via the widget registry dispatch.
+export function mountBookmarksWidget(el, widget) {
+  const widgetId = el.dataset.widgetId;
+
+  const list = el.querySelector('.bookmarks-list');
+  if (list && typeof Sortable !== 'undefined') {
+    if (sortableInstances[widgetId]) {
+      sortableInstances[widgetId].destroy();
+      delete sortableInstances[widgetId];
+    }
+
+    sortableInstances[widgetId] = Sortable.create(list, {
+      draggable: '.bookmark-item',
+      animation: 150,
+      ghostClass: 'bookmark-ghost',
+      chosenClass: 'bookmark-chosen',
+      dragClass: 'bookmark-drag',
+      fallbackOnBody: true,
+      delay: 80,
+      delayOnTouchOnly: true,
+      filter: '.bookmark-title, .edit-btn, .delete-btn, .title-input',
+      preventOnFilter: true,
+      onStart: () => {
+        list.classList.add('dragging');
+        setColumnSortablesDisabled(true);
+      },
+      onEnd: () => {
+        list.classList.remove('dragging');
+        setColumnSortablesDisabled(false);
+        persistBookmarkOrder(widgetId, list);
+      },
+    });
+  }
+
+  const addBtn = el.querySelector('.add-bookmark-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', async () => {
+      const input = el.querySelector('.new-url-input');
+      const url = input.value.trim();
+      if (!url) return;
+
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        fullUrl = 'https://' + url;
+      }
+
+      try {
+        new URL(fullUrl);
+      } catch {
+        showNotification(t('widget.bookmarks.invalid_url'));
+        return;
+      }
+
+      const hostname = new URL(fullUrl).hostname;
+      const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+
+      const workspace = getActiveWorkspace();
+      const w = workspace.widgets.find((x) => x.id === widgetId);
+      const bookmarks = w.config.bookmarks || [];
+
+      let title = fullUrl;
+
+      try {
+        const response = await browserMessaging.sendMessage({
+          type: 'fetchTitle',
+          payload: { url: fullUrl },
+        });
+        if (response.success && response.result?.title) {
+          title = response.result.title;
+        }
+      } catch {
+        /* browserMessaging not available — fall back to hostname as title */
+      }
+
+      const newBookmark = {
+        id: crypto.randomUUID(),
+        url: fullUrl,
+        title,
+        favicon,
+      };
+
+      updateWidgetConfig(widgetId, {
+        bookmarks: [...bookmarks, newBookmark],
+      });
+    });
+  }
+
+  el.querySelectorAll('.bookmark-item').forEach((item) => {
+    const bmId = item.dataset.bookmarkId;
+
+    const saveBookmark = () => {
+      const newTitle =
+        item.querySelector('.title-input').value.trim() ||
+        item.querySelector('.title-input').value;
+      const newUrl =
+        item.querySelector('.url-input').value.trim() ||
+        item.querySelector('.url-input').value;
+      const workspace = getActiveWorkspace();
+      const w = workspace.widgets.find((x) => x.id === widgetId);
+      const updated = w.config.bookmarks.map((b) =>
+        b.id === bmId ? { ...b, title: newTitle, url: newUrl } : b,
+      );
+      updateWidgetConfig(widgetId, { bookmarks: updated });
+    };
+
+    const cancelEdit = () => {
+      const titleInput = item.querySelector('.title-input');
+      const urlInput = item.querySelector('.url-input');
+      const link = item.querySelector('.bookmark-title');
+      const workspace = getActiveWorkspace();
+      const w = workspace.widgets.find((x) => x.id === widgetId);
+      const bm = w.config.bookmarks.find((b) => b.id === bmId);
+      titleInput.value = bm.title;
+      urlInput.value = bm.url;
+      item.querySelector('.bookmark-edit').style.display = 'none';
+      link.style.display = '';
+    };
+
+    const editBtn = item.querySelector('.edit-btn');
+    if (editBtn) {
+      editBtn.addEventListener('click', () => {
+        const editForm = item.querySelector('.bookmark-edit');
+        const link = item.querySelector('.bookmark-title');
+
+        if (editForm.style.display === 'none') {
+          editForm.style.display = 'flex';
+          link.style.display = 'none';
+          item.classList.add('editing');
+          editForm.querySelector('.title-input').focus();
+          editForm.querySelector('.title-input').select();
+        } else {
+          saveBookmark();
+          item.classList.remove('editing');
+        }
+      });
+    }
+
+    const saveBtn = item.querySelector('.save-bookmark-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        saveBookmark();
+        item.classList.remove('editing');
+      });
+    }
+
+    const cancelBtn = item.querySelector('.cancel-bookmark-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        cancelEdit();
+      });
+    }
+
+    const bookmarkEdit = item.querySelector('.bookmark-edit');
+    if (bookmarkEdit) {
+      bookmarkEdit.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveBookmark();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEdit();
+        }
+      });
+    }
+
+    const deleteBtn = item.querySelector('.delete-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        const workspace = getActiveWorkspace();
+        const w = workspace.widgets.find((x) => x.id === widgetId);
+        const bookmarks = w.config.bookmarks.filter((b) => b.id !== bmId);
+        updateWidgetConfig(widgetId, { bookmarks });
+      });
+    }
+  });
+}
+
 export default {
   type: WIDGET_TYPE,
   title: 'widget.bookmarks.title',
   icon: 'bookmark',
   defaultConfig: { bookmarks: [], title: '' },
   render: renderBookmarksWidget,
+  mount: mountBookmarksWidget,
 };

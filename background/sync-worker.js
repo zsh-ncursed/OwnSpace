@@ -108,7 +108,26 @@ const CALDAV_OPERATIONS = {
 
 class CalDAVClient {
   constructor(baseUrl, username, password) {
-    if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
+    if (!baseUrl) {
+      throw new Error('CalDAV URL must be http(s)');
+    }
+    let parsed;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      throw new Error('CalDAV URL must be http(s)');
+    }
+    // Only https allowed, except localhost (dev / self-hosted on loopback).
+    // Plain http elsewhere leaks Basic-auth credentials in cleartext.
+    const isLocalhost =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1' ||
+      parsed.hostname === '[::1]';
+    if (parsed.protocol === 'http:' && !isLocalhost) {
+      throw new Error('CalDAV requires https (except localhost)');
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new Error('CalDAV URL must be http(s)');
     }
     this.baseUrl = baseUrl;
@@ -272,18 +291,52 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             result = { title: null, error: 'invalid url' };
             break;
           }
+          // SSRF hardening:
+          // - redirect: 'error' blocks open-redirect chains to internal hosts
+          // - AbortController caps time on slow/hanging servers
+          // - we read at most 256 KiB and stop at the first <title> to bound memory
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
           try {
-            // Background SW fetches without CORS restrictions
-            const response = await fetch(fetchUrl);
-            if (response.ok) {
-              const html = await response.text();
-              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-              result = { title: match ? match[1].trim() : null };
-            } else {
+            const response = await fetch(fetchUrl, {
+              redirect: 'error',
+              signal: controller.signal,
+            });
+            if (!response.ok) {
               result = { title: null, error: 'HTTP ' + response.status };
+              break;
+            }
+            const reader = response.body?.getReader();
+            let html = '';
+            let done = false;
+            if (reader) {
+              const decoder = new TextDecoder();
+              while (!done && html.length < 262144) {
+                const { value, done: d } = await reader.read();
+                done = d;
+                if (value) {
+                  html += decoder.decode(value, { stream: true });
+                  const early = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                  if (early) {
+                    result = { title: early[1].trim().slice(0, 200) };
+                    done = true;
+                    break;
+                  }
+                }
+              }
+              await reader.cancel().catch(() => {});
+            } else {
+              // Fallback for environments without streaming body
+              html = await response.text();
+            }
+            if (!result) {
+              const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              result = { title: match ? match[1].trim().slice(0, 200) : null };
             }
           } catch (e) {
-            result = { title: null, error: e.message };
+            result = { title: null, error: e.name === 'AbortError' ? 'timeout' : e.message };
+          } finally {
+            clearTimeout(timeout);
           }
           break;
         }

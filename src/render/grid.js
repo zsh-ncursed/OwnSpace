@@ -1,9 +1,34 @@
 import { getActiveWorkspace } from '../state.js';
-import { escapeHtml } from '../ui/escape.js';
+import { escapeHtml, safeUrl } from '../ui/escape.js';
 import { getDefaultTitle, widgetBgStyle } from '../widgets/management.js';
 import { widgetRegistry } from '../widgets/registry.js';
 import { setupWidgetColumnSortable, setupAddWidgetListeners, setupWidgetListeners } from './listeners.js';
 import { t } from '../i18n/index.js';
+
+// Sanitize background value to prevent CSS injection.
+// Only allows: hex colors, rgb/rgba, hsl/hsla, named colors,
+// linear-gradient, radial-gradient, and http/https image URLs.
+function sanitizeBg(bg) {
+  if (!bg || typeof bg !== 'object') return 'var(--bg)';
+  const v = bg.value;
+  if (typeof v !== 'string') return 'var(--bg)';
+
+  if (bg.type === 'color') {
+    // Allow hex, rgb, rgba, hsl, hsla, and common named colors
+    if (/^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[a-zA-Z]+)$/.test(v.trim())) return v;
+    return 'var(--bg)';
+  }
+  if (bg.type === 'gradient') {
+    if (/^\s*(linear-gradient|radial-gradient)\s*\(/.test(v)) return v;
+    return 'var(--bg)';
+  }
+  if (bg.type === 'image') {
+    const url = safeUrl(v);
+    if (url) return `url(${url}) center/cover no-repeat`;
+    return 'var(--bg)';
+  }
+  return 'var(--bg)';
+}
 
 export function renderWidgetGrid() {
   const container = document.getElementById('widget-grid');
@@ -16,12 +41,7 @@ export function renderWidgetGrid() {
 
   const widgets = workspace.widgets || [];
   const bg = workspace.background || { type: 'color', value: '#1a1a2e' };
-
-  let bgValue;
-  if (bg.type === 'color') bgValue = bg.value;
-  else if (bg.type === 'gradient') bgValue = bg.value;
-  else if (bg.type === 'image') bgValue = `url(${bg.value}) center/cover no-repeat`;
-  else bgValue = 'var(--bg)';
+  const bgValue = sanitizeBg(bg);
 
   const enabledPlugins = widgetRegistry.getEnabled();
   const menuButtons = enabledPlugins

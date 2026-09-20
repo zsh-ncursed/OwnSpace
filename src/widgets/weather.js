@@ -1,4 +1,7 @@
 import { t, getLang, getDayNames } from '../i18n/index.js';
+import { escapeHtml } from '../ui/escape.js';
+import { getActiveWorkspace } from '../state.js';
+import { updateWidgetConfig } from './management.js';
 
 export const WIDGET_TYPE = 'weather';
 
@@ -20,7 +23,7 @@ export function renderWeatherWidget(widget) {
       <div class="weather-widget" data-widget-id="${widget.id}">
         <p>${t('widget.weather.enter_key')}</p>
         <input type="text" placeholder="${t('widget.weather.api_key_placeholder')}" class="api-key-input" />
-        <input type="text" placeholder="${t('widget.weather.city_placeholder')}" class="city-input" value="${widget.config.city || 'Moscow'}" />
+        <input type="text" placeholder="${t('widget.weather.city_placeholder')}" class="city-input" value="${escapeHtml(widget.config.city || 'Moscow')}" />
         <div class="weather-widget-actions">
           <button class="api-key-save-btn icon-btn" title="${t('widget.weather.save_key')}">${ICONS.btn('check')}</button>
           <span class="api-key-save-status"></span>
@@ -39,7 +42,7 @@ export function renderWeatherWidget(widget) {
         <div class="desc">${t('widget.weather.loading')}</div>
         <div class="wind">${t('widget.weather.wind')}</div>
         <div class="location-row">
-          <span class="location">${widget.config.city || 'Moscow'}</span>
+          <span class="location">${escapeHtml(widget.config.city || 'Moscow')}</span>
           <button class="edit-city-btn icon-btn" title="${t('widget.weather.edit_city')}" aria-label="${t('widget.weather.edit_city')}">${ICONS.btn('pencil')}</button>
           <button class="change-key-btn icon-btn" title="${t('widget.weather.change_key')}" aria-label="${t('widget.weather.change_key')}">${ICONS.btn('key')}</button>
         </div>
@@ -49,7 +52,7 @@ export function renderWeatherWidget(widget) {
         <div class="forecast-day" data-day="2"><span class="forecast-day-name"></span><span class="forecast-icon"></span><span class="forecast-temp"></span></div>
         <div class="forecast-day" data-day="3"><span class="forecast-day-name"></span><span class="forecast-icon"></span><span class="forecast-temp"></span></div>
       </div>
-      <input type="text" class="city-edit-input" value="${widget.config.city || 'Moscow'}" style="display:none" />
+      <input type="text" class="city-edit-input" value="${escapeHtml(widget.config.city || 'Moscow')}" style="display:none" />
     </div>
   `;
 }
@@ -153,10 +156,99 @@ function renderForecast(el, forecastData) {
   }
 }
 
+export function mountWeatherWidget(el, widget) {
+  const widgetId = widget.id;
+  const workspace = getActiveWorkspace();
+  const w = workspace.widgets.find((x) => x.id === widgetId);
+
+  if (w && w.config.apiKey) {
+    fetchWeather(el, w.config.apiKey, w.config.city || 'Moscow');
+  }
+
+  el.querySelector('.change-key-btn')?.addEventListener('click', () => {
+    updateWidgetConfig(widgetId, { apiKey: '' });
+  });
+
+  const editCityBtn = el.querySelector('.edit-city-btn');
+  const cityEditInput = el.querySelector('.city-edit-input');
+  if (editCityBtn && cityEditInput) {
+    const saveCity = () => {
+      const newCity = cityEditInput.value.trim() || 'Moscow';
+      if (newCity === (w?.config.city || 'Moscow')) {
+        cityEditInput.style.display = 'none';
+        return;
+      }
+      updateWidgetConfig(widgetId, { city: newCity });
+      cityEditInput.style.display = 'none';
+    };
+    editCityBtn.addEventListener('click', () => {
+      cityEditInput.value = w?.config.city || 'Moscow';
+      cityEditInput.style.display = '';
+      cityEditInput.focus();
+      cityEditInput.select();
+    });
+    cityEditInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveCity();
+      } else if (e.key === 'Escape') {
+        cityEditInput.style.display = 'none';
+      }
+    });
+    cityEditInput.addEventListener('blur', saveCity);
+  }
+
+  const input = el.querySelector('.api-key-input');
+  const cityInput = el.querySelector('.city-input');
+  const saveBtn = el.querySelector('.api-key-save-btn');
+  const status = el.querySelector('.api-key-save-status');
+  if (input && widgetId) {
+    const parseKey = (raw) => {
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      const m = trimmed.match(/^[A-Za-z_][A-Za-z0-9_-]*=(.+)$/);
+      return m ? m[1].trim() : trimmed;
+    };
+    const saveKey = () => {
+      const key = parseKey(input.value);
+      if (!key) {
+        if (status) {
+          status.textContent = t('widget.weather.enter_key_short');
+          status.dataset.state = 'error';
+        }
+        return;
+      }
+      const city = cityInput
+        ? cityInput.value.trim() || 'Moscow'
+        : w?.config.city || 'Moscow';
+      updateWidgetConfig(widgetId, { apiKey: key, city });
+      if (input.value.trim() !== key) input.value = key;
+      if (status) {
+        status.textContent = '✓ ' + t('common.save');
+        status.dataset.state = 'ok';
+        clearTimeout(saveKey._t);
+        saveKey._t = setTimeout(() => {
+          status.textContent = '';
+          delete status.dataset.state;
+        }, 1800);
+      }
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveKey();
+      }
+    });
+    input.addEventListener('blur', saveKey);
+    saveBtn?.addEventListener('click', saveKey);
+  }
+}
+
 export default {
   type: WIDGET_TYPE,
   title: 'widget.weather.title',
   icon: 'cloud-sun',
   defaultConfig: { apiKey: '', city: 'Moscow', title: '' },
   render: renderWeatherWidget,
+  mount: mountWeatherWidget,
 };
