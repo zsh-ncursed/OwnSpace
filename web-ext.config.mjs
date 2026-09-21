@@ -3,10 +3,6 @@
 // plain JS module exporting the same object.
 export default {
   artifactsDir: 'web-ext-artifacts',
-  filename: {
-    chrome: 'ownspace-chrome.zip',
-    firefox: 'ownspace-{version}.xpi',
-  },
   ignoreFiles: [
     'node_modules',
     '.git',
