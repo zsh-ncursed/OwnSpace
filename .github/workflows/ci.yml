@@ -45,14 +45,20 @@ jobs:
         run: bash build.sh
 
       # Sign with the AMO API so the update is accepted by a Firefox that
-      # already runs a signed copy. Only run when the secrets are present —
-      # PRs from forks cannot access them and must not fail the build.
+      # already runs a signed copy. AMO also embeds its own signature inside the
+      # archive, so the hash below must be computed after signing. Skipped
+      # entirely when the secrets are unset (key rotation, fork PRs) — the build
+      # still publishes unsigned, which installs fine but will not update a
+      # signed copy in place.
       - name: Sign with web-ext
-        if: github.event_name != 'pull_request'
         env:
           WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
         run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "AMO secrets not set — publishing unsigned build"
+            exit 0
+          fi
           npx web-ext sign \
             --config web-ext-config.json \
             --api-key "$WEB_EXT_API_KEY" \
