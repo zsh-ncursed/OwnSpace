@@ -28,31 +28,35 @@ const CHANNEL_LABEL = 'ownspace-sync';
  * Create an offer for the slave side: returns { blob, pc }.
  * The blob is pasted on the master. ICE candidates are gathered eagerly so the
  * offer is self-contained (trickle would require a third exchange step).
+ *
+ * `name` is folded into the blob so the master can label the slave without a
+ * separate field — the blob is the whole handshake.
  */
-export async function createOffer() {
+export async function createOffer(name = '') {
   const pc = createPeerConnection();
   // Receiver-only on the slave side; the master will fill the channel.
   pc['ownspace-dc'] = pc.createDataChannel(CHANNEL_LABEL, { ordered: true });
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   await waitForIceGathering(pc);
-  const blob = await encodeSdpBlob(pc.localDescription.sdp, 'offer');
+  const blob = await encodeSdpBlob(pc.localDescription.sdp, 'offer', name);
   return { blob, pc };
 }
 
 /**
  * Accept an offer on the master side: takes the slave's blob, returns
- * { blob, pc } with the answer to paste back on the slave.
+ * { blob, pc, name } with the answer to paste back on the slave. The name is
+ * what the slave packed into its blob.
  */
 export async function acceptOffer(blob) {
-  const { sdp } = await decodeSdpBlob(blob);
+  const { sdp, name } = await decodeSdpBlob(blob);
   const pc = createPeerConnection();
   await pc.setRemoteDescription({ type: 'offer', sdp });
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await waitForIceGathering(pc);
   const answerBlob = await encodeSdpBlob(pc.localDescription.sdp, 'answer');
-  return { blob: answerBlob, pc };
+  return { blob: answerBlob, pc, name };
 }
 
 /**
@@ -91,8 +95,16 @@ function waitForIceGathering(pc) {
 
 // ── blob codec (pure, exported for tests) ──────────────────────────────────
 
-export async function encodeSdpBlob(sdp, type) {
-  const json = JSON.stringify({ t: type === 'answer' ? 1 : 0, s: sdp });
+// The envelope is tiny — `t` marks offer/answer, `n` carries the sender's
+// device name (max 32) so the master can label the slave without a third form
+// field, and `s` is the SDP itself. Blobs from older builds without `n` still
+// decode: the name simply comes back empty.
+export async function encodeSdpBlob(sdp, type, name = '') {
+  const json = JSON.stringify({
+    t: type === 'answer' ? 1 : 0,
+    n: typeof name === 'string' ? name.slice(0, 32) : '',
+    s: sdp,
+  });
   const bytes = await compress(json);
   return base64UrlEncode(bytes);
 }
@@ -101,7 +113,11 @@ export async function decodeSdpBlob(blob) {
   const bytes = base64UrlDecode(blob);
   const json = await decompress(bytes);
   const parsed = JSON.parse(json);
-  return { type: parsed.t === 1 ? 'answer' : 'offer', sdp: parsed.s };
+  return {
+    type: parsed.t === 1 ? 'answer' : 'offer',
+    sdp: parsed.s,
+    name: typeof parsed.n === 'string' ? parsed.n : '',
+  };
 }
 
 async function compress(str) {

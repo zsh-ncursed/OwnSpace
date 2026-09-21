@@ -58,6 +58,8 @@ export function createSyncManager(opts = {}) {
   let pendingPairingCode = null; // pairing code typed on this side
   let remoteDeviceId = null;
   let localDeviceName = '';
+  // The slave's name, extracted from its offer blob on the master side.
+  let peerName = '';
   let role = null;
 
   function close() {
@@ -78,7 +80,9 @@ export function createSyncManager(opts = {}) {
     role = ROLES.SLAVE;
     status('pending', t('sync.status_creating_offer'));
     close();
-    const res = await createOffer();
+    // The name rides inside the offer blob — the master reads it back out and
+    // labels the pairing, so no separate step is needed.
+    const res = await createOffer(localDeviceName);
     pc = res.pc;
     // The slave created the data channel itself, so grab it right away.
     channel = pc['ownspace-dc'];
@@ -101,7 +105,10 @@ export function createSyncManager(opts = {}) {
     role = ROLES.MASTER;
     status('pending', t('sync.status_reading_offer'));
     close();
+    // The slave's device name travels inside the blob — that is the whole
+    // "who is asking" answer, so no extra pairing round-trip is needed.
     const res = await acceptOffer(blob);
+    peerName = res.name || '';
     pc = res.pc;
     pc.addEventListener('datachannel', (e) => {
       channel = e.channel;
@@ -110,27 +117,21 @@ export function createSyncManager(opts = {}) {
     return res;
   }
 
-  /**
-   * The slave announces itself as soon as the channel opens — this is the
-   * "pairing request" the master approves. Sending it on open (rather than as
-   * part of the SDP) keeps the exchange symmetric for both first-time pairing
-   * and reconnects.
-   */
-  async function announceSelf() {
-    const deviceId = await getDeviceId();
-    send(MSG.PAIR_REQUEST, {
-      deviceId,
-      name: localDeviceName || t('sync.unnamed_device'),
-    });
-  }
-
   async function onChannelOpen() {
     status('paired', role === ROLES.MASTER ? t('sync.role_master') : t('sync.role_slave'));
-    if (role === ROLES.SLAVE) {
-      await announceSelf();
+    if (role === ROLES.MASTER) {
+      // The connection itself is the pairing request: the slave deliberately
+      // pasted the master's own code, so this is the moment to ask.
+      const approved = await onRequest?.({ peerName: peerName || t('sync.unnamed_device') });
+      if (!approved) {
+        send(MSG.PAIR_REJECT);
+        status('idle', t('sync.rejected'));
+        return;
+      }
+      await pushState();
       return;
     }
-    // MASTER: waits for the slave's PAIR_REQUEST, then asks the user.
+    // SLAVE: nothing to send; waits for STATE_PUSH in onChannelMessage.
   }
 
   async function pushState() {
@@ -147,26 +148,6 @@ export function createSyncManager(opts = {}) {
     const msg = decodeSyncMessage(str);
     if (!msg) return;
     switch (msg.type) {
-      case MSG.PAIR_REQUEST: {
-        const ok = await onRequest?.({ peerName: msg.payload?.name });
-        if (ok) {
-          const deviceId = await getDeviceId();
-          send(MSG.PAIR_ACCEPT, {
-            from: deviceId,
-            name: localDeviceName || t('sync.unnamed_device'),
-          });
-          await addPairing({
-            id: msg.payload?.deviceId || remoteDeviceId || makeFallbackId(),
-            name: msg.payload?.name,
-            role: ROLES.MASTER,
-          });
-          await pushState();
-        } else {
-          send(MSG.PAIR_REJECT);
-          status('idle', t('sync.rejected'));
-        }
-        break;
-      }
       case MSG.STATE_PUSH: {
         status('syncing', t('sync.status_receiving'));
         remoteDeviceId = msg.payload?.from || remoteDeviceId;
@@ -230,10 +211,6 @@ export function createSyncManager(opts = {}) {
     dc.addEventListener('message', (e) => onChannelMessage(e.data));
     dc.addEventListener('close', () => status('idle', t('sync.disconnected')));
     dc.addEventListener('error', () => status('error', t('sync.error_channel')));
-  }
-
-  function makeFallbackId() {
-    return `dev-${Math.random().toString(36).slice(2, 10)}`;
   }
 
   return {

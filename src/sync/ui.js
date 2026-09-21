@@ -238,12 +238,6 @@ export async function showAcceptWizard() {
       <p class="sync-intro">${t('sync.intro_master')}</p>
 
       <label class="event-field">
-        <span>${t('sync.device_name_label')}</span>
-        <input type="text" id="sync-name" placeholder="${t('sync.device_name_placeholder')}" maxlength="32" />
-        <span class="sync-hint">${t('sync.device_name_hint')}</span>
-      </label>
-
-      <label class="event-field">
         <span>${t('sync.code_label')}</span>
         <input type="text" id="sync-code" placeholder="${t('sync.code_placeholder')}" maxlength="32" autocomplete="off" />
         <span class="sync-hint">${t('sync.code_hint')}</span>
@@ -311,7 +305,6 @@ export async function showAcceptWizard() {
       const { blob } = await mgr.receiveOffer({
         blob: offer,
         code,
-        name: overlay.querySelector('#sync-name')?.value.trim(),
       });
       blobOut.value = blob;
       stepAnswer.hidden = false;

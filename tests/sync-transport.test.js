@@ -83,6 +83,40 @@ describe('sync transport: SDP blob codec', () => {
   it('rejects a corrupted blob instead of silently yielding garbage', async () => {
     await expect(decodeSdpBlob('not-a-valid-blob!!!')).rejects.toThrow();
   });
+
+  it('carries the device name so the master needs no second field', async () => {
+    const blob = await encodeSdpBlob(SAMPLE_OFFER, 'offer', 'Ноутбук');
+    const decoded = await decodeSdpBlob(blob);
+    expect(decoded.name).toBe('Ноутбук');
+  });
+
+  it('clamps an over-long device name instead of rejecting it', async () => {
+    const long = 'L'.repeat(64);
+    const decoded = await decodeSdpBlob(await encodeSdpBlob(SAMPLE_OFFER, 'offer', long));
+    expect(decoded.name).toHaveLength(32);
+  });
+
+  it('still decodes a legacy blob that has no name field', async () => {
+    // A blob from a build predating the name field: decoding must not break,
+    // the name just comes back empty.
+    const json = JSON.stringify({ t: 0, s: SAMPLE_OFFER });
+    const bytes = await new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(json));
+          c.close();
+        },
+      }).pipeThrough(new CompressionStream('deflate-raw')),
+    ).arrayBuffer();
+    const blob = btoa(String.fromCharCode(...new Uint8Array(bytes)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    const decoded = await decodeSdpBlob(blob);
+    expect(decoded.type).toBe('offer');
+    expect(decoded.sdp).toBe(SAMPLE_OFFER);
+    expect(decoded.name).toBe('');
+  });
 });
 
 describe('sync transport: sync messages', () => {
