@@ -9,9 +9,12 @@ docs/
 
 # Build/serve files
 serve.cjs
-# ownspace.xpi is tracked on purpose: CI publishes it to main so Firefox can
-# fetch it over HTTPS as the update channel (see gecko.update_url).
+# ownspace.xpi and update.json are never committed to the tree — they are
+# published as GitHub Release assets by CI. Serving them from a release keeps
+# git history free of 500KB binaries, and "releases/latest/download/..." is a
+# stable URL that always resolves to the newest published version.
 ownspace.xpi
+update.json
 
 # Local backlog
 backlog.md

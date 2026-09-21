@@ -13,7 +13,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 XPI="${1:-$ROOT/ownspace.xpi}"
-BASE_URL="${2:-https://raw.githubusercontent.com/zsh-ncursed/OwnSpace/main}"
+# Served as a GitHub Release asset, so the URL is stable and always points at
+# the newest published build.
+BASE_URL="${2:-https://github.com/zsh-ncursed/OwnSpace/releases/download/latest}"
 OUT="${3:-$ROOT/update.json}"
 
 if [ ! -f "$XPI" ]; then

@@ -58,10 +58,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish:
-    # Commit the built xpi + update.json back to main. This is what makes
-    # updates work: raw.githubusercontent.com/main/... is the update channel,
-    # and a stable extension id means storage is untouched across updates.
+  release:
+    # Publish a GitHub Release with the xpi and update.json attached. Firefox
+    # fetches the update channel over plain HTTPS, and a stable extension id
+    # means browser.storage.local survives the update — no export/import dance.
+    # A release per main push also gives "releases/latest/download/..." as a
+    # URL that always points at the newest build.
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -69,33 +71,43 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 22.x
 
       - name: Download built xpi
         uses: actions/download-artifact@v4
         with:
           name: ownspace-xpi
 
+      - name: Read version
+        id: version
+        run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Generate update.json
         run: bash tools/gen-update-json.sh
 
-      - name: Commit release files
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          # keep the binary out of the diff noise when nothing changed
-          if git status --porcelain ownspace.xpi update.json | grep -q .; then
-            git add ownspace.xpi update.json
-            git commit -m "build: publish ownspace.xpi and update.json [skip ci]"
-            git push
-          else
-            echo "No changes to publish"
-          fi
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Pin a moving "latest" release instead of versioned tags: it is the
+          # stable URL Firefox's update_url points at, and it is re-cut on
+          # every successful main build rather than only on version bumps.
+          tag_name: latest
+          name: OwnSpace latest (main)
+          body: |
+            Latest build of `main` — commit ${{ github.sha }}.
 
-  release:
-    # A tag like v1.2.3 publishes a GitHub Release with the xpi attached, so the
-    # installable file lives next to its tag instead of only inside CI.
+            Install in Firefox: about:debugging → This Firefox → Load Temporary
+            Add-on → pick `ownspace.xpi`. Updates are pulled automatically from
+            `update.json` once Firefox polls the update URL.
+          files: |
+            ownspace.xpi
+            update.json
+
+  tag-release:
+    # A version tag cuts a proper release keyed to that version, with a guard
+    # against a tag/manifest mismatch.
     runs-on: ubuntu-latest
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -121,10 +133,14 @@ jobs:
           fi
           echo "version=$ver" >> "$GITHUB_OUTPUT"
 
+      - name: Generate update.json
+        run: bash tools/gen-update-json.sh
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           name: OwnSpace ${{ steps.version.outputs.version }}
-          draft: true
           generate_release_notes: true
-          files: ownspace.xpi
+          files: |
+            ownspace.xpi
+            update.json
