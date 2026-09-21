@@ -63,8 +63,7 @@ jobs:
             --config web-ext-config.json \
             --api-key "$WEB_EXT_API_KEY" \
             --api-secret "$WEB_EXT_API_SECRET" \
-            --channel unlisted \
-            --use-cache
+            --channel unlisted
           # web-ext writes the signed xpi to web-ext-artifacts/. Move it over
           # the unsigned build so every downstream step publishes one file.
           mv web-ext-artifacts/*.xpi ownspace.xpi
@@ -156,8 +155,7 @@ jobs:
             --config web-ext-config.json \
             --api-key "$WEB_EXT_API_KEY" \
             --api-secret "$WEB_EXT_API_SECRET" \
-            --channel unlisted \
-            --use-cache
+            --channel unlisted
           mv web-ext-artifacts/*.xpi ownspace.xpi
 
       - name: Read version
