@@ -15,6 +15,7 @@ serve.cjs
 # stable URL that always resolves to the newest published version.
 ownspace.xpi
 update.json
+web-ext-artifacts/
 
 # Local backlog
 backlog.md

@@ -44,11 +44,24 @@ jobs:
       - name: Build xpi
         run: bash build.sh
 
-      - name: Generate update.json
-        # Firefox polls the update_url declared in the manifest. The xpi must be
-        # downloadable over plain HTTPS, so both files land in main and are
-        # served by raw.githubusercontent.com.
-        run: bash tools/gen-update-json.sh
+      # Sign with the AMO API so the update is accepted by a Firefox that
+      # already runs a signed copy. Only run when the secrets are present —
+      # PRs from forks cannot access them and must not fail the build.
+      - name: Sign with web-ext
+        if: github.event_name != 'pull_request'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          npx web-ext sign \
+            --config web-ext-config.json \
+            --api-key "$WEB_EXT_API_KEY" \
+            --api-secret "$WEB_EXT_API_SECRET" \
+            --channel unlisted \
+            --use-cache
+          # web-ext writes the signed xpi to web-ext-artifacts/. Move it over
+          # the unsigned build so every downstream step publishes one file.
+          mv web-ext-artifacts/*.xpi ownspace.xpi
 
       - name: Upload xpi artifact
         uses: actions/upload-artifact@v4
@@ -85,6 +98,9 @@ jobs:
         run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Generate update.json
+        # Computed from the SIGNED xpi that just came down from the build job —
+        # AMO embeds its own signature inside the archive, so the hash of the
+        # unsigned build would not match and Firefox would refuse the update.
         run: bash tools/gen-update-json.sh
 
       - name: Update latest release
@@ -98,9 +114,12 @@ jobs:
           body: |
             Latest build of `main` — commit ${{ github.sha }}.
 
-            Install in Firefox: about:debugging → This Firefox → Load Temporary
-            Add-on → pick `ownspace.xpi`. Updates are pulled automatically from
-            `update.json` once Firefox polls the update URL.
+            Signed with AMO (unlisted channel). Install in Firefox:
+            about:debugging → This Firefox → Load Temporary Add-on → pick
+            `ownspace.xpi`. Firefox then applies later builds automatically:
+            it polls `update.json` and updates in place, and since the
+            extension id never changes, all widget data, settings and sync
+            pairings carry over — no export/import needed.
           files: |
             ownspace.xpi
             update.json
@@ -121,6 +140,19 @@ jobs:
 
       - name: Build xpi
         run: bash build.sh
+
+      - name: Sign with web-ext
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          npx web-ext sign \
+            --config web-ext-config.json \
+            --api-key "$WEB_EXT_API_KEY" \
+            --api-secret "$WEB_EXT_API_SECRET" \
+            --channel unlisted \
+            --use-cache
+          mv web-ext-artifacts/*.xpi ownspace.xpi
 
       - name: Read version
         id: version
