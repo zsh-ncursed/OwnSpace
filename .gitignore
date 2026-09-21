@@ -9,6 +9,8 @@ docs/
 
 # Build/serve files
 serve.cjs
+# ownspace.xpi is tracked on purpose: CI publishes it to main so Firefox can
+# fetch it over HTTPS as the update channel (see gecko.update_url).
 ownspace.xpi
 
 # Local backlog

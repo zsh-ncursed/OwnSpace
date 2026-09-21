@@ -44,6 +44,12 @@ jobs:
       - name: Build xpi
         run: bash build.sh
 
+      - name: Generate update.json
+        # Firefox polls the update_url declared in the manifest. The xpi must be
+        # downloadable over plain HTTPS, so both files land in main and are
+        # served by raw.githubusercontent.com.
+        run: bash tools/gen-update-json.sh
+
       - name: Upload xpi artifact
         uses: actions/upload-artifact@v4
         with:
@@ -51,6 +57,41 @@ jobs:
           path: ownspace.xpi
           if-no-files-found: error
           retention-days: 30
+
+  publish:
+    # Commit the built xpi + update.json back to main. This is what makes
+    # updates work: raw.githubusercontent.com/main/... is the update channel,
+    # and a stable extension id means storage is untouched across updates.
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download built xpi
+        uses: actions/download-artifact@v4
+        with:
+          name: ownspace-xpi
+
+      - name: Generate update.json
+        run: bash tools/gen-update-json.sh
+
+      - name: Commit release files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # keep the binary out of the diff noise when nothing changed
+          if git status --porcelain ownspace.xpi update.json | grep -q .; then
+            git add ownspace.xpi update.json
+            git commit -m "build: publish ownspace.xpi and update.json [skip ci]"
+            git push
+          else
+            echo "No changes to publish"
+          fi
 
   release:
     # A tag like v1.2.3 publishes a GitHub Release with the xpi attached, so the

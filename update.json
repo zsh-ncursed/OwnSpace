@@ -1,0 +1,14 @@
+{
+  "addons": {
+    "ownspace@extension.local": {
+      "updates": [
+        {
+          "version": "1.3.0",
+          "update_link": "https://raw.githubusercontent.com/zsh-ncursed/OwnSpace/main/ownspace.xpi",
+          "update_hash": "sha256:ce7852af4a44bc3352471559618c2a34840507d33684f8fabb09109684db92b6",
+          "size": 513516
+        }
+      ]
+    }
+  }
+}

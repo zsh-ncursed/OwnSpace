@@ -18,7 +18,8 @@
       "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": ["none"]
-      }
+      },
+      "update_url": "https://raw.githubusercontent.com/zsh-ncursed/OwnSpace/main/update.json"
     },
     "gecko_android": {
       "strict_min_version": "128.0"
