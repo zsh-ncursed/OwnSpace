@@ -5,7 +5,7 @@ import { toggleTheme } from '../ui/theme.js';
 import { renderWidgetGrid } from './grid.js';
 import { addWorkspace, updateWorkspace } from '../workspaces.js';
 import { showExportImportMenu } from '../ui/export-import-menu.js';
-import { showPairWizard, showAcceptWizard } from '../sync/ui.js';
+import { showSyncMenu } from '../sync/ui.js';
 import { showBackgroundSettings } from '../ui/background-settings.js';
 import {
   ENGINES,
@@ -199,10 +199,7 @@ function setupToolbarButtons() {
     showExportImportMenu,
   );
   document.getElementById('sync-link')?.addEventListener('click', () => {
-    showPairWizard();
-  });
-  document.getElementById('sync-accept')?.addEventListener('click', () => {
-    showAcceptWizard();
+    showSyncMenu();
   });
   document.getElementById('bg-settings')?.addEventListener(
     'click',

@@ -61,6 +61,44 @@ function label(status) {
 }
 
 /**
+ * Toolbar entry point: a small chooser, because either side can start the
+ * pairing, but differently — the slave generates a connection code, the
+ * master waits for one.
+ */
+export async function showSyncMenu() {
+  const { pairings } = await loadPairings();
+
+  const menu = document.createElement('div');
+  menu.className = 'modal-overlay';
+  menu.innerHTML = `
+    <div class="modal" style="max-width: 520px;">
+      <h3>${t('sync.menu_title')}</h3>
+      <p class="sync-intro">${t('sync.menu_hint')}</p>
+      <div class="export-options">
+        <button id="sync-start">${t('sync.menu_start')}</button>
+        <button id="sync-accept">${t('sync.menu_accept')}</button>
+      </div>
+      ${pairings.length ? `<p class="sync-pairing-count">${t('sync.menu_paired_count', { n: pairings.length })}</p>` : ''}
+      <button class="modal-close" id="close-sync-menu">${t('common.close')}</button>
+    </div>
+  `;
+  document.body.appendChild(menu);
+
+  menu.querySelector('#sync-start').addEventListener('click', () => {
+    menu.remove();
+    showPairWizard();
+  });
+  menu.querySelector('#sync-accept').addEventListener('click', () => {
+    menu.remove();
+    showAcceptWizard();
+  });
+  menu.querySelector('#close-sync-menu').addEventListener('click', () => menu.remove());
+  menu.addEventListener('click', (e) => {
+    if (e.target === menu) menu.remove();
+  });
+}
+
+/**
  * Entry point for the "Связать с другим ПК" button — slave side.
  */
 export async function showPairWizard() {
@@ -76,11 +114,13 @@ export async function showPairWizard() {
       <label class="event-field">
         <span>${t('sync.device_name_label')}</span>
         <input type="text" id="sync-name" placeholder="${t('sync.device_name_placeholder')}" maxlength="32" />
+        <span class="sync-hint">${t('sync.device_name_hint')}</span>
       </label>
 
       <label class="event-field">
         <span>${t('sync.code_label')}</span>
         <input type="text" id="sync-code" placeholder="${t('sync.code_placeholder')}" maxlength="32" autocomplete="off" />
+        <span class="sync-hint">${t('sync.code_hint')}</span>
       </label>
 
       <div id="sync-step-code" hidden>
@@ -198,8 +238,15 @@ export async function showAcceptWizard() {
       <p class="sync-intro">${t('sync.intro_master')}</p>
 
       <label class="event-field">
+        <span>${t('sync.device_name_label')}</span>
+        <input type="text" id="sync-name" placeholder="${t('sync.device_name_placeholder')}" maxlength="32" />
+        <span class="sync-hint">${t('sync.device_name_hint')}</span>
+      </label>
+
+      <label class="event-field">
         <span>${t('sync.code_label')}</span>
         <input type="text" id="sync-code" placeholder="${t('sync.code_placeholder')}" maxlength="32" autocomplete="off" />
+        <span class="sync-hint">${t('sync.code_hint')}</span>
       </label>
 
       <label class="event-field">
@@ -261,7 +308,11 @@ export async function showAcceptWizard() {
     }
     try {
       statusEl.hidden = false;
-      const { blob } = await mgr.receiveOffer({ blob: offer, code });
+      const { blob } = await mgr.receiveOffer({
+        blob: offer,
+        code,
+        name: overlay.querySelector('#sync-name')?.value.trim(),
+      });
       blobOut.value = blob;
       stepAnswer.hidden = false;
       nextBtn.disabled = true;

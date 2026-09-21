@@ -330,6 +330,11 @@ try {
         }
         const clicked = btn?.id;
         if (btn) btn.click();
+        // Now a chooser opens: pick "Link with another PC" (the slave path).
+        await new Promise((r) => setTimeout(r, 400));
+        const startBtn = document.getElementById('sync-start');
+        const menuTitle = document.querySelector('.modal-overlay h3')?.textContent;
+        if (startBtn) startBtn.click();
         await new Promise((r) => setTimeout(r, 600));
         // The wizard is the newest overlay; pick it by its h3, not DOM order.
         let m = null;
@@ -339,6 +344,7 @@ try {
         const wizard = {
           toolbarBtn: !!btn,
           clickedId: clicked,
+          menuTitle,
           modalOpen: !!m,
           title: m?.querySelector('h3')?.textContent,
           hasCodeField: !!m?.querySelector('#sync-code'),

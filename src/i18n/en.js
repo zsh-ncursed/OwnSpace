@@ -309,8 +309,10 @@ export default {
   "sync.intro_master": "Paste the code from the device that wants to link with you. You decide whether to approve it, so this PC becomes the source.",
   "sync.device_name_label": "Device name",
   "sync.device_name_placeholder": "Laptop",
+  "sync.device_name_hint": "How the other PC will label this device in its list. Optional.",
   "sync.code_label": "Pairing code",
   "sync.code_placeholder": "e.g. 7291",
+  "sync.code_hint": "Make up any short code and enter the SAME one on both devices. It also encrypts the transferred data.",
   "sync.your_code_label": "Your connection code",
   "sync.paste_answer_label": "Paste the answer code from the other PC",
   "sync.paste_offer_label": "Paste the connection code from the other PC",
@@ -360,5 +362,10 @@ export default {
   "sync.error_channel": "Connection error",
   "sync.devices_title": "Linked devices",
   "sync.link_button": "Link with another PC",
-  "sync.accept_button": "I have a pairing code"
+  "sync.accept_button": "I have a pairing code",
+  "sync.menu_title": "Device sync",
+  "sync.menu_hint": "Choose how to link. The device that sends the first pairing request becomes the receiver; the one that approves it becomes the source and sends its data.",
+  "sync.menu_start": "Link with another PC — I want to receive data",
+  "sync.menu_accept": "Accept a pairing request — this PC is the source",
+  "sync.menu_paired_count": "{n} device(s) already linked. Settings → Linked devices to manage."
 };

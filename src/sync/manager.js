@@ -94,9 +94,10 @@ export function createSyncManager(opts = {}) {
   }
 
   // ── MASTER side: accept a pasted offer, ask for approval, push state ─────
-  async function receiveOffer({ blob, code, name: _name }) {
+  async function receiveOffer({ blob, code, name }) {
     if (!code) throw new Error(t('sync.error_no_code'));
     pendingPairingCode = code;
+    localDeviceName = name || '';
     role = ROLES.MASTER;
     status('pending', t('sync.status_reading_offer'));
     close();
@@ -148,8 +149,12 @@ export function createSyncManager(opts = {}) {
     switch (msg.type) {
       case MSG.PAIR_REQUEST: {
         const ok = await onRequest?.({ peerName: msg.payload?.name });
-        send(ok ? MSG.PAIR_ACCEPT : MSG.PAIR_REJECT);
         if (ok) {
+          const deviceId = await getDeviceId();
+          send(MSG.PAIR_ACCEPT, {
+            from: deviceId,
+            name: localDeviceName || t('sync.unnamed_device'),
+          });
           await addPairing({
             id: msg.payload?.deviceId || remoteDeviceId || makeFallbackId(),
             name: msg.payload?.name,
@@ -157,6 +162,7 @@ export function createSyncManager(opts = {}) {
           });
           await pushState();
         } else {
+          send(MSG.PAIR_REJECT);
           status('idle', t('sync.rejected'));
         }
         break;
@@ -178,12 +184,13 @@ export function createSyncManager(opts = {}) {
         status('idle', t('sync.rejected'));
         break;
       case MSG.PAIR_ACCEPT:
-        // The master accepted: remember it as our source device.
+        // The master accepted: remember it as our source device, labeled with
+        // the name the master sent (not our own local name).
         if (role === ROLES.SLAVE && msg.payload?.from) {
           remoteDeviceId = msg.payload.from;
           await addPairing({
             id: remoteDeviceId,
-            name: localDeviceName || t('sync.unnamed_device'),
+            name: msg.payload.name || t('sync.unnamed_device'),
             role: ROLES.SLAVE,
           }).catch(() => { /* already paired — fine */ });
         }

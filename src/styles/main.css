@@ -3504,3 +3504,10 @@ body {
   color: var(--text-subtle);
   margin: 4px 0 0;
 }
+
+.sync-pairing-count {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  margin: 12px 0 0;
+  text-align: center;
+}
