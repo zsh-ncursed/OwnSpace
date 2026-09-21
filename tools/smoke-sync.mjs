@@ -364,6 +364,7 @@ try {
         done({
           ...wizard,
           offerBlobLen: out?.value?.length ?? 0,
+          offerCodeChars: out?.value?.replace(/[^A-Za-z0-9]/g, '').length ?? 0,
           step2Visible: !document.querySelector('#sync-step-code')?.hidden,
           nextLabel: next?.textContent,
           notif: document.querySelector('.import-notification')?.textContent,

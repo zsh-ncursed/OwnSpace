@@ -367,5 +367,9 @@ export default {
   "sync.menu_hint": "Choose how to link. The device that sends the first pairing request becomes the receiver; the one that approves it becomes the source and sends its data.",
   "sync.menu_start": "Link with another PC — I want to receive data",
   "sync.menu_accept": "Accept a pairing request — this PC is the source",
-  "sync.menu_paired_count": "{n} device(s) already linked. Settings → Linked devices to manage."
+  "sync.menu_paired_count": "{n} device(s) already linked. Settings → Linked devices to manage.",
+  "sync.paste_from_clipboard": "Paste from clipboard",
+  "sync.clipboard_empty": "Clipboard is empty",
+  "sync.clipboard_blocked": "Clipboard access blocked — paste into the field manually",
+  "sync.autocopied_hint": "Code copied to clipboard — paste it on the other device"
 };

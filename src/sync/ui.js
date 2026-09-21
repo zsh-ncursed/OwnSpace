@@ -136,6 +136,7 @@ export async function showPairWizard() {
         <label class="event-field">
           <span>${t('sync.paste_answer_label')}</span>
           <textarea id="sync-blob-in" rows="3" class="sync-blob" placeholder="${t('sync.paste_answer_placeholder')}"></textarea>
+          <button type="button" class="btn btn-secondary sync-paste-btn" id="sync-paste-answer">${t('sync.paste_from_clipboard')}</button>
         </label>
       </div>
 
@@ -207,6 +208,9 @@ export async function showPairWizard() {
       stepCode.hidden = false;
       nextBtn.textContent = t('sync.connect');
       nextBtn.disabled = false;
+      // The blob is ~700 chars: put it on the clipboard right away so the
+      // user never has to select it by hand.
+      await copyToClipboard(blobOut);
     } catch (e) {
       nextBtn.disabled = false;
       showNotification(t('sync.error_offer', { message: e.message }));
@@ -214,13 +218,13 @@ export async function showPairWizard() {
   });
 
   overlay.querySelector('#sync-copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(blobOut.value);
-      showNotification(t('sync.copied'));
-    } catch {
-      blobOut.select();
-      document.execCommand?.('copy');
-    }
+    await copyToClipboard(blobOut);
+  });
+
+  // One tap for the answer field too: the master's reply goes the other way
+  // and is just as long.
+  overlay.querySelector('#sync-paste-answer')?.addEventListener('click', async () => {
+    await pasteFromClipboard(blobIn);
   });
 }
 
@@ -246,6 +250,7 @@ export async function showAcceptWizard() {
       <label class="event-field">
         <span>${t('sync.paste_offer_label')}</span>
         <textarea id="sync-blob-in" rows="3" class="sync-blob" placeholder="${t('sync.paste_offer_placeholder')}"></textarea>
+        <button type="button" class="btn btn-secondary sync-paste-btn" id="sync-paste-offer">${t('sync.paste_from_clipboard')}</button>
       </label>
 
       <div id="sync-step-answer" hidden>
@@ -310,6 +315,9 @@ export async function showAcceptWizard() {
       stepAnswer.hidden = false;
       nextBtn.disabled = true;
       nextBtn.textContent = t('sync.waiting');
+      // The answer blob goes back the other way — put it on the clipboard so
+      // the user can paste it on the slave in one click.
+      await copyToClipboard(blobOut);
     } catch (e) {
       nextBtn.disabled = false;
       showNotification(t('sync.error_offer', { message: e.message }));
@@ -322,9 +330,47 @@ export async function showAcceptWizard() {
       showNotification(t('sync.copied'));
     } catch {
       blobOut.select();
-      document.execCommand?.('copy');
     }
   });
+
+  // Same one-tap paste for the slave's offer blob on this side.
+  overlay.querySelector('#sync-paste-offer')?.addEventListener('click', async () => {
+    await pasteFromClipboard(blobIn);
+  });
+}
+
+/**
+ * Copy a blob to the clipboard. navigator.clipboard is unavailable over
+ * http and in some extension pages, so fall back to the select+execCommand
+ * path rather than failing silently.
+ */
+async function copyToClipboard(textarea) {
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    showNotification(t('sync.copied'));
+  } catch {
+    // execCommand('copy') only works inside a user gesture, so calling it as
+    // a fallback for programmatic copies just trips another warning. Select
+    // the text instead and let the user press Ctrl+C.
+    textarea.select();
+  }
+}
+
+async function pasteFromClipboard(textarea) {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      textarea.value = text.trim();
+      textarea.dispatchEvent(new Event('input'));
+    } else {
+      showNotification(t('sync.clipboard_empty'));
+    }
+  } catch {
+    // readText() is blocked without a user gesture or permission — point at
+    // the field instead of pretending it worked.
+    textarea.focus();
+    showNotification(t('sync.clipboard_blocked'));
+  }
 }
 
 /**

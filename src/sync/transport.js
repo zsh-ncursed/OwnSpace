@@ -68,8 +68,11 @@ export async function acceptAnswer(blob, pc) {
 }
 
 function createPeerConnection() {
+  // No STUN/TURN: this is a LAN-only link, and server-reflexive candidates
+  // would just bloat the SDP and leak the public IP. Host candidates suffice —
+  // and the blob the user has to copy gets shorter.
   return new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    iceServers: [],
   });
 }
 

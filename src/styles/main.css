@@ -3511,3 +3511,8 @@ body {
   margin: 12px 0 0;
   text-align: center;
 }
+
+.sync-paste-btn {
+  margin-top: 6px;
+  align-self: flex-start;
+}
