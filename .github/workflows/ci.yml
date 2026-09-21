@@ -60,7 +60,7 @@ jobs:
             exit 0
           fi
           npx web-ext sign \
-            --config web-ext-config.json \
+            --config web-ext.config.mjs \
             --api-key "$WEB_EXT_API_KEY" \
             --api-secret "$WEB_EXT_API_SECRET" \
             --channel unlisted
@@ -152,7 +152,7 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
         run: |
           npx web-ext sign \
-            --config web-ext-config.json \
+            --config web-ext.config.mjs \
             --api-key "$WEB_EXT_API_KEY" \
             --api-secret "$WEB_EXT_API_SECRET" \
             --channel unlisted
