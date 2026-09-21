@@ -87,3 +87,149 @@ describe('encrypted export/import', () => {
     ]);
   });
 });
+
+describe('calendar events survive import', () => {
+  // The classic bug: validateWidgetConfig used to rebuild calendar events with
+  // only {id,title,date,time}, silently dropping color, money, and the whole
+  // recurring rule — so a recurring event lost every future instance after
+  // import, and finances stopped summing.
+  const fullCalendarWorkspace = () => ({
+    id: 'ws-cal',
+    name: 'Cal',
+    widgets: [
+      {
+        id: 'cal-1',
+        type: 'calendar',
+        column: 0,
+        order: 0,
+        pinned: false,
+        config: {
+          title: 'Мой календарь',
+          showWeather: true,
+          events: [
+            {
+              id: 'ev-base',
+              title: 'Зарплата',
+              date: '2026-01-05',
+              time: '09:00',
+              endTime: '18:00',
+              color: '#5b6cff',
+              money: 50000,
+              moneyType: 'income',
+              recurring: { type: 'monthly', interval: 1, endDate: '2027-01-05' },
+            },
+            {
+              id: 'ev-inst',
+              title: 'Зарплата',
+              date: '2026-02-05',
+              time: '09:00',
+              isRecurringInstance: true,
+              recurringParentId: 'ev-base',
+              color: '#5b6cff',
+              money: 50000,
+              moneyType: 'income',
+            },
+            { id: 'ev-note', title: 'День рождения', date: '2026-03-11', time: '' },
+          ],
+        },
+      },
+    ],
+  });
+
+  it('preserves color, money, and recurring fields of events', async () => {
+    await saveWorkspaces([]);
+
+    await importData(JSON.stringify({ workspaces: [fullCalendarWorkspace()] }));
+    const [ws] = await getWorkspaces();
+    const cal = ws.widgets.find((w) => w.type === 'calendar');
+    expect(cal.config.title).toBe('Мой календарь');
+    expect(cal.config.showWeather).toBe(true);
+
+    const base = cal.config.events.find((e) => e.id === 'ev-base');
+    expect(base).toMatchObject({
+      title: 'Зарплата',
+      date: '2026-01-05',
+      time: '09:00',
+      endTime: '18:00',
+      color: '#5b6cff',
+      money: 50000,
+      moneyType: 'income',
+      recurring: { type: 'monthly', interval: 1, endDate: '2027-01-05' },
+    });
+  });
+
+  it('preserves recurring-instance links and all-day events', async () => {
+    await saveWorkspaces([]);
+
+    await importData(JSON.stringify({ workspaces: [fullCalendarWorkspace()] }));
+    const [ws] = await getWorkspaces();
+    const cal = ws.widgets.find((w) => w.type === 'calendar');
+
+    const inst = cal.config.events.find((e) => e.id === 'ev-inst');
+    expect(inst).toMatchObject({
+      isRecurringInstance: true,
+      recurringParentId: 'ev-base',
+      money: 50000,
+      moneyType: 'income',
+    });
+
+    // An all-day event keeps time: null, not "" — the renderer keys on truthy
+    // time to draw the event bar inside a day cell.
+    const note = cal.config.events.find((e) => e.id === 'ev-note');
+    expect(note.time).toBe(null);
+  });
+
+  it('roundtrips through export → import without losing event data', async () => {
+    await saveWorkspaces([fullCalendarWorkspace()]);
+    const json = await exportData(false, null);
+
+    await saveWorkspaces([]);
+    await importData(json);
+    const [ws] = await getWorkspaces();
+    const cal = ws.widgets.find((w) => w.type === 'calendar');
+    expect(cal.config.events).toHaveLength(3);
+    const base = cal.config.events.find((e) => e.id === 'ev-base');
+    expect(base.recurring).toEqual({ type: 'monthly', interval: 1, endDate: '2027-01-05' });
+    expect(base.money).toBe(50000);
+    expect(cal.config.showWeather).toBe(true);
+  });
+
+  it('drops malformed recurring rules and money instead of keeping bad data', async () => {
+    await saveWorkspaces([]);
+
+    await importData(
+      JSON.stringify({
+        workspaces: [
+          {
+            id: 'ws-bad',
+            name: 'Bad',
+            widgets: [
+              {
+                id: 'cal-bad',
+                type: 'calendar',
+                config: {
+                  events: [
+                    {
+                      id: 'e1',
+                      title: 'x',
+                      date: '2026-01-01',
+                      recurring: { type: 'bogus', interval: -5 },
+                      money: -100,
+                      moneyType: 'nope',
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const [ws] = await getWorkspaces();
+    const cal = ws.widgets.find((w) => w.type === 'calendar');
+    const ev = cal.config.events[0];
+    expect(ev.recurring).toBeUndefined();
+    expect(ev.money).toBeUndefined();
+    expect(ev.moneyType).toBeUndefined();
+  });
+});

@@ -94,15 +94,52 @@ function validateWidgetConfig(type, config, wi, i) {
       throw new Error(`Workspace ${wi} calendar has too many events`);
     out.events = config.events.map((e, k) => {
       if (!e || typeof e !== 'object') throw new Error(`Event ${wi}.${i}.${k} invalid`);
-      return {
+      // Keep the whole event model — color, money, and the recurring fields are
+      // what make events render the same after import: drop `recurring` and the
+      // generated instances would vanish, drop `recurringParentId` and they
+      // would lose their link to the base event.
+      const ev = {
         id: typeof e.id === 'string' ? e.id : String(k),
         title: typeof e.title === 'string' ? e.title : '',
         date: typeof e.date === 'string' ? e.date : '',
-        time: typeof e.time === 'string' ? e.time : null,
+        time: typeof e.time === 'string' && e.time ? e.time : null,
       };
+      // endTime / endDate: a timed event can span past midnight
+      if (typeof e.endTime === 'string' && e.endTime) ev.endTime = e.endTime;
+      if (typeof e.endDate === 'string' && e.endDate) ev.endDate = e.endDate;
+      if (typeof e.color === 'string' && e.color) ev.color = e.color;
+      // money: financial events (income/expense) summed by calcMonthFinance
+      if (typeof e.money === 'number' && isFinite(e.money) && e.money > 0) {
+        ev.money = e.money;
+        if (e.moneyType === 'income' || e.moneyType === 'expense') ev.moneyType = e.moneyType;
+      }
+      // recurring: only the base event carries the rule; instances carry ids
+      if (e.recurring && typeof e.recurring === 'object') {
+        const recType = e.recurring.type;
+        if (
+          recType &&
+          ['seconds', 'minutes', 'hours', 'daily', 'weekly', 'monthly', 'yearly'].includes(recType)
+        ) {
+          ev.recurring = {
+            type: recType,
+            interval: Number.isInteger(e.recurring.interval) && e.recurring.interval > 0
+              ? e.recurring.interval
+              : 1,
+            endDate: typeof e.recurring.endDate === 'string' ? e.recurring.endDate : '',
+          };
+        }
+      }
+      if (typeof e.recurringParentId === 'string') {
+        ev.isRecurringInstance = true;
+        ev.recurringParentId = e.recurringParentId;
+      }
+      if (e.source === 'caldav') ev.source = 'caldav';
+      return ev;
     });
   }
   if (typeof config.title === 'string') out.title = config.title;
+  // Calendar: keeps the weather strip toggle alongside its events.
+  if (type === 'calendar') out.showWeather = Boolean(config.showWeather);
   return out;
 }
 
