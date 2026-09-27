@@ -1,7 +1,9 @@
 import { t } from '../i18n/index.js';
 import { updateWidgetConfig } from './management.js';
-import { renderSingleWidget } from '../render/listeners.js';
-import { refreshCurrencyWidget } from '../render/listeners.js';
+import {
+  renderSingleWidget,
+  refreshCurrencyWidget,
+} from '../render/listeners.js';
 
 export const WIDGET_TYPE = 'currency';
 

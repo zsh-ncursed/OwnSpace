@@ -2,7 +2,6 @@ import { escapeHtml, safeUrl } from '../ui/escape.js';
 import { t } from '../i18n/index.js';
 import { getActiveWorkspace } from '../state.js';
 import { updateWidgetConfig } from './management.js';
-import { renderSingleWidget } from '../render/listeners.js';
 import {
   sortableInstances,
   persistBookmarkOrder,
@@ -57,7 +56,7 @@ export function renderBookmarksWidget(widget) {
 
 // Bind all interactive behaviour for one bookmarks widget instance.
 // Called by setupWidgetListeners via the widget registry dispatch.
-export function mountBookmarksWidget(el, widget) {
+export function mountBookmarksWidget(el, _widget) {
   const widgetId = el.dataset.widgetId;
 
   const list = el.querySelector('.bookmarks-list');

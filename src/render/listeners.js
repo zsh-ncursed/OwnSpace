@@ -1,11 +1,8 @@
 import { getActiveWorkspace } from '../state.js';
 import { saveWorkspaces } from '../storage.js';
 import {
-  persistBookmarkOrder,
-  setColumnSortablesDisabled,
   setBookmarkSortablesDisabled,
   persistWidgetLayoutFromGrid,
-  sortableInstances,
   widgetSortableInstances,
 } from '../sortable.js';
 import { updateWidgetConfig, removeWidget, addWidget } from '../widgets/management.js';
