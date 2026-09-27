@@ -61,7 +61,15 @@ export function setupWidgetListeners(container) {
   // Dispatch each widget element to its plugin's own mount() handler. This
   // keeps per-widget interaction logic inside the widget module instead of in
   // this god-object (see widget registry dispatch in grid.js / setupWidgetGrid).
-  container.querySelectorAll('.widget').forEach((el) => {
+  // querySelectorAll matches DESCENDANTS only, but renderSingleWidget() passes
+  // the freshly rendered .widget element itself as the container — include it
+  // explicitly, or the re-rendered card never gets its mount() handlers
+  // (calendar month navigation, day-cell selection, ... go dead after one use).
+  const widgetEls = container.matches('.widget')
+    ? [container, ...container.querySelectorAll('.widget')]
+    : Array.from(container.querySelectorAll('.widget'));
+
+  widgetEls.forEach((el) => {
     const widgetId = el.dataset.widgetId;
     if (!widgetId) return;
     const widget = getActiveWorkspace()?.widgets.find((w) => w.id === widgetId);
