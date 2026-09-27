@@ -21,6 +21,7 @@ export default [
         URL: 'readonly',
         Blob: 'readonly',
         FileReader: 'readonly',
+        getComputedStyle: 'readonly',
         DOMParser: 'readonly',
         Image: 'readonly',
         HTMLCanvasElement: 'readonly',

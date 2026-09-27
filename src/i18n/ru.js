@@ -174,6 +174,8 @@ export default {
   "modal.widget.name": "Название:",
   "modal.widget.bg_color": "Цвет фона:",
   "modal.widget.opacity": "Прозрачность:",
+  "modal.widget.appearance_title": "Настройки виджетов",
+  "modal.widget.transparency": "Уровень прозрачности (100% — полностью прозрачный):",
   "modal.confirm.default_title": "Подтверждение",
   "modal.prompt.default_title": "Введите значение",
   "modal.prompt.required": "Поле не может быть пустым",

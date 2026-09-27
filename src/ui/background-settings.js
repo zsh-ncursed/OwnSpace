@@ -4,6 +4,7 @@ import { renderWidgetGrid } from '../render/grid.js';
 import { escapeHtml } from '../ui/escape.js';
 import { state } from '../state.js';
 import { t } from '../i18n/index.js';
+import { getSettings, saveSettings } from '../storage.js';
 
 async function compressImage(file) {
   return new Promise((resolve, reject) => {
@@ -57,11 +58,24 @@ async function compressImage(file) {
   });
 }
 
-export function showBackgroundSettings() {
+export async function showBackgroundSettings() {
   const workspace = getActiveWorkspace();
   if (!workspace) return;
 
   const bg = workspace.background || { type: 'color', value: '#1a1a2e' };
+  const settings = await getSettings();
+
+  // Global widget appearance. The settings are global by design — no opt-in
+  // toggle — so the color picker defaults to the current theme's surface
+  // color, which keeps the widgets looking unchanged until the user picks
+  // something else.
+  const surface = getComputedStyle(document.documentElement)
+    .getPropertyValue('--surface')
+    .trim();
+  const savedColor = settings.widgetBgColor || surface;
+  const transparency = settings.widgetTransparency != null
+    ? settings.widgetTransparency
+    : 0;
 
   const menu = document.createElement('div');
   menu.className = 'modal-overlay';
@@ -88,12 +102,34 @@ export function showBackgroundSettings() {
         <input type="file" id="bg-image" accept="image/*" />
         ${bg.type === 'image' ? `<img src="${escapeHtml(bg.value)}" style="max-width: 100px; max-height: 100px;" />` : ''}
       </div>
-      <button id="save-bg">${t('modal.bg.save')}</button>
+      <h3 class="modal-title">${t('modal.widget.appearance_title')}</h3>
+      <form class="widget-settings-form">
+        <label class="event-field">
+          <span>${t('modal.widget.bg_color')}</span>
+          <input type="color" id="widget-bgcolor" value="${escapeHtml(savedColor)}" />
+        </label>
+        <label class="event-field">
+          <span>${t('modal.widget.transparency')}</span>
+          <div class="widget-transparency-row">
+            <input type="range" id="widget-transparency" min="0" max="100" value="${transparency}" />
+            <span id="widget-transparency-value">${transparency}%</span>
+          </div>
+        </label>
+      </form>
+      <button class="modal-close" id="save-bg">${t('modal.bg.save')}</button>
       <button class="modal-close" id="close-bg">${t('common.cancel')}</button>
     </div>
   `;
 
   document.body.appendChild(menu);
+
+  const bgcolorInput = menu.querySelector('#widget-bgcolor');
+  const transparencyInput = menu.querySelector('#widget-transparency');
+  const transparencyValue = menu.querySelector('#widget-transparency-value');
+
+  transparencyInput.addEventListener('input', () => {
+    transparencyValue.textContent = `${transparencyInput.value}%`;
+  });
 
   menu.querySelector('#save-bg').addEventListener('click', async () => {
     const type = menu.querySelector('input[name="bg-type"]:checked').value;
@@ -127,6 +163,17 @@ export function showBackgroundSettings() {
     }
 
     await updateWorkspace(workspace.id, { background: { type, value } });
+
+    // Global widget appearance (overrides per-widget styles). The slider is a
+    // transparency level (100 = fully transparent), stored as-is.
+    const newSettings = {
+      ...settings,
+      widgetBgColor: bgcolorInput.value,
+      widgetTransparency: parseInt(transparencyInput.value, 10),
+    };
+    window._pluginSettings = newSettings;
+    await saveSettings(newSettings);
+
     menu.remove();
     renderWidgetGrid();
   });

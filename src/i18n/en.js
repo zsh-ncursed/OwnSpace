@@ -174,6 +174,8 @@ export default {
   "modal.widget.name": "Name:",
   "modal.widget.bg_color": "Background color:",
   "modal.widget.opacity": "Opacity:",
+  "modal.widget.appearance_title": "Widget appearance",
+  "modal.widget.transparency": "Transparency level (100% = fully transparent):",
   "modal.confirm.default_title": "Confirm",
   "modal.prompt.default_title": "Enter value",
   "modal.prompt.required": "Field cannot be empty",

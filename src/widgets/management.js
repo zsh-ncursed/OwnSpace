@@ -21,8 +21,20 @@ export function getDefaultWidgetConfig(type) {
 
 export function widgetBgStyle(widget) {
   const cfg = widget.config || {};
-  const color = cfg.bgColor;
-  const opacity = cfg.opacity != null ? cfg.opacity : 100;
+  let color = cfg.bgColor;
+  let opacity = cfg.opacity != null ? cfg.opacity : 100;
+
+  // Global widget appearance overrides individual widget settings. The slider
+  // in the background settings dialog is a transparency level (100 = fully
+  // transparent), the inverse of the internal opacity value.
+  const globalStyle = window._pluginSettings;
+  if (globalStyle && globalStyle.widgetBgColor) {
+    color = globalStyle.widgetBgColor;
+    if (globalStyle.widgetTransparency != null) {
+      opacity = 100 - globalStyle.widgetTransparency;
+    }
+  }
+
   if (!color && opacity >= 100) return '';
   if (!color) {
     const bgVar = 'var(--surface)';
