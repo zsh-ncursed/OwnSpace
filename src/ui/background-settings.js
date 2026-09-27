@@ -6,6 +6,55 @@ import { state } from '../state.js';
 import { t } from '../i18n/index.js';
 import { getSettings, saveSettings } from '../storage.js';
 
+// Built-in gradient presets. Shown as swatches; clicking one fills the
+// pickers below with its colors, type and direction.
+const GRADIENT_PRESETS = [
+  { name: 'modal.bg.preset.sunset',   from: '#ff512f', to: '#dd2476', type: 'linear', angle: 45 },
+  { name: 'modal.bg.preset.ocean',    from: '#2193b0', to: '#6dd5ed', type: 'linear', angle: 135 },
+  { name: 'modal.bg.preset.amethyst', from: '#8e2de2', to: '#4a00e0', type: 'linear', angle: 90 },
+  { name: 'modal.bg.preset.forest',   from: '#134e5e', to: '#71b280', type: 'linear', angle: 180 },
+  { name: 'modal.bg.preset.peach',    from: '#ed4264', to: '#ffedbc', type: 'radial', angle: 0 },
+];
+
+const GRADIENT_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+
+const DEFAULT_GRADIENT = {
+  type: 'linear',
+  angle: 135,
+  color1: '#ff512f',
+  color2: '#dd2476',
+};
+
+export function composeGradient(type, angle, color1, color2) {
+  if (type === 'radial') {
+    return `radial-gradient(circle, ${color1}, ${color2})`;
+  }
+  return `linear-gradient(${angle}deg, ${color1}, ${color2})`;
+}
+
+// Read a stored gradient back into the picker fields (best effort — legacy
+// values typed by hand may use any CSS, so snap the angle to the nearest
+// supported step and take the first two hex colors).
+export function parseGradientValue(value) {
+  if (typeof value !== 'string') return null;
+  const type = value.includes('radial-gradient')
+    ? 'radial'
+    : value.includes('linear-gradient')
+      ? 'linear'
+      : null;
+  if (!type) return null;
+
+  const angleMatch = value.match(/(-?\d+)deg/);
+  const colors = value.match(/#[0-9a-fA-F]{3,8}/g) || [];
+
+  return {
+    type,
+    angle: angleMatch ? parseInt(angleMatch[1], 10) : DEFAULT_GRADIENT.angle,
+    color1: colors[0] || DEFAULT_GRADIENT.color1,
+    color2: colors[1] || DEFAULT_GRADIENT.color2,
+  };
+}
+
 async function compressImage(file) {
   return new Promise((resolve, reject) => {
     if (file.size <= 500 * 1024) {
@@ -77,6 +126,18 @@ export async function showBackgroundSettings() {
     ? settings.widgetTransparency
     : 0;
 
+  // Snap the stored gradient angle onto the closest offered direction.
+  const parsedGradient = parseGradientValue(bg.value);
+  const gradient = parsedGradient
+    ? {
+        ...parsedGradient,
+        angle:
+          Number.isFinite(parsedGradient.angle)
+            ? ((Math.round(parsedGradient.angle / 45) * 45) % 360 + 360) % 360
+            : DEFAULT_GRADIENT.angle,
+      }
+    : { ...DEFAULT_GRADIENT };
+
   const menu = document.createElement('div');
   menu.className = 'modal-overlay';
   menu.innerHTML = `
@@ -93,7 +154,40 @@ export async function showBackgroundSettings() {
           <input type="radio" name="bg-type" value="gradient" ${bg.type === 'gradient' ? 'checked' : ''} />
           ${t('modal.bg.gradient')}
         </label>
-        <input type="text" id="bg-gradient" placeholder="${t('modal.bg.gradient_placeholder')}" value="${escapeHtml(bg.type === 'gradient' ? bg.value : '')}" />
+        <div class="bg-gradient-controls" id="bg-gradient-controls" ${bg.type === 'gradient' ? '' : 'hidden'}>
+          <div class="bg-gradient-preview" id="grad-preview"></div>
+          <div class="bg-preset-row">
+            <span class="bg-gradient-label">${t('modal.bg.gradient_presets')}</span>
+            ${GRADIENT_PRESETS
+              .map((p, i) => `<button type="button" class="bg-preset" data-preset="${i}" title="${t(p.name)}" style="background:${composeGradient(p.type, 135, p.from, p.to)}"></button>`)
+              .join('')}
+          </div>
+          <div class="bg-gradient-row">
+            <div class="bg-gradient-field">
+              <span>${t('modal.bg.gradient_type')}</span>
+              <div class="bg-type-row">
+                <label><input type="radio" name="grad-type" value="linear" ${gradient.type === 'linear' ? 'checked' : ''} /> ${t('modal.bg.gradient_linear')}</label>
+                <label><input type="radio" name="grad-type" value="radial" ${gradient.type === 'radial' ? 'checked' : ''} /> ${t('modal.bg.gradient_radial')}</label>
+              </div>
+            </div>
+            <div class="bg-gradient-field" id="grad-direction-field">
+              <span>${t('modal.bg.gradient_direction')}</span>
+              <select id="grad-direction">
+                ${GRADIENT_ANGLES.map((a) => `<option value="${a}" ${gradient.angle === a ? 'selected' : ''}>${a}°</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="bg-gradient-row">
+            <div class="bg-gradient-field">
+              <span>${t('modal.bg.gradient_color1')}</span>
+              <input type="color" id="grad-color1" value="${gradient.color1}" />
+            </div>
+            <div class="bg-gradient-field">
+              <span>${t('modal.bg.gradient_color2')}</span>
+              <input type="color" id="grad-color2" value="${gradient.color2}" />
+            </div>
+          </div>
+        </div>
 
         <label>
           <input type="radio" name="bg-type" value="image" ${bg.type === 'image' ? 'checked' : ''} />
@@ -131,6 +225,71 @@ export async function showBackgroundSettings() {
     transparencyValue.textContent = `${transparencyInput.value}%`;
   });
 
+  // ── Gradient controls ───────────────────────────────────────────────
+  const gradControls = menu.querySelector('#bg-gradient-controls');
+  const gradPreview = menu.querySelector('#grad-preview');
+  const gradColor1 = menu.querySelector('#grad-color1');
+  const gradColor2 = menu.querySelector('#grad-color2');
+  const gradDirection = menu.querySelector('#grad-direction');
+  const directionField = menu.querySelector('#grad-direction-field');
+
+  function readGradientType() {
+    return menu.querySelector('input[name="grad-type"]:checked').value;
+  }
+
+  // Keep the preview, direction visibility and preset highlight in sync with
+  // the current picker state.
+  function syncGradientPreview() {
+    const type = readGradientType();
+    const angle = parseInt(gradDirection.value, 10);
+    gradPreview.style.background = composeGradient(
+      type,
+      angle,
+      gradColor1.value,
+      gradColor2.value,
+    );
+    directionField.hidden = type === 'radial';
+
+    menu.querySelectorAll('.bg-preset').forEach((btn) => {
+      const preset = GRADIENT_PRESETS[Number(btn.dataset.preset)];
+      btn.classList.toggle(
+        'active',
+        preset.type === type &&
+          preset.from === gradColor1.value.toLowerCase() &&
+          preset.to === gradColor2.value.toLowerCase(),
+      );
+    });
+  }
+
+  [gradColor1, gradColor2].forEach((input) =>
+    input.addEventListener('input', syncGradientPreview),
+  );
+  gradDirection.addEventListener('change', syncGradientPreview);
+  menu
+    .querySelectorAll('input[name="grad-type"]')
+    .forEach((radio) => radio.addEventListener('change', syncGradientPreview));
+
+  menu.querySelectorAll('.bg-preset').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const preset = GRADIENT_PRESETS[Number(btn.dataset.preset)];
+      gradColor1.value = preset.from;
+      gradColor2.value = preset.to;
+      menu.querySelector(
+        `input[name="grad-type"][value="${preset.type}"]`,
+      ).checked = true;
+      gradDirection.value = String(preset.angle);
+      syncGradientPreview();
+    });
+  });
+
+  menu.querySelectorAll('input[name="bg-type"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      gradControls.hidden = radio.value !== 'gradient';
+    });
+  });
+
+  syncGradientPreview();
+
   menu.querySelector('#save-bg').addEventListener('click', async () => {
     const type = menu.querySelector('input[name="bg-type"]:checked').value;
     let value = '';
@@ -138,7 +297,12 @@ export async function showBackgroundSettings() {
     if (type === 'color') {
       value = menu.querySelector('#bg-color').value;
     } else if (type === 'gradient') {
-      value = menu.querySelector('#bg-gradient').value;
+      value = composeGradient(
+        readGradientType(),
+        parseInt(gradDirection.value, 10),
+        gradColor1.value,
+        gradColor2.value,
+      );
     } else if (type === 'image') {
       const fileInput = menu.querySelector('#bg-image');
       if (fileInput.files.length > 0) {
