@@ -1637,6 +1637,7 @@ body {
 .calendar-day-num {
   line-height: 1;
   padding-top: var(--space-1);
+  text-align: center;
 }
 
 .calendar-day.today {
@@ -1742,6 +1743,7 @@ body {
 .cal-weather {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   padding: 0 3px;
   margin-top: 1px;
