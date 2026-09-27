@@ -558,10 +558,6 @@ body {
   color: var(--accent);
 }
 
-.widget-pinned {
-  outline: 1px solid var(--primary);
-  outline-offset: -1px;
-}
 .widget-pinned .widget-header {
   cursor: default;
 }
