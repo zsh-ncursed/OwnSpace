@@ -2370,8 +2370,7 @@ body {
   letter-spacing: 0.05em;
 }
 
-.widget-settings-form input[type="text"],
-.widget-settings-form input[type="color"] {
+.widget-settings-form input[type="text"] {
   padding: var(--space-3);
   background: var(--bg);
   border: 1px solid var(--border);
@@ -2381,6 +2380,18 @@ body {
   font-size: var(--text-base);
   transition: border-color var(--duration-fast) var(--ease-out);
   color-scheme: light dark;
+}
+
+/* Same swatch as .bg-options input[type="color"] — identical controls must
+   never render at different sizes. */
+.widget-settings-form input[type="color"] {
+  width: 50px;
+  height: 32px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 .widget-settings-form input:focus {
