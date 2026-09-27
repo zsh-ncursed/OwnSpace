@@ -179,7 +179,7 @@ export function updateCalendarWeather(el) {
     if (thisKey === todayKey && wd.temp != null) {
       html = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-temp">${wd.temp}°</span></span>`;
     } else if (wd.min != null && wd.max != null) {
-      html = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
+      html = `<span class="cal-weather cal-weather-stacked"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
     } else {
       return;
     }

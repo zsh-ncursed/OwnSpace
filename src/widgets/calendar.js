@@ -366,7 +366,7 @@ export function renderCalendarWidget(widget) {
                 if (thisKey === todayKey && wd.temp != null) {
                   weatherHtml = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-temp">${wd.temp}°</span></span>`;
                 } else if (wd.min != null && wd.max != null) {
-                  weatherHtml = `<span class="cal-weather"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
+                  weatherHtml = `<span class="cal-weather cal-weather-stacked"><span class="cal-weather-icon" data-icon="${wd.icon}">${ICONS.btn(wd.icon)}</span><span class="cal-weather-range">${wd.min}°/${wd.max}°</span></span>`;
                 }
               }
             }

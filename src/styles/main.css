@@ -1750,6 +1750,11 @@ body {
   pointer-events: none;
 }
 
+.cal-weather-stacked {
+  flex-direction: column;
+  gap: 1px;
+}
+
 .cal-weather-icon {
   display: inline-flex;
   align-items: center;
