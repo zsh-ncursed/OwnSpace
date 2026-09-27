@@ -22,3 +22,17 @@ export function safeUrl(raw) {
     return null;
   }
 }
+
+// Strict check for base64 image data URLs — the only form the background
+// settings UI stores uploads in (FileReader.readAsDataURL). The base64
+// alphabet excludes quotes, parens, semicolons and whitespace, so a value
+// that passes is safe to interpolate into a CSS url("...") token.
+const IMAGE_DATA_URL_RE =
+  /^data:image\/(png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+export function safeImageBgUrl(raw) {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!IMAGE_DATA_URL_RE.test(v)) return null;
+  return v;
+}

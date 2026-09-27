@@ -1,5 +1,5 @@
 import { getActiveWorkspace } from '../state.js';
-import { escapeHtml, safeUrl } from '../ui/escape.js';
+import { escapeHtml, safeUrl, safeImageBgUrl } from '../ui/escape.js';
 import { getDefaultTitle, widgetBgStyle } from '../widgets/management.js';
 import { widgetRegistry } from '../widgets/registry.js';
 import { setupWidgetColumnSortable, setupAddWidgetListeners, setupWidgetListeners } from './listeners.js';
@@ -23,8 +23,10 @@ function sanitizeBg(bg) {
     return 'var(--bg)';
   }
   if (bg.type === 'image') {
+    const dataUrl = safeImageBgUrl(v);
+    if (dataUrl) return `url("${dataUrl}") center/cover no-repeat`;
     const url = safeUrl(v);
-    if (url) return `url(${url}) center/cover no-repeat`;
+    if (url) return `url("${url}") center/cover no-repeat`;
     return 'var(--bg)';
   }
   return 'var(--bg)';

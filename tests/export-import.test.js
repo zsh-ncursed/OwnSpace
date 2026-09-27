@@ -88,6 +88,69 @@ describe('encrypted export/import', () => {
   });
 });
 
+describe('image background survives import', () => {
+  // The classic bug: the only way to set an image background is the file
+  // picker, which stores a base64 data URL — but validateBackground used to
+  // run it through safeUrl (http/https only) and wipe the value, so an
+  // exported workspace came back with an empty background.
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+
+  it('keeps a valid base64 image background', async () => {
+    await saveWorkspaces([]);
+
+    await importData(
+      JSON.stringify({
+        workspaces: [
+          {
+            id: 'ws-img',
+            name: 'Img',
+            widgets: [],
+            background: { type: 'image', value: PNG },
+          },
+        ],
+      }),
+    );
+    const [ws] = await getWorkspaces();
+    expect(ws.background).toEqual({ type: 'image', value: PNG });
+  });
+
+  it('roundtrips an image background through export → import', async () => {
+    await saveWorkspaces([
+      {
+        id: 'ws-img',
+        name: 'Img',
+        widgets: [],
+        background: { type: 'image', value: PNG },
+      },
+    ]);
+    const json = await exportData(false, null);
+
+    await saveWorkspaces([]);
+    await importData(json);
+    const [ws] = await getWorkspaces();
+    expect(ws.background).toEqual({ type: 'image', value: PNG });
+  });
+
+  it('wipes an unsafe image background instead of keeping broken data', async () => {
+    await saveWorkspaces([]);
+
+    await importData(
+      JSON.stringify({
+        workspaces: [
+          {
+            id: 'ws-x',
+            name: 'X',
+            widgets: [],
+            background: { type: 'image', value: 'javascript:alert(1)' },
+          },
+        ],
+      }),
+    );
+    const [ws] = await getWorkspaces();
+    expect(ws.background).toEqual({ type: 'image', value: '' });
+  });
+});
+
 describe('calendar events survive import', () => {
   // The classic bug: validateWidgetConfig used to rebuild calendar events with
   // only {id,title,date,time}, silently dropping color, money, and the whole

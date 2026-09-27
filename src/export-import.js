@@ -7,7 +7,7 @@ import {
   getCalDAVCredentials,
   saveCalDAVCredentials,
 } from './storage.js';
-import { safeUrl } from './ui/escape.js';
+import { safeUrl, safeImageBgUrl } from './ui/escape.js';
 
 const MAX_IMPORT_SIZE = 10 * 1024 * 1024; // 10 MiB — quota DoS guard
 const MAX_WORKSPACES = 10;
@@ -41,8 +41,13 @@ function validateBackground(bg) {
   if (!bg || typeof bg !== 'object') return { type: 'color', value: '#1a1a2e' };
   const out = { type: bg.type || 'color', value: '' };
   if (bg.type === 'image') {
-    const url = safeUrl(bg.value);
-    out.value = url || '';
+    const dataUrl = safeImageBgUrl(bg.value);
+    if (dataUrl) {
+      out.value = dataUrl;
+    } else {
+      const url = safeUrl(bg.value);
+      out.value = url || '';
+    }
   } else if (bg.type === 'gradient') {
     out.value = typeof bg.value === 'string' ? bg.value : '';
   } else {
