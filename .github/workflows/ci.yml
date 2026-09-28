@@ -128,15 +128,25 @@ jobs:
         with:
           name: ownspace-xpi
 
-      - name: Read version
+      - name: Read version from the built package
         id: version
-        run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+        # Read the version out of the xpi the build job just signed, not out of
+        # this checkout: when the build job had to auto-bump, the commit checked
+        # out here is the one *before* the bump and still carries the old one.
+        run: |
+          unzip -q -o ownspace.xpi -d /tmp/signed
+          echo "version=$(node -p "require('/tmp/signed/manifest.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Generate update.json
         # Computed from the SIGNED xpi that just came down from the build job —
         # AMO embeds its own signature inside the archive, so the hash of the
         # unsigned build would not match and Firefox would refuse the update.
-        run: bash tools/gen-update-json.sh
+        # Version and hash both come from the signed archive via the script's
+        # --version flag, since the checkout may predate the bump.
+        run: bash tools/gen-update-json.sh ownspace.xpi "$BASE_URL" update.json "$VERSION"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BASE_URL: https://github.com/${{ github.repository }}/releases/download/latest
 
       - name: Update latest release
         uses: softprops/action-gh-release@v2
