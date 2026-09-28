@@ -51,13 +51,15 @@ jobs:
         env:
           BOT_NAME: 'github-actions[bot]'
         run: |
-          version_sh() { node -p "require('./manifest.json').version"; }
-          version_at() { git show "$1:manifest.json" 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).version)}catch{console.log('')}})"; }
-
-          previous=$(git rev-parse HEAD~1 2>/dev/null || echo '')
-          if [ -n "$previous" ] && [ "$(version_at "$previous")" != "$(version_sh)" ]; then
-            echo "This commit already moved the version — no bump needed"
-            echo "version=$(version_sh)" >> "$GITHUB_OUTPUT"
+          # The AMO side rejects a version it already signed, so the version in
+          # the tree must be newer than the one published on the update channel.
+          published=$(curl -fsSL https://github.com/${{ github.repository }}/releases/download/latest/update.json \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).addons[Object.keys(JSON.parse(d).addons)[0]].updates.at(-1).version)}catch{console.log('')}})" || echo 'none')
+          current=$(node -p "require('./manifest.json').version")
+          echo "published: $published, tree: $current"
+          if [ -n "$published" ] && [ "$published" != "none" ] && [ "$published" != "$current" ]; then
+            echo "Version in the tree is ahead of the channel — no bump needed"
+            echo "version=$current" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
