@@ -1,14 +1,19 @@
 {
   "manifest_version": 3,
   "name": "OwnSpace",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Local start page replacement with customizable widgets",
   "icons": {
     "48": "icons/icon48.png",
     "96": "icons/icon96.png"
   },
-  "permissions": ["storage", "tabs"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -17,7 +22,9 @@
       "id": "ownspace@extension.local",
       "strict_min_version": "128.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       },
       "update_url": "https://github.com/zsh-ncursed/OwnSpace/releases/download/latest/update.json"
     },
@@ -26,7 +33,11 @@
     }
   },
   "background": {
-    "scripts": ["lib/browser-polyfill.min.js", "background/ics-parser.js", "background/sync-worker.js"]
+    "scripts": [
+      "lib/browser-polyfill.min.js",
+      "background/ics-parser.js",
+      "background/sync-worker.js"
+    ]
   },
   "action": {
     "default_title": "OwnSpace",
