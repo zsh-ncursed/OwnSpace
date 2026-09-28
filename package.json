@@ -1,6 +1,6 @@
 {
   "name": "ownspace",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Local start page replacement with customizable widgets",
   "private": true,
   "type": "module",
