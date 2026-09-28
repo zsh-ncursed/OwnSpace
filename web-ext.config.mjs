@@ -20,6 +20,7 @@ export default {
     'eslint.config.js',
     'vitest.config.js',
     'package*.json',
+    'package-lock.json',
     'README*.md',
     'AGENTS.md',
   ],

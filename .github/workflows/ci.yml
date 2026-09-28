@@ -50,15 +50,21 @@ jobs:
         id: version
         env:
           BOT_NAME: 'github-actions[bot]'
-          UPDATE_URL: https://github.com/${{ github.repository }}/releases/download/latest/update.json
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
         run: |
-          # The AMO side rejects a version it already signed, so the version in
-          # the tree must differ from the one on the update channel.
-          published=$(curl -fsSL "$UPDATE_URL" | grep -o '"version": *"[^"]*"' | tail -1 | sed 's/.*: *"//;s/"$//' || true)
+          # AMO is the source of truth for "is this version taken": the release
+          # channel only updates after signing, so comparing against it races.
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "No AMO secrets — nothing to bump against"
+            echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          uploaded=$(node tools/amo-versions.mjs || echo 'none')
           current=$(node -p "require('./manifest.json').version")
-          echo "published: '${published:-none}', tree: $current"
-          if [ -n "$published" ] && [ "$published" != "$current" ]; then
-            echo "Version in the tree differs from the channel — no bump needed"
+          echo "uploaded on AMO: $uploaded, tree: $current"
+          if [ "$uploaded" != "$current" ] && [ "$uploaded" != "none" ]; then
+            echo "Tree is ahead of AMO — no bump needed"
             echo "version=$current" >> "$GITHUB_OUTPUT"
             exit 0
           fi
