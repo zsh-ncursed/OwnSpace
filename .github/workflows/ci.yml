@@ -28,18 +28,51 @@ jobs:
     # job below — it runs only on version tags.
     runs-on: ubuntu-latest
     needs: test
+    # The version bump step commits back to main, which needs write access.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The bump step below pushes a commit back to main; it needs the
+          # bot's own token to be allowed to.
+          token: ${{ secrets.BOT_COMMIT_TOKEN || secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
 
-      # manifest.json is the version source; the release name uses it.
-      - name: Read version
+      # AMO rejects a second submission of an already-uploaded version, so a
+      # push that does not carry a version bump fails with "Conflict" at
+      # signing. When this push already bumped the version, do nothing;
+      # otherwise bump patch now so main is always publishable. The bot's own
+      # commit re-triggers CI, which then sees an unchanged version and skips.
+      - name: Ensure a publishable version
         id: version
+        env:
+          BOT_NAME: 'github-actions[bot]'
         run: |
-          ver=$(node -p "require('./manifest.json').version")
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          before="$GITHUB_SHA"
+          previous=$(git rev-parse HEAD~1 2>/dev/null || echo '')
+          bumped=false
+          if [ -n "$previous" ]; then
+            old=$(git show "$previous:manifest.json" 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" || echo '')
+            new=$(node -p "require('./manifest.json').version")
+            if [ -n "$old" ] && [ "$old" != "$new" ]; then
+              echo "Version moved $old → $new in this commit — no bump needed"
+              bumped=true
+            fi
+          fi
+          if [ "$bumped" = true ]; then
+            echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          next=$(node tools/bump-version.mjs)
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_NAME@users.noreply.github.com"
+          git add manifest.json package.json
+          git commit -m "chore: bump version to $next [skip ci]"
+          git push
+          echo "version=$next" >> "$GITHUB_OUTPUT"
 
       - name: Build xpi
         run: bash build.sh
