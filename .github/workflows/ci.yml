@@ -50,15 +50,15 @@ jobs:
         id: version
         env:
           BOT_NAME: 'github-actions[bot]'
+          UPDATE_URL: https://github.com/${{ github.repository }}/releases/download/latest/update.json
         run: |
           # The AMO side rejects a version it already signed, so the version in
-          # the tree must be newer than the one published on the update channel.
-          published=$(curl -fsSL https://github.com/${{ github.repository }}/releases/download/latest/update.json \
-            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).addons[Object.keys(JSON.parse(d).addons)[0]].updates.at(-1).version)}catch{console.log('')}})" || echo 'none')
+          # the tree must differ from the one on the update channel.
+          published=$(curl -fsSL "$UPDATE_URL" | grep -o '"version": *"[^"]*"' | tail -1 | sed 's/.*: *"//;s/"$//' || true)
           current=$(node -p "require('./manifest.json').version")
-          echo "published: $published, tree: $current"
-          if [ -n "$published" ] && [ "$published" != "none" ] && [ "$published" != "$current" ]; then
-            echo "Version in the tree is ahead of the channel — no bump needed"
+          echo "published: '${published:-none}', tree: $current"
+          if [ -n "$published" ] && [ "$published" != "$current" ]; then
+            echo "Version in the tree differs from the channel — no bump needed"
             echo "version=$current" >> "$GITHUB_OUTPUT"
             exit 0
           fi
