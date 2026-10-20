@@ -13,6 +13,11 @@
  *   - Active workspace id: kept if it still exists, else the first one.
  */
 
+// Limits mirroring export-import.js — a sync payload must not be able to
+// write more than an import would be allowed to.
+const MAX_WORKSPACES = 10;
+const MAX_WIDGETS_PER_WORKSPACE = 50;
+
 /**
  * Merge master's workspaces into the slave's local list.
  * Pure: takes arrays, returns a new array.
@@ -40,19 +45,41 @@ export function mergeSettings(masterSettings, localSettings) {
 }
 
 /**
- * Normalize the incoming payload before it is applied: strip anything that
- * must never be overwritten (nothing so far — full copy is intended, and the
- * active-workspace id is reconciled by the caller against merged workspaces).
+ * Normalize the incoming payload before it is applied.
+ *
+ * The payload comes from another device, so it is untrusted input even if the
+ * connection itself is authenticated: the pairing code proves the sender
+ * knows the code, not that the payload is well-formed. The slave validates
+ * the structure here — the same boundary importData draws (see
+ * export-import.js) — instead of writing whatever arrived straight into
+ * storage.
  */
 export function sanitizePayload(payload) {
   if (!payload || typeof payload !== 'object') return null;
+  const raw = Array.isArray(payload.workspaces) ? payload.workspaces : [];
+  // Same limits the import path enforces — a peer must not be able to make us
+  // store more than an import would be allowed to.
+  if (raw.length > MAX_WORKSPACES) return null;
+  // Entries without a usable id are dropped (mergeWorkspaces ignores them
+  // anyway) rather than rejecting the whole payload: one malformed workspace
+  // on the other side should not cost the user the entire sync.
+  const workspaces = [];
+  for (const ws of raw) {
+    if (!ws || typeof ws !== 'object') continue;
+    if (typeof ws.id !== 'string' || !ws.id) continue;
+    if (ws.widgets !== undefined && !Array.isArray(ws.widgets)) continue;
+    if (Array.isArray(ws.widgets) && ws.widgets.length > MAX_WIDGETS_PER_WORKSPACE) {
+      continue;
+    }
+    workspaces.push(ws);
+  }
   return {
-    workspaces: Array.isArray(payload.workspaces) ? payload.workspaces : [],
+    workspaces,
     settings:
       payload.settings && typeof payload.settings === 'object'
         ? payload.settings
         : {},
-    caldav: payload.caldav ?? null,
+    caldav: null,
     version: payload.version ?? 1,
   };
 }
