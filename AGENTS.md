@@ -37,12 +37,20 @@ Do NOT declare "ready", "done", or "built" without passing this smoke test.
 ```bash
 bash build.sh      # produces ownspace.xpi
 npm run lint       # eslint src/ background/ tests/ options/
-npm test           # vitest, 255 tests
+npm test           # vitest, 309 tests
 ```
 
 ## Tech notes
 
 - i18n: flat JS dictionaries (`src/i18n/en.js`, `ru.js`), NOT browser.i18n. `t(key, params)` at runtime.
+  The two dictionaries must keep the same key set — `tests/i18n-parity.test.js` enforces it.
 - ICS parser (`background/ics-parser.js`): classic script, shared via `globalThis.OwnSpaceICS` between SW (importScripts) and tests (side-effect import).
 - Crypto: PBKDF2 100k iterations + random salt for master password. AES-GCM with per-payload salt for encryption. Legacy salt fallback for backwards compat.
 - Background: `background.scripts` (Firefox event page) + `service_worker` (Chrome). `importScripts` guarded with `typeof` check.
+- Sync: the pairing code is the AES-GCM password; the blob is the SDP handshake. Roles: whoever
+  sends the first request is the slave (receives only), whoever approves is the master (sends only).
+  CalDAV credentials are never part of a sync payload. The handshake cannot be repeated
+  automatically after the tab is gone — a WebExtension cannot listen on a socket, so there is
+  no signaling server; the SDP has to travel by hand.
+- Time-dependent code must take an injected clock (`getCalendarView(widgetId, now)`), never read
+  the wall clock implicitly — a test that depends on the current month fails in the next month.

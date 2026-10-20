@@ -8,6 +8,12 @@ describe('escapeHtml', () => {
     expect(escapeHtml(undefined)).toBe('');
   });
 
+  it('returns empty string for non-string input instead of throwing', () => {
+    expect(escapeHtml(42)).toBe('');
+    expect(escapeHtml({})).toBe('');
+    expect(escapeHtml(['<b>'])).toBe('');
+  });
+
   it('escapes ampersand', () => {
     expect(escapeHtml('a & b')).toBe('a &amp; b');
   });

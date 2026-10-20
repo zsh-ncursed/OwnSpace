@@ -25,9 +25,16 @@ export function getCalendarView(widgetId, now = new Date()) {
   };
 }
 
-/** Merge updates into the view state and return the result. */
-export function setCalendarView(widgetId, updates) {
-  const next = { ...getCalendarView(widgetId), ...updates };
+/**
+ * Merge updates into the view state and return the result.
+ *
+ * `now` is accepted for the same reason getCalendarView takes it: the default
+ * view (the current month) must be computable from an injected clock, not
+ * from the wall clock, so callers and tests stay in control of the month they
+ * are working with.
+ */
+export function setCalendarView(widgetId, updates, now = new Date()) {
+  const next = { ...getCalendarView(widgetId, now), ...updates };
   _views.set(widgetId, next);
   return { ...next };
 }

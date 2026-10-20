@@ -1,5 +1,7 @@
 export function escapeHtml(str) {
-  if (!str) return '';
+  // Not a string? Then there is nothing to escape and nothing to interpolate —
+  // returning '' keeps a stray number or object from crashing the render.
+  if (typeof str !== 'string') return '';
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

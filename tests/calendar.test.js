@@ -615,7 +615,7 @@ describe('calendar view state (ephemeral, per-tab)', () => {
 
   it('remembers navigation within the tab', () => {
     const now = new Date(2026, 8, 17);
-    setCalendarView('w1', shiftMonth(2026, 8, -1));
+    setCalendarView('w1', shiftMonth(2026, 8, -1), now);
     expect(getCalendarView('w1', now)).toEqual({
       viewYear: 2026,
       viewMonth: 7,
@@ -625,13 +625,13 @@ describe('calendar view state (ephemeral, per-tab)', () => {
 
   it('keeps views of separate widgets independent', () => {
     const now = new Date(2026, 8, 17);
-    setCalendarView('w1', { viewYear: 2020, viewMonth: 0 });
+    setCalendarView('w1', { viewYear: 2020, viewMonth: 0 }, now);
     expect(getCalendarView('w2', now).viewMonth).toBe(8);
   });
 
   it('merges partial updates instead of replacing the view', () => {
     const now = new Date(2026, 8, 17);
-    setCalendarView('w1', { selectedDay: 5 });
+    setCalendarView('w1', { selectedDay: 5 }, now);
     expect(getCalendarView('w1', now)).toEqual({
       viewYear: 2026,
       viewMonth: 8,
@@ -640,15 +640,16 @@ describe('calendar view state (ephemeral, per-tab)', () => {
   });
 
   it('returns copies so callers cannot mutate stored state', () => {
-    setCalendarView('w1', { selectedDay: 5 });
-    const view = getCalendarView('w1');
+    const now = new Date(2026, 8, 17);
+    setCalendarView('w1', { selectedDay: 5 }, now);
+    const view = getCalendarView('w1', now);
     view.selectedDay = 99;
-    expect(getCalendarView('w1').selectedDay).toBe(5);
+    expect(getCalendarView('w1', now).selectedDay).toBe(5);
   });
 
   it('clearCalendarView resets that widget back to the current month', () => {
     const now = new Date(2026, 8, 17);
-    setCalendarView('w1', { viewYear: 2020, viewMonth: 0, selectedDay: 3 });
+    setCalendarView('w1', { viewYear: 2020, viewMonth: 0, selectedDay: 3 }, now);
     clearCalendarView('w1');
     expect(getCalendarView('w1', now)).toEqual({
       viewYear: 2026,

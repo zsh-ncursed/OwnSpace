@@ -1,6 +1,14 @@
 import js from '@eslint/js';
 
 export default [
+  {
+    // Third-party vendored code and build tooling are not ours to lint.
+    // lib/ holds minified polyfills (browser-polyfill, sortable) — they are
+    // byte-for-byte upstream files, and "fixing" them would break the next
+    // vendor update. tools/ holds Node scripts that run outside the
+    // extension and use Node globals this config does not declare.
+    ignores: ['lib/**', 'tools/**', 'build/**', 'web-ext-artifacts/**', 'node_modules/**', 'serve.cjs'],
+  },
   js.configs.recommended,
   {
     languageOptions: {
