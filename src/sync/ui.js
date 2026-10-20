@@ -22,7 +22,7 @@
 import { showConfirm, showNotification } from '../ui/modals.js';
 import { escapeHtml } from '../ui/escape.js';
 import { t } from '../i18n/index.js';
-import { getDeviceId, loadPairings, removePairing, addPairing, ROLES } from './state.js';
+import { getDeviceId, getDeviceName, setDeviceName, loadPairings, removePairing, addPairing, ROLES } from './state.js';
 import { createSyncManager } from './manager.js';
 
 let _manager = null;
@@ -200,8 +200,12 @@ export async function showPairWizard() {
     }
     try {
       nextBtn.disabled = true;
+      const deviceName = nameInput.value.trim();
+      // Remember it: this is how the master will label us from now on, and it
+      // survives the tab that did the pairing.
+      if (deviceName) await setDeviceName(deviceName);
       const { blob } = await mgr.startPairing({
-        name: nameInput.value.trim(),
+        name: deviceName,
         code,
       });
       blobOut.value = blob;
@@ -242,6 +246,12 @@ export async function showAcceptWizard() {
       <p class="sync-intro">${t('sync.intro_master')}</p>
 
       <label class="event-field">
+        <span>${t('sync.device_name_label')}</span>
+        <input type="text" id="sync-name" placeholder="${t('sync.device_name_placeholder')}" maxlength="32" />
+        <span class="sync-hint">${t('sync.device_name_hint')}</span>
+      </label>
+
+      <label class="event-field">
         <span>${t('sync.code_label')}</span>
         <input type="text" id="sync-code" placeholder="${t('sync.code_placeholder')}" maxlength="32" autocomplete="off" />
         <span class="sync-hint">${t('sync.code_hint')}</span>
@@ -276,11 +286,18 @@ export async function showAcceptWizard() {
   _statusEl = overlay.querySelector('#sync-status');
 
   const codeInput = overlay.querySelector('#sync-code');
+  const nameInput = overlay.querySelector('#sync-name');
   const blobIn = overlay.querySelector('#sync-blob-in');
   const stepAnswer = overlay.querySelector('#sync-step-answer');
   const blobOut = overlay.querySelector('#sync-blob-out');
   const nextBtn = overlay.querySelector('#sync-next');
   const statusEl = overlay.querySelector('#sync-status');
+
+  // The name is remembered from the last pairing — prefill it so the user
+  // does not retype it on every reconnect.
+  getDeviceName().then((saved) => {
+    if (saved && !nameInput.value) nameInput.value = saved;
+  });
 
   const close = () => {
     overlay.remove();
@@ -307,9 +324,12 @@ export async function showAcceptWizard() {
     }
     try {
       statusEl.hidden = false;
+      const deviceName = nameInput.value.trim();
+      if (deviceName) await setDeviceName(deviceName);
       const { blob } = await mgr.receiveOffer({
         blob: offer,
         code,
+        name: deviceName,
       });
       blobOut.value = blob;
       stepAnswer.hidden = false;

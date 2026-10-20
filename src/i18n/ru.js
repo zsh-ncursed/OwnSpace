@@ -361,6 +361,8 @@ export default {
   "sync.sent": "Данные отправлены",
   "sync.received": "Данные получены",
   "sync.disconnected": "Соединение разорвано",
+  "sync.status_reconnecting": "Соединение потеряно, восстановление…",
+  "sync.error_connection_failed": "Соединение не восстановить — сопрягите устройства заново",
   "sync.unnamed_device": "Другое устройство",
   "sync.no_pairings": "Связанных устройств пока нет.",
   "sync.unlink": "Отвязать",

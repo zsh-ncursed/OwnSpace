@@ -361,6 +361,8 @@ export default {
   "sync.sent": "Data sent",
   "sync.received": "Data received",
   "sync.disconnected": "Disconnected",
+  "sync.status_reconnecting": "Connection lost, reconnecting…",
+  "sync.error_connection_failed": "Connection failed — pair the devices again",
   "sync.unnamed_device": "Other device",
   "sync.no_pairings": "No linked devices yet.",
   "sync.unlink": "Unlink",

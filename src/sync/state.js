@@ -15,6 +15,7 @@ import { STORAGE_KEYS } from '../utils/constants.js';
 import { t } from '../i18n/index.js';
 
 const DEVICE_ID_KEY = 'syncDeviceId';
+const DEVICE_NAME_KEY = 'syncDeviceName';
 
 const ROLE_SLAVE = 'slave';
 const ROLE_MASTER = 'master';
@@ -45,6 +46,29 @@ export async function getDeviceId() {
 /** Drop the in-memory cache (tests). */
 export function resetDeviceIdCache() {
   _deviceId = null;
+}
+
+/**
+ * This device's display name, as shown to the other side.
+ *
+ * Stored separately from the pairing records because it belongs to *us*, not
+ * to a link: the master has to announce its name when it answers, and it has
+ * no pairing record for the slave until the link is established.
+ */
+export async function getDeviceName() {
+  const store = await getStorage();
+  const got = await store.getItem(DEVICE_NAME_KEY);
+  return typeof got === 'string' ? got : '';
+}
+
+/** Remember this device's display name. Empty string clears it. */
+export async function setDeviceName(name) {
+  const store = await getStorage();
+  const clean = typeof name === 'string' ? name.trim().slice(0, 32) : '';
+  if (clean) {
+    await store.setItem(DEVICE_NAME_KEY, clean);
+  }
+  return clean;
 }
 
 /**
