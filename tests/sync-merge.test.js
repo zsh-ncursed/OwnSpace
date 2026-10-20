@@ -75,15 +75,22 @@ describe('sanitizePayload', () => {
     const out = sanitizePayload({
       workspaces: [{ id: 'a' }],
       settings: { theme: 'light' },
-      caldav: { url: 'https://caldav.local' },
       version: 2,
     });
     expect(out).toEqual({
       workspaces: [{ id: 'a' }],
       settings: { theme: 'light' },
-      caldav: { url: 'https://caldav.local' },
+      caldav: null,
       version: 2,
     });
+  });
+
+  it('drops CalDAV credentials — they are never taken from a peer', () => {
+    const out = sanitizePayload({
+      workspaces: [{ id: 'a' }],
+      caldav: { url: 'https://caldav.local', encryptedCreds: [1, 2, 3] },
+    });
+    expect(out.caldav).toBeNull();
   });
 
   it('fills defaults for missing parts', () => {
@@ -96,5 +103,32 @@ describe('sanitizePayload', () => {
   it('rejects non-object payloads', () => {
     expect(sanitizePayload(null)).toBeNull();
     expect(sanitizePayload('nope')).toBeNull();
+  });
+
+  it('drops workspaces without a usable id instead of failing the whole payload', () => {
+    const out = sanitizePayload({
+      workspaces: [{ name: 'no id' }, { id: 'a', name: 'A' }, null],
+    });
+    expect(out.workspaces).toEqual([{ id: 'a', name: 'A' }]);
+  });
+
+  it('drops a workspace whose widgets are not an array', () => {
+    const out = sanitizePayload({
+      workspaces: [{ id: 'a', name: 'A', widgets: 'x' }, { id: 'b', name: 'B' }],
+    });
+    expect(out.workspaces).toEqual([{ id: 'b', name: 'B' }]);
+  });
+
+  it('rejects more workspaces than an import would allow', () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({ id: `w${i}`, name: 'W' }));
+    expect(sanitizePayload({ workspaces: many })).toBeNull();
+  });
+
+  it('drops a workspace with more widgets than an import would allow', () => {
+    const widgets = Array.from({ length: 51 }, (_, i) => ({ id: `x${i}` }));
+    const out = sanitizePayload({
+      workspaces: [{ id: 'a', name: 'A', widgets }, { id: 'b', name: 'B' }],
+    });
+    expect(out.workspaces).toEqual([{ id: 'b', name: 'B' }]);
   });
 });
