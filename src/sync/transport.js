@@ -39,6 +39,7 @@ export async function createOffer(name = '') {
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   await waitForIceGathering(pc);
+  assertHasCandidates(pc);
   const blob = await encodeSdpBlob(pc.localDescription.sdp, 'offer', name);
   return { blob, pc };
 }
@@ -49,21 +50,30 @@ export async function createOffer(name = '') {
  * what the slave packed into its blob.
  */
 export async function acceptOffer(blob) {
-  const { sdp, name } = await decodeSdpBlob(blob);
+  const decoded = await decodeSdpBlob(blob);
+  // The wizard has two paste fields; mixing them up (answer into the offer
+  // field) must fail with a clear message, not with a raw WebRTC error.
+  if (decoded.type !== 'offer') {
+    throw blobError('wrong_blob_type', 'expected an offer blob');
+  }
   const pc = createPeerConnection();
-  await pc.setRemoteDescription({ type: 'offer', sdp });
+  await pc.setRemoteDescription({ type: 'offer', sdp: decoded.sdp });
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await waitForIceGathering(pc);
+  assertHasCandidates(pc);
   const answerBlob = await encodeSdpBlob(pc.localDescription.sdp, 'answer');
-  return { blob: answerBlob, pc, name };
+  return { blob: answerBlob, pc, name: decoded.name };
 }
 
 /**
  * Apply the master's answer on the slave side.
  */
 export async function acceptAnswer(blob, pc) {
-  const { sdp } = await decodeSdpBlob(blob);
+  const { sdp, type } = await decodeSdpBlob(blob);
+  if (type !== 'answer') {
+    throw blobError('wrong_blob_type', 'expected an answer blob');
+  }
   await pc.setRemoteDescription({ type: 'answer', sdp });
 }
 
@@ -96,6 +106,23 @@ function waitForIceGathering(pc) {
   return Promise.race([complete, timeout]);
 }
 
+// A blob with zero candidates can never connect: gathering stalled (mDNS,
+// firewall) and the cap in waitForIceGathering ran out. Failing here — while
+// the user can simply retry — beats shipping a code that hangs on "Connecting…".
+function assertHasCandidates(pc) {
+  if (!/a=candidate/.test(pc.localDescription?.sdp || '')) {
+    throw blobError('no_candidates', 'ICE gathering produced no candidates');
+  }
+}
+
+// Transport errors carry a machine-readable code; the UI maps it to a clear
+// localized message (see syncErrorMessage in sync/ui.js).
+function blobError(code, message) {
+  const e = new Error(message || code);
+  e.code = code;
+  return e;
+}
+
 // ── blob codec (pure, exported for tests) ──────────────────────────────────
 
 // The envelope is tiny — `t` marks offer/answer, `n` carries the sender's
@@ -113,14 +140,28 @@ export async function encodeSdpBlob(sdp, type, name = '') {
 }
 
 export async function decodeSdpBlob(blob) {
-  const bytes = base64UrlDecode(blob);
-  const json = await decompress(bytes);
-  const parsed = JSON.parse(json);
-  return {
-    type: parsed.t === 1 ? 'answer' : 'offer',
-    sdp: parsed.s,
-    name: typeof parsed.n === 'string' ? parsed.n : '',
-  };
+  try {
+    const bytes = base64UrlDecode(sanitizeBlobInput(blob));
+    const json = await decompress(bytes);
+    const parsed = JSON.parse(json);
+    if (!parsed || typeof parsed.s !== 'string') throw new Error('no sdp');
+    return {
+      type: parsed.t === 1 ? 'answer' : 'offer',
+      sdp: parsed.s,
+      name: typeof parsed.n === 'string' ? parsed.n : '',
+    };
+  } catch {
+    throw blobError('blob_corrupted', 'connection code is not decodable');
+  }
+}
+
+// Paste hygiene: messengers wrap lines and inject NBSP, zero-width characters
+// or smart quotes; any of them breaks base64 decoding. Everything outside the
+// base64url alphabet (plus padding) is junk by definition, so strip it
+// wholesale instead of trying to enumerate the damage.
+export function sanitizeBlobInput(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.replace(/[^A-Za-z0-9\-_=]/g, '');
 }
 
 async function compress(str) {

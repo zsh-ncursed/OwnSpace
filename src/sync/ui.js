@@ -24,6 +24,7 @@ import { escapeHtml } from '../ui/escape.js';
 import { t } from '../i18n/index.js';
 import { getDeviceId, getDeviceName, setDeviceName, loadPairings, removePairing, addPairing, ROLES } from './state.js';
 import { createSyncManager } from './manager.js';
+import { sanitizeBlobInput } from './transport.js';
 
 let _manager = null;
 let _statusEl = null;
@@ -58,6 +59,40 @@ function label(status) {
       error: t('sync.status_error'),
     }[status] || status
   );
+}
+
+// Transport errors arrive with a machine-readable code (see transport.js);
+// map them to clear messages instead of showing raw WebRTC internals.
+const SYNC_ERROR_KEYS = {
+  blob_corrupted: 'sync.error_blob_corrupted',
+  wrong_blob_type: 'sync.error_wrong_blob_type',
+  no_candidates: 'sync.error_no_candidates',
+};
+
+function syncErrorMessage(e) {
+  const key = e && e.code ? SYNC_ERROR_KEYS[e.code] : null;
+  return key ? t(key) : e?.message || t('common.error');
+}
+
+// Pairing can fail for network reasons the wizard cannot see; the checklist
+// turns a dead end into something the user can act on.
+function openTroubleshooting(overlay) {
+  overlay?.querySelector('.sync-troubleshoot')?.setAttribute('open', '');
+}
+
+function troubleshootHtml() {
+  return `
+    <details class="sync-troubleshoot">
+      <summary>${t('sync.trouble_title')}</summary>
+      <ul class="sync-trouble-list">
+        <li>${t('sync.trouble_hint_network')}</li>
+        <li>${t('sync.trouble_hint_vpn')}</li>
+        <li>${t('sync.trouble_hint_firewall')}</li>
+        <li>${t('sync.trouble_hint_blob')}</li>
+        <li>${t('sync.trouble_hint_webrtc')}</li>
+      </ul>
+    </details>
+  `;
 }
 
 /**
@@ -140,6 +175,7 @@ export async function showPairWizard() {
         </label>
       </div>
 
+      ${troubleshootHtml()}
       <div class="sync-status" id="sync-status" hidden></div>
 
       <div class="modal-actions">
@@ -184,7 +220,7 @@ export async function showPairWizard() {
     }
     if (blobOut.value) {
       // Step 3: apply the master's answer.
-      const answer = blobIn.value.trim();
+      const answer = sanitizeBlobInput(blobIn.value);
       if (!answer) {
         showNotification(t('sync.error_no_answer'));
         blobIn.focus();
@@ -194,7 +230,8 @@ export async function showPairWizard() {
         statusEl.hidden = false;
         await mgr.applyAnswer(answer);
       } catch (e) {
-        showNotification(t('sync.error_connect', { message: e.message }));
+        showNotification(t('sync.error_connect', { message: syncErrorMessage(e) }));
+        openTroubleshooting(overlay);
       }
       return;
     }
@@ -217,7 +254,8 @@ export async function showPairWizard() {
       await copyToClipboard(blobOut);
     } catch (e) {
       nextBtn.disabled = false;
-      showNotification(t('sync.error_offer', { message: e.message }));
+      showNotification(t('sync.error_offer', { message: syncErrorMessage(e) }));
+      openTroubleshooting(overlay);
     }
   });
 
@@ -274,6 +312,7 @@ export async function showAcceptWizard() {
         </label>
       </div>
 
+      ${troubleshootHtml()}
       <div class="sync-status" id="sync-status" hidden></div>
 
       <div class="modal-actions">
@@ -316,7 +355,7 @@ export async function showAcceptWizard() {
 
   nextBtn.addEventListener('click', async () => {
     const code = codeInput.value.trim();
-    const offer = blobIn.value.trim();
+    const offer = sanitizeBlobInput(blobIn.value);
     if (!code || !offer) {
       showNotification(!code ? t('sync.error_no_code') : t('sync.error_no_offer'));
       (!code ? codeInput : blobIn).focus();
@@ -340,7 +379,8 @@ export async function showAcceptWizard() {
       await copyToClipboard(blobOut);
     } catch (e) {
       nextBtn.disabled = false;
-      showNotification(t('sync.error_offer', { message: e.message }));
+      showNotification(t('sync.error_offer', { message: syncErrorMessage(e) }));
+      openTroubleshooting(overlay);
     }
   });
 

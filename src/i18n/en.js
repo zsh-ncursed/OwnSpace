@@ -386,5 +386,15 @@ export default {
   "sync.paste_from_clipboard": "Paste from clipboard",
   "sync.clipboard_empty": "Clipboard is empty",
   "sync.clipboard_blocked": "Clipboard access blocked — paste into the field manually",
-  "sync.autocopied_hint": "Code copied to clipboard — paste it on the other device"
+  "sync.autocopied_hint": "Code copied to clipboard — paste it on the other device",
+  "sync.error_blob_corrupted": "The connection code got damaged on the way — copy and paste it again",
+  "sync.error_wrong_blob_type": "This code belongs in the other field — check which code you pasted where",
+  "sync.error_no_candidates": "No network addresses were collected — check the network and generate the code again",
+  "sync.error_connect_timeout": "The connection was not established in time — see the tips below",
+  "sync.trouble_title": "Not connecting?",
+  "sync.trouble_hint_network": "Both PCs must be on the same network (same subnet, no client isolation on the Wi-Fi).",
+  "sync.trouble_hint_vpn": "Turn the VPN off on both sides — it usually takes the machine off the local network.",
+  "sync.trouble_hint_firewall": "The firewall must allow UDP for Firefox (and mDNS, port 5353 — the avahi service on Linux).",
+  "sync.trouble_hint_blob": "Pass the codes along unedited: copy and paste, do not retype them.",
+  "sync.trouble_hint_webrtc": "For details see about:webrtc in both browsers (ICE state and candidates)."
 };

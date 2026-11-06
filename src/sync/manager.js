@@ -49,8 +49,12 @@ import { t } from '../i18n/index.js';
  * @param {function} opts.onStatus  status callback: ('idle'|'pending'|'paired'|'syncing'|'error', detail)
  * @param {function} opts.onCode    called with a blob code to copy on the other side.
  */
+// How long to wait for the data channel to open before reporting failure.
+const DEFAULT_CONNECT_TIMEOUT_MS = 15000;
+
 export function createSyncManager(opts = {}) {
   const { onRequest, onStatus, onCode } = opts;
+  const connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
   const status = (s, detail) => onStatus?.(s, detail);
 
   let pc = null;
@@ -61,8 +65,10 @@ export function createSyncManager(opts = {}) {
   // The slave's name, extracted from its offer blob on the master side.
   let peerName = '';
   let role = null;
+  let connectTimer = null;
 
   function close() {
+    clearConnectTimeout();
     try {
       channel?.close();
       pc?.close();
@@ -70,6 +76,27 @@ export function createSyncManager(opts = {}) {
     channel = null;
     pc = null;
     remoteDeviceId = null;
+  }
+
+  // If ICE never gets anywhere (firewall, mDNS, VPN), nothing in the WebRTC
+  // state machine fires an error for us: the connection just sits in
+  // "checking". The timeout turns that silent hang into a status the user
+  // can act on. 0/negative disables the timer (tests).
+  function clearConnectTimeout() {
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
+    }
+  }
+
+  function armConnectTimeout() {
+    clearConnectTimeout();
+    if (!connectTimeoutMs || connectTimeoutMs <= 0) return;
+    connectTimer = setTimeout(() => {
+      connectTimer = null;
+      if (channel?.readyState === 'open') return;
+      status('error', t('sync.error_connect_timeout'));
+    }, connectTimeoutMs);
   }
 
   // ── SLAVE side: start pairing (generate offer) ──────────────────────────
@@ -88,6 +115,7 @@ export function createSyncManager(opts = {}) {
     // The slave created the data channel itself, so grab it right away.
     channel = pc['ownspace-dc'];
     wireChannel(channel);
+    armConnectTimeout();
     onCode?.(res.blob, 'offer');
     return res;
   }
@@ -116,10 +144,12 @@ export function createSyncManager(opts = {}) {
       channel = e.channel;
       wireChannel(channel);
     });
+    armConnectTimeout();
     return res;
   }
 
   async function onChannelOpen() {
+    clearConnectTimeout();
     status('paired', role === ROLES.MASTER ? t('sync.role_master') : t('sync.role_slave'));
     if (role === ROLES.MASTER) {
       // The connection itself is the pairing request: the slave deliberately

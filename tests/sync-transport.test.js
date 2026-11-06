@@ -4,6 +4,10 @@ import {
   decodeSdpBlob,
   encodeSyncMessage,
   decodeSyncMessage,
+  sanitizeBlobInput,
+  createOffer,
+  acceptOffer,
+  acceptAnswer,
   MSG,
 } from '../src/sync/transport.js';
 
@@ -140,5 +144,104 @@ describe('sync transport: sync messages', () => {
     expect(decodeSyncMessage('{not json')).toBeNull();
     expect(decodeSyncMessage(JSON.stringify({ no_type: true }))).toBeNull();
     expect(decodeSyncMessage(JSON.stringify({ type: 123 }))).toBeNull();
+  });
+});
+
+// ── paste hygiene and handshake guards ─────────────────────────────────────
+// The blob travels through messengers that wrap lines and inject invisible
+// characters, and the wizards have two paste fields users mix up. These tests
+// pin the defenses around that.
+
+describe('sync transport: paste hygiene and handshake guards', () => {
+  it('strips everything outside the base64url alphabet', () => {
+    expect(sanitizeBlobInput(' ab-1\r\n\tde ')).toBe('ab-1de');
+    expect(sanitizeBlobInput('a\u00A0b\u200Bc\u200Dd')).toBe('abcd');
+    expect(sanitizeBlobInput('"abc"`')).toBe('abc');
+    expect(sanitizeBlobInput(undefined)).toBe('');
+  });
+
+  it('decodes a blob that was wrapped or polluted on the way', async () => {
+    const blob = await encodeSdpBlob(SAMPLE_OFFER, 'offer');
+    const polluted = ` \n${blob.slice(0, 20)}\u00A0${blob.slice(20)}\u200B\n `;
+    const decoded = await decodeSdpBlob(polluted);
+    expect(decoded.type).toBe('offer');
+    expect(decoded.sdp).toBe(SAMPLE_OFFER);
+  });
+
+  it('rejects a pasted answer in the offer field and vice versa', async () => {
+    const offerBlob = await encodeSdpBlob(SAMPLE_OFFER, 'offer');
+    const answerBlob = await encodeSdpBlob(SAMPLE_OFFER, 'answer');
+    // The type check fires before any peer connection is created.
+    await expect(acceptOffer(answerBlob)).rejects.toMatchObject({
+      code: 'wrong_blob_type',
+    });
+    await expect(acceptAnswer(offerBlob, {})).rejects.toMatchObject({
+      code: 'wrong_blob_type',
+    });
+  });
+
+  it('refuses to hand out a blob with no candidates', async () => {
+    // SAMPLE_OFFER carries no a=candidate lines — what a stalled gatherer
+    // produces when the 5 s cap in waitForIceGathering runs out.
+    globalThis.RTCPeerConnection = class {
+      constructor() {
+        this.iceGatheringState = 'complete';
+        this.iceConnectionState = 'new';
+      }
+      createDataChannel() {
+        return {};
+      }
+      async createOffer() {
+        return { type: 'offer', sdp: SAMPLE_OFFER };
+      }
+      async createAnswer() {
+        return { type: 'answer', sdp: SAMPLE_OFFER };
+      }
+      async setLocalDescription(d) {
+        this.localDescription = d;
+      }
+      async setRemoteDescription() {}
+      addEventListener() {}
+    };
+    try {
+      await expect(createOffer('X')).rejects.toMatchObject({
+        code: 'no_candidates',
+      });
+      const offerBlob = await encodeSdpBlob(SAMPLE_OFFER, 'offer');
+      await expect(acceptOffer(offerBlob)).rejects.toMatchObject({
+        code: 'no_candidates',
+      });
+    } finally {
+      delete globalThis.RTCPeerConnection;
+    }
+  });
+
+  it('accepts a real offer and answers with a decodable blob', async () => {
+    globalThis.RTCPeerConnection = class {
+      constructor() {
+        this.iceGatheringState = 'complete';
+        this.iceConnectionState = 'new';
+      }
+      createDataChannel() {
+        return {};
+      }
+      async setRemoteDescription() {}
+      async createAnswer() {
+        return { type: 'answer', sdp: REALISTIC_OFFER };
+      }
+      async setLocalDescription(d) {
+        this.localDescription = d;
+      }
+      addEventListener() {}
+    };
+    try {
+      const offerBlob = await encodeSdpBlob(REALISTIC_OFFER, 'offer');
+      const res = await acceptOffer(offerBlob);
+      const decoded = await decodeSdpBlob(res.blob);
+      expect(decoded.type).toBe('answer');
+      expect(decoded.sdp).toBe(REALISTIC_OFFER);
+    } finally {
+      delete globalThis.RTCPeerConnection;
+    }
   });
 });

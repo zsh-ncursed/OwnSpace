@@ -104,6 +104,13 @@ const ANSWER_SDP = [
   'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
   'a=ice-ufrag:ZyXwVuTs',
   'a=ice-pwd:0123456789abcdefghijklmnopqrstuv',
+  // A real answer always carries candidates; the transport refuses to emit a
+  // blob without them (assertHasCandidates), so the fixture must have some.
+  ...Array.from(
+    { length: 4 },
+    (_, i) =>
+      `a=candidate:1 ${i + 1} udp 2130706431 192.168.1.${20 + i} ${51000 + i} typ host generation 0`,
+  ),
   'a=end-of-candidates',
   '',
 ].join('\r\n');
@@ -274,5 +281,37 @@ describe('sync manager — error handling', () => {
     dc._emit('message', { data: 'not json' });
     dc._emit('message', { data: '{"type":123}' });
     expect(onStatus).not.toHaveBeenCalledWith('error', expect.anything());
+  });
+});
+
+describe('sync manager — connect timeout', () => {
+  it('reports an error when the channel never opens', async () => {
+    vi.useFakeTimers();
+    try {
+      const onStatus = vi.fn();
+      const mgr = createSyncManager({ onStatus, connectTimeoutMs: 50 });
+      await mgr.startPairing({ name: 'Laptop', code: '7291' });
+      // Nothing opens the channel — the silent "checking…" hang the timeout
+      // exists to surface (firewall, unresolvable mDNS candidates).
+      await vi.advanceTimersByTimeAsync(60);
+      expect(onStatus).toHaveBeenCalledWith('error', expect.any(String));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opening the channel cancels the timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const onStatus = vi.fn();
+      const mgr = createSyncManager({ onStatus, connectTimeoutMs: 50 });
+      await mgr.startPairing({ name: 'Laptop', code: '7291' });
+      lastPc._dc.open();
+      await vi.advanceTimersByTimeAsync(60);
+      expect(onStatus).not.toHaveBeenCalledWith('error', expect.anything());
+      expect(mgr.isOpen).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

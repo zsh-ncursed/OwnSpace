@@ -3601,6 +3601,24 @@ body {
   color: var(--text);
 }
 
+.sync-troubleshoot {
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+.sync-troubleshoot summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--text);
+}
+
+.sync-trouble-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.55;
+}
+
 .sync-actions {
   display: flex;
   gap: 10px;
